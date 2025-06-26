@@ -7,6 +7,10 @@ export interface CanvasWrapperProps {
   className?: string;
   onDraw: (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => void;
   style?: React.CSSProperties;
+  onMouseMove?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onMouseLeave?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onClick?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onMouseEnter?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
 }
 
 export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
@@ -15,6 +19,10 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   className,
   onDraw,
   style,
+  onMouseMove,
+  onMouseLeave,
+  onClick,
+  onMouseEnter,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,6 +109,50 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
       resizeObserver.disconnect();
     };
   }, [updateDimensions, width, height]);
+
+  // Add mouse event listeners
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      onMouseMove?.(event, canvas);
+      draw(); // Redraw to show cursor
+    };
+
+    const handleMouseLeave = (event: MouseEvent) => {
+      onMouseLeave?.(event, canvas);
+      draw(); // Redraw to hide cursor
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      onClick?.(event, canvas);
+    };
+
+    const handleMouseEnter = (event: MouseEvent) => {
+      onMouseEnter?.(event, canvas);
+    };
+
+    if (onMouseMove) {
+      canvas.addEventListener('mousemove', handleMouseMove);
+    }
+    if (onMouseLeave) {
+      canvas.addEventListener('mouseleave', handleMouseLeave);
+    }
+    if (onClick) {
+      canvas.addEventListener('click', handleClick);
+    }
+    if (onMouseEnter) {
+      canvas.addEventListener('mouseenter', handleMouseEnter);
+    }
+
+    return () => {
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
+      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mouseenter', handleMouseEnter);
+    };
+  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, draw]);
 
   // Determine container styles based on width/height types
   const containerStyle: React.CSSProperties = {

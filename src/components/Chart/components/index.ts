@@ -3,6 +3,8 @@ export * from './ChartTitle';
 export * from './ChartAxis';
 export * from './ChartGrid';
 export * from './ChartLabel';
+export * from './ChartCursor';
+export * from './ChartTooltip';
 
 // Bar chart specific
 export * from './ChartBar';

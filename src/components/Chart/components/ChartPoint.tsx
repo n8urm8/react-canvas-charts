@@ -116,18 +116,28 @@ export const renderChartPoint = (props: ChartPointRenderProps): void => {
       break;
   }
 
-  // Fill the shape (unless hollow)
-  if (!hollow) {
-    context.fillStyle = fillColor || color;
-    context.fill();
-  }
-
-  // Draw border if specified
-  if (borderWidth > 0) {
-    context.shadowColor = 'transparent'; // Disable shadow for border
-    context.strokeStyle = borderColor;
-    context.lineWidth = borderWidth;
+  // Handle line-based shapes (cross) differently
+  if (shape === 'cross') {
+    // Cross is always stroked, never filled
+    context.shadowColor = 'transparent'; // Disable shadow for stroke
+    context.strokeStyle = color;
+    context.lineWidth = Math.max(2, borderWidth || 2); // Ensure minimum visible width
+    context.lineCap = 'round'; // Make cross ends rounded
     context.stroke();
+  } else {
+    // Fill the shape (unless hollow)
+    if (!hollow) {
+      context.fillStyle = fillColor || color;
+      context.fill();
+    }
+
+    // Draw border if specified
+    if (borderWidth > 0) {
+      context.shadowColor = 'transparent'; // Disable shadow for border
+      context.strokeStyle = borderColor;
+      context.lineWidth = borderWidth;
+      context.stroke();
+    }
   }
 
   // Restore context state
@@ -163,12 +173,13 @@ function drawDiamond(context: CanvasRenderingContext2D, x: number, y: number, si
 
 function drawCross(context: CanvasRenderingContext2D, x: number, y: number, size: number): void {
   const halfSize = size / 2;
-  const thickness = size * 0.2;
   
-  // Vertical line
-  context.rect(x - thickness / 2, y - halfSize, thickness, size);
-  // Horizontal line
-  context.rect(x - halfSize, y - thickness / 2, size, thickness);
+  // Since cross is typically a stroke-based shape, we'll use lines
+  // This will be handled by the stroke() call in the main function
+  context.moveTo(x - halfSize, y);
+  context.lineTo(x + halfSize, y);
+  context.moveTo(x, y - halfSize);
+  context.lineTo(x, y + halfSize);
 }
 
 function drawStar(context: CanvasRenderingContext2D, x: number, y: number, size: number): void {

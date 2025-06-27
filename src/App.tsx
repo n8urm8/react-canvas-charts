@@ -6,7 +6,9 @@ import {
   ChartControls,
   ChartContainer,
   FeatureDocumentation,
-  UsageExamples
+  UsageExamples,
+  LineChartShowcase,
+  Navigation
 } from "./ExampleComponents";
 import "./App.css";
 
@@ -32,6 +34,7 @@ function App() {
   const [isResponsive, setIsResponsive] = useState(true);
   const [styleVariant, setStyleVariant] = useState(0);
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [currentPage, setCurrentPage] = useState<'main' | 'linechart'>('main');
   
   const datasets = [sampleData, alternateData];
   const titles = ["Monthly Sales (K$)", "Product Performance"];
@@ -39,36 +42,44 @@ function App() {
   const currentStyle = currentStyleVariants[styleVariant] || {};
 
   return (
-    <div className="p-5 font-sans bg-gray-50 min-h-screen">
-      <h1 className="text-center text-3xl font-bold text-gray-900 mb-8">
-        React Canvas Charting Library - Bar & Line Charts
-      </h1>
+    <div className="font-sans bg-gray-50 min-h-screen">
+      <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
       
-      <ChartControls
-        chartType={chartType}
-        onChartTypeChange={() => setChartType(chartType === 'bar' ? 'line' : 'bar')}
-        currentDataIndex={currentDataIndex}
-        totalDatasets={datasets.length}
-        onDatasetChange={() => setCurrentDataIndex((prev) => (prev + 1) % datasets.length)}
-        isResponsive={isResponsive}
-        onResponsiveToggle={() => setIsResponsive(!isResponsive)}
-        styleVariant={styleVariant}
-        totalStyleVariants={currentStyleVariants.length}
-        onStyleChange={() => setStyleVariant((prev) => (prev + 1) % currentStyleVariants.length)}
-      />
+      {currentPage === 'main' ? (
+        <div className="p-5">
+          <h1 className="text-center text-3xl font-bold text-gray-900 mb-8">
+            React Canvas Charting Library - Bar & Line Charts
+          </h1>
+          
+          <ChartControls
+            chartType={chartType}
+            onChartTypeChange={() => setChartType(chartType === 'bar' ? 'line' : 'bar')}
+            currentDataIndex={currentDataIndex}
+            totalDatasets={datasets.length}
+            onDatasetChange={() => setCurrentDataIndex((prev) => (prev + 1) % datasets.length)}
+            isResponsive={isResponsive}
+            onResponsiveToggle={() => setIsResponsive(!isResponsive)}
+            styleVariant={styleVariant}
+            totalStyleVariants={currentStyleVariants.length}
+            onStyleChange={() => setStyleVariant((prev) => (prev + 1) % currentStyleVariants.length)}
+          />
 
-      <div className="flex flex-col gap-10 items-center">
-        <ChartContainer
-          chartType={chartType}
-          data={datasets[currentDataIndex]}
-          title={titles[currentDataIndex]}
-          isResponsive={isResponsive}
-          currentStyle={currentStyle}
-        />
+          <div className="flex flex-col gap-10 items-center">
+            <ChartContainer
+              chartType={chartType}
+              data={datasets[currentDataIndex]}
+              title={titles[currentDataIndex]}
+              isResponsive={isResponsive}
+              currentStyle={currentStyle}
+            />
 
-        <FeatureDocumentation />
-        <UsageExamples />
-      </div>
+            <FeatureDocumentation />
+            <UsageExamples />
+          </div>
+        </div>
+      ) : (
+        <LineChartShowcase />
+      )}
     </div>
   );
 }

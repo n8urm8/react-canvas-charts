@@ -360,6 +360,8 @@ export const LineChart: React.FC<LineChartProps> = ({
       endY: chartY + chartHeight,
       labels: yLabels,
       labelPositions: yLabelPositions,
+      canvasWidth,
+      canvasHeight,
     });
 
     // Render X-axis
@@ -374,6 +376,8 @@ export const LineChart: React.FC<LineChartProps> = ({
       endY: chartY + chartHeight,
       labels: uniqueLabels,
       labelPositions: xLabelPositions,
+      canvasWidth,
+      canvasHeight,
     });
 
     // Render each series

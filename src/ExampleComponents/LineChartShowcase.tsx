@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
+import { StreamingTemperatureChart } from './StreamingTemperatureChart';
 
 export const LineChartShowcase: React.FC = () => {
   // Sample data for demonstrations
@@ -34,7 +35,7 @@ export const LineChartShowcase: React.FC = () => {
     <div className="p-5 font-sans bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-center text-3xl font-bold text-gray-900 mb-8">
-          LineChart Showcase - Interactive Examples
+          LineChart Showcase - Interactive Examples with Axis Titles
         </h1>
         
         <div className="space-y-16">
@@ -43,18 +44,38 @@ export const LineChartShowcase: React.FC = () => {
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">📈 Basic Line Chart</h2>
             <p className="text-gray-600 mb-6">Simple line chart with default styling and interactive cursor.</p>
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="w-full h-96">
-                <LineChart
-                  data={monthlyData}
-                  title="Monthly Sales Trend"
-                  width="100%"
-                  height="100%"
-                  enableCursor={true}
-                  enableTooltip={true}
-                  showPoints={true}
-                  showLines={true}
-                />
-              </div>
+                          <div className="w-full h-96">
+              <LineChart
+                data={monthlyData}
+                title="Monthly Sales Trend"
+                width="100%"
+                height="100%"
+                padding={80}
+                enableCursor={true}
+                enableTooltip={true}
+                showPoints={true}
+                showLines={true}
+                xAxisComponent={{
+                  title: 'Month',
+                  showTitle: true,
+                  titleFontSize: 13,
+                  titleColor: '#6b7280',
+                  titleFontWeight: 'normal',
+                  showLabels: true,
+                  labelColor: '#9ca3af',
+                }}
+                yAxisComponent={{
+                  title: 'Sales ($K)',
+                  showTitle: true,
+                  titleFontSize: 13,
+                  titleColor: '#6b7280',
+                  titleFontWeight: 'normal',
+                  titleRotation: -90,
+                  showLabels: true,
+                  labelColor: '#9ca3af',
+                }}
+              />
+            </div>
             </div>
           </section>
 
@@ -63,50 +84,71 @@ export const LineChartShowcase: React.FC = () => {
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">🌊 Smooth Curves with Area Fill</h2>
             <p className="text-gray-600 mb-6">Smooth bezier curves with gradient area fill and enhanced tooltips.</p>
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="w-full h-96">
-                <LineChart
-                  data={performanceData}
-                  title="Quarterly Performance"
-                  width="100%"
-                  height="100%"
-                  enableCursor={true}
-                  enableTooltip={true}
-                  fillArea={true}
-                  fillOpacity={0.3}
-                  lineComponent={{
-                    smooth: true,
-                    lineWidth: 4,
-                    color: '#10b981',
-                    showShadow: true,
-                    shadowColor: 'rgba(16, 185, 129, 0.3)',
-                    shadowBlur: 8,
-                  }}
-                  pointComponent={{
-                    size: 10,
-                    shape: 'circle',
-                    color: '#10b981',
-                    fillColor: '#aaaaaa',
-                    borderWidth: 3,
-                    showShadow: true,
-                  }}
-                  cursorComponent={{
-                    showHorizontalLine: true,
-                    showVerticalLine: true,
-                    snapToDataPoints: true,
-                    horizontalLineColor: '#10b981',
-                    verticalLineColor: '#10b981',
-                    opacity: 0.8,
-                  }}
-                  tooltipComponent={{
-                    backgroundColor: '#10b981',
-                    textColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 12,
-                    template: '📊 {label}: {value} units',
-                    shadowBlur: 12,
-                  }}
-                />
-              </div>
+                          <div className="w-full h-96">
+              <LineChart
+                data={performanceData}
+                title="Quarterly Performance"
+                width="100%"
+                height="100%"
+                padding={85}
+                enableCursor={true}
+                enableTooltip={true}
+                fillArea={true}
+                fillOpacity={0.3}
+                lineComponent={{
+                  smooth: true,
+                  lineWidth: 4,
+                  color: '#10b981',
+                  showShadow: true,
+                  shadowColor: 'rgba(16, 185, 129, 0.3)',
+                  shadowBlur: 8,
+                }}
+                pointComponent={{
+                  size: 10,
+                  shape: 'circle',
+                  color: '#10b981',
+                  fillColor: '#aaaaaa',
+                  borderWidth: 3,
+                  showShadow: true,
+                }}
+                cursorComponent={{
+                  showHorizontalLine: true,
+                  showVerticalLine: true,
+                  snapToDataPoints: true,
+                  horizontalLineColor: '#10b981',
+                  verticalLineColor: '#10b981',
+                  opacity: 0.8,
+                }}
+                tooltipComponent={{
+                  backgroundColor: '#10b981',
+                  textColor: '#ffffff',
+                  borderRadius: 8,
+                  padding: 12,
+                  template: '📊 {label}: {value} units',
+                  shadowBlur: 12,
+                }}
+                xAxisComponent={{
+                  title: 'Quarter',
+                  showTitle: true,
+                  titleFontSize: 14,
+                  titleColor: '#10b981',
+                  titleFontWeight: 'bold',
+                  titlePosition: 'center',
+                  showLabels: true,
+                  labelColor: '#374151',
+                }}
+                yAxisComponent={{
+                  title: 'Performance Score',
+                  showTitle: true,
+                  titleFontSize: 14,
+                  titleColor: '#10b981',
+                  titleFontWeight: 'bold',
+                  titleRotation: -90,
+                  showLabels: true,
+                  labelColor: '#374151',
+                }}
+              />
+            </div>
             </div>
           </section>
 
@@ -115,51 +157,78 @@ export const LineChartShowcase: React.FC = () => {
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">💎 Dashed Lines with Diamond Points</h2>
             <p className="text-gray-600 mb-6">Dashed line style with diamond-shaped points and custom tooltip positioning.</p>
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="w-full h-96">
-                <LineChart
-                  data={trendData}
-                  title="Weekly Growth Trend"
-                  width="100%"
-                  height="100%"
-                  enableCursor={true}
-                  enableTooltip={true}
-                  lineComponent={{
-                    lineDash: [15, 10],
-                    lineWidth: 3,
-                    color: '#f59e0b',
-                    lineCap: 'round',
-                  }}
-                  pointComponent={{
-                    shape: 'diamond',
-                    size: 12,
-                    color: '#f59e0b',
-                    fillColor: '#fef3c7',
-                    borderWidth: 2,
-                    hollow: false,
-                  }}
-                  cursorComponent={{
-                    showHorizontalLine: false,
-                    showVerticalLine: true,
-                    snapToDataPoints: true,
-                    verticalLineColor: '#f59e0b',
-                    verticalLineDash: [5, 5],
-                  }}
-                  tooltipComponent={{
-                    position: 'top',
-                    backgroundColor: '#f59e0b',
-                    textColor: '#1f2937',
-                    borderRadius: 6,
-                    template: 'Week: {label} | Value: {value}%',
-                  }}
-                />
-              </div>
+                          <div className="w-full h-96">
+              <LineChart
+                data={trendData}
+                title="Weekly Growth Trend"
+                width="100%"
+                height="100%"
+                padding={80}
+                enableCursor={true}
+                enableTooltip={true}
+                lineComponent={{
+                  lineDash: [15, 10],
+                  lineWidth: 3,
+                  color: '#f59e0b',
+                  lineCap: 'round',
+                }}
+                pointComponent={{
+                  shape: 'diamond',
+                  size: 12,
+                  color: '#f59e0b',
+                  fillColor: '#fef3c7',
+                  borderWidth: 2,
+                  hollow: false,
+                }}
+                cursorComponent={{
+                  showHorizontalLine: false,
+                  showVerticalLine: true,
+                  snapToDataPoints: true,
+                  verticalLineColor: '#f59e0b',
+                  verticalLineDash: [5, 5],
+                }}
+                tooltipComponent={{
+                  position: 'top',
+                  backgroundColor: '#f59e0b',
+                  textColor: '#1f2937',
+                  borderRadius: 6,
+                  template: 'Week: {label} | Value: {value}%',
+                }}
+                xAxisComponent={{
+                  title: 'Time Period',
+                  showTitle: true,
+                  titleFontSize: 12,
+                  titleColor: '#d97706',
+                  titleFontWeight: 'medium',
+                  titlePosition: 'end',
+                  showLabels: true,
+                  labelColor: '#78716c',
+                  labelFontSize: 10,
+                }}
+                yAxisComponent={{
+                  title: 'Growth %',
+                  showTitle: true,
+                  titleFontSize: 12,
+                  titleColor: '#d97706',
+                  titleFontWeight: 'medium',
+                  titleRotation: -90,
+                  titlePosition: 'end',
+                  showLabels: true,
+                  labelColor: '#78716c',
+                  labelFontSize: 10,
+                }}
+              />
+            </div>
             </div>
           </section>
+
+          {/* Real-time Streaming Data */}
+          <StreamingTemperatureChart />
 
           {/* Multiple Styles in Grid */}
           <section>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">🎨 Style Variations</h2>
-            <p className="text-gray-600 mb-6">Different visual styles applied to the same dataset.</p>
+            <p className="text-gray-600 mb-6">Different visual styles applied to the same dataset, each with customized axis titles and labels.</p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Minimalist Style */}
@@ -171,6 +240,7 @@ export const LineChartShowcase: React.FC = () => {
                     title="Clean & Simple"
                     width="100%"
                     height="100%"
+                    padding={75}
                     enableCursor={true}
                     enableTooltip={true}
                     lineComponent={{
@@ -198,6 +268,27 @@ export const LineChartShowcase: React.FC = () => {
                       borderRadius: 4,
                       fontSize: 12,
                     }}
+                    xAxisComponent={{
+                      title: 'months',
+                      showTitle: true,
+                      titleFontSize: 11,
+                      titleColor: '#9ca3af',
+                      titleFontWeight: 'normal',
+                      showLabels: true,
+                      labelColor: '#d1d5db',
+                      labelFontSize: 10,
+                    }}
+                    yAxisComponent={{
+                      title: 'value',
+                      showTitle: true,
+                      titleFontSize: 11,
+                      titleColor: '#9ca3af',
+                      titleFontWeight: 'normal',
+                      titleRotation: -90,
+                      showLabels: true,
+                      labelColor: '#d1d5db',
+                      labelFontSize: 10,
+                    }}
                   />
                 </div>
               </div>
@@ -211,6 +302,7 @@ export const LineChartShowcase: React.FC = () => {
                     title="Bold & Colorful"
                     width="100%"
                     height="100%"
+                    padding={85}
                     enableCursor={true}
                     enableTooltip={true}
                     fillArea={true}
@@ -245,6 +337,27 @@ export const LineChartShowcase: React.FC = () => {
                       borderRadius: 12,
                       padding: 10,
                       template: '⭐ {label}: {value}',
+                    }}
+                    xAxisComponent={{
+                      title: 'MONTHS',
+                      showTitle: true,
+                      titleFontSize: 13,
+                      titleColor: '#7c3aed',
+                      titleFontWeight: 'bold',
+                      showLabels: true,
+                      labelColor: '#a855f7',
+                      labelFontSize: 11,
+                    }}
+                    yAxisComponent={{
+                      title: 'SALES DATA',
+                      showTitle: true,
+                      titleFontSize: 13,
+                      titleColor: '#7c3aed',
+                      titleFontWeight: 'bold',
+                      titleRotation: -90,
+                      showLabels: true,
+                      labelColor: '#a855f7',
+                      labelFontSize: 11,
                     }}
                   />
                 </div>

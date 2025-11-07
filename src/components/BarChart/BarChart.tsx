@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 import {
@@ -83,6 +83,8 @@ export const BarChart: React.FC<BarChartProps> = ({
   showValues = true,
   barSpacing = 10,
   backgroundColor = '#ffffff',
+  // textColor prop is available but currently unused - reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   textColor = '#1f2937',
   className,
   style,
@@ -119,6 +121,9 @@ export const BarChart: React.FC<BarChartProps> = ({
   customCursorRenderer = renderChartCursor,
   customTooltipRenderer = renderChartTooltip,
 }) => {
+  // Memoize data to prevent unnecessary recalculations
+  const memoizedData = useMemo(() => data, [data]);
+
   // Interactive state
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   const [hoveredDataPoint, setHoveredDataPoint] = useState<DataPoint | null>(null);
@@ -145,13 +150,13 @@ export const BarChart: React.FC<BarChartProps> = ({
       const dataPoints: DataPoint[] = [];
       const { chartX, chartY, chartWidth, chartHeight } = chartDimensions;
       
-      if (data.length > 0) {
-        const maxValue = Math.max(...data.map(d => d.value));
+      if (memoizedData.length > 0) {
+        const maxValue = Math.max(...memoizedData.map(d => d.value));
         const scale = chartHeight / maxValue;
-        const totalSpacing = barSpacing * (data.length - 1);
-        const barWidth = (chartWidth - totalSpacing) / data.length;
+        const totalSpacing = barSpacing * (memoizedData.length - 1);
+        const barWidth = (chartWidth - totalSpacing) / memoizedData.length;
 
-        data.forEach((item, index) => {
+        memoizedData.forEach((item, index) => {
           const barHeight = item.value * scale;
           const barX = chartX + (barWidth + barSpacing) * index;
           const barY = chartY + (chartHeight - barHeight);
@@ -187,7 +192,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         onHover?.(newHoveredPoint);
       }
     }
-  }, [enableCursor, enableTooltip, chartDimensions, data, barSpacing, cursorComponent.snapRadius, onHover, hoveredDataPoint]);
+  }, [enableCursor, enableTooltip, chartDimensions, memoizedData, barSpacing, cursorComponent.snapRadius, onHover, hoveredDataPoint]);
 
   const handleMouseLeave = useCallback(() => {
     setCursorPosition(null);
@@ -195,7 +200,7 @@ export const BarChart: React.FC<BarChartProps> = ({
     onHover?.(null);
   }, [onHover]);
 
-  const handleClick = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+  const handleClick = useCallback((_event: MouseEvent, _canvas: HTMLCanvasElement) => {
     if (!onClick) return;
     onClick(hoveredDataPoint);
   }, [onClick, hoveredDataPoint]);
@@ -208,7 +213,7 @@ export const BarChart: React.FC<BarChartProps> = ({
     context.fillStyle = backgroundColor;
     context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    if (data.length === 0) return;
+    if (memoizedData.length === 0) return;
 
     // Calculate dimensions
     const titleHeight = title ? 
@@ -222,14 +227,23 @@ export const BarChart: React.FC<BarChartProps> = ({
     const chartHeight = canvasHeight - padding - titleHeight - 40; // 40 for bottom labels
 
     // Store chart dimensions for interactive features
-    setChartDimensions({
-      chartX,
-      chartY,
-      chartWidth,
-      chartHeight,
-      canvasWidth,
-      canvasHeight,
-    });
+    // Only update if dimensions have changed to prevent infinite render loop
+    if (!chartDimensions || 
+        chartDimensions.chartX !== chartX ||
+        chartDimensions.chartY !== chartY ||
+        chartDimensions.chartWidth !== chartWidth ||
+        chartDimensions.chartHeight !== chartHeight ||
+        chartDimensions.canvasWidth !== canvasWidth ||
+        chartDimensions.canvasHeight !== canvasHeight) {
+      setChartDimensions({
+        chartX,
+        chartY,
+        chartWidth,
+        chartHeight,
+        canvasWidth,
+        canvasHeight,
+      });
+    }
 
     // Render title
     if (title) {
@@ -245,12 +259,12 @@ export const BarChart: React.FC<BarChartProps> = ({
     }
 
     // Find max value for scaling
-    const maxValue = Math.max(...data.map(d => d.value));
+    const maxValue = Math.max(...memoizedData.map(d => d.value));
     const scale = chartHeight / maxValue;
 
     // Calculate bar dimensions
-    const totalSpacing = barSpacing * (data.length - 1);
-    const barWidth = (chartWidth - totalSpacing) / data.length;
+    const totalSpacing = barSpacing * (memoizedData.length - 1);
+    const barWidth = (chartWidth - totalSpacing) / memoizedData.length;
 
     // Prepare grid lines
     const steps = 5;
@@ -281,8 +295,8 @@ export const BarChart: React.FC<BarChartProps> = ({
     });
 
     // Prepare axis data
-    const xLabels = data.map(d => d.label);
-    const xLabelPositions = data.map((_, index) => 
+    const xLabels = memoizedData.map(d => d.label);
+    const xLabelPositions = memoizedData.map((_, index) => 
       chartX + (barWidth + barSpacing) * index + barWidth / 2
     );
 
@@ -315,7 +329,7 @@ export const BarChart: React.FC<BarChartProps> = ({
     });
 
     // Render bars and labels
-    data.forEach((item, index) => {
+    memoizedData.forEach((item, index) => {
       const barHeight = item.value * scale;
       const x = chartX + (barWidth + barSpacing) * index;
       const y = chartY + (chartHeight - barHeight);

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 import {
@@ -104,6 +104,8 @@ export const LineChart: React.FC<LineChartProps> = ({
   showLines = true,
   showValues = false,
   backgroundColor = '#ffffff',
+  // textColor prop is available but currently unused - reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   textColor = '#1f2937',
   className,
   style,
@@ -148,11 +150,13 @@ export const LineChart: React.FC<LineChartProps> = ({
 }) => {
   
   // Normalize data to series format
-  const normalizedData: LineChartDataSeries[] = Array.isArray(data) && data.length > 0
-    ? 'name' in data[0]
-      ? data as LineChartDataSeries[]
-      : [{ name: 'Series 1', data: data as LineChartData[] }]
-    : [];
+  const normalizedData: LineChartDataSeries[] = useMemo(() => 
+    Array.isArray(data) && data.length > 0
+      ? 'name' in data[0]
+        ? data as LineChartDataSeries[]
+        : [{ name: 'Series 1', data: data as LineChartData[] }]
+      : []
+  , [data]);
 
   // Interactive state
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -244,7 +248,8 @@ export const LineChart: React.FC<LineChartProps> = ({
     onHover?.(null);
   }, [onHover]);
 
-  const handleClick = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleClick = useCallback((_event: MouseEvent, _canvas: HTMLCanvasElement) => {
     if (!onClick) return;
     onClick(hoveredDataPoint);
   }, [onClick, hoveredDataPoint]);
@@ -271,14 +276,23 @@ export const LineChart: React.FC<LineChartProps> = ({
     const chartHeight = canvasHeight - padding - titleHeight - 40;
 
     // Store chart dimensions for interactive features
-    setChartDimensions({
-      chartX,
-      chartY,
-      chartWidth,
-      chartHeight,
-      canvasWidth,
-      canvasHeight,
-    });
+    // Only update if dimensions have changed to prevent infinite render loop
+    if (!chartDimensions || 
+        chartDimensions.chartX !== chartX ||
+        chartDimensions.chartY !== chartY ||
+        chartDimensions.chartWidth !== chartWidth ||
+        chartDimensions.chartHeight !== chartHeight ||
+        chartDimensions.canvasWidth !== canvasWidth ||
+        chartDimensions.canvasHeight !== canvasHeight) {
+      setChartDimensions({
+        chartX,
+        chartY,
+        chartWidth,
+        chartHeight,
+        canvasWidth,
+        canvasHeight,
+      });
+    }
 
     // Render title
     if (title) {

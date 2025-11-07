@@ -50,6 +50,8 @@ export const InteractiveChartDemo: React.FC = () => {
     showYAxis: true,
     xAxisTitle: 'Month',
     yAxisTitle: 'Value',
+  xAxisTickStep: 1,
+  xAxisMaxTicks: 0,
     
     // Interactive
     cursorSnapToPoints: true,
@@ -120,7 +122,7 @@ export const InteractiveChartDemo: React.FC = () => {
       config.fillArea && `fillArea={true}`,
       config.fillArea && config.fillOpacity !== 0.1 && `fillOpacity={${config.fillOpacity}}`,
       config.enableCursor && `enableCursor={true}`,
-  config.enableTooltip && `enableTooltip={true}`,
+      config.enableTooltip && `enableTooltip={true}`,
     ].filter(Boolean);
 
     const lineProps = [
@@ -146,6 +148,8 @@ export const InteractiveChartDemo: React.FC = () => {
       !config.showXAxis && `  show: false,`,
       config.xAxisTitle && `  title: '${config.xAxisTitle}',`,
       config.xAxisTitle && `  showTitle: true,`,
+      config.xAxisTickStep !== 1 && `  tickStep: ${config.xAxisTickStep},`,
+      config.xAxisMaxTicks > 0 && `  maxTicks: ${config.xAxisMaxTicks},`,
     ].filter(Boolean);
 
     const yAxisProps = [
@@ -247,6 +251,8 @@ export const InteractiveChartDemo: React.FC = () => {
                   show: config.showXAxis,
                   title: config.xAxisTitle,
                   showTitle: config.xAxisTitle.length > 0,
+                  tickStep: config.xAxisTickStep,
+                  maxTicks: config.xAxisMaxTicks > 0 ? config.xAxisMaxTicks : undefined,
                 }}
                 yAxisComponent={{
                   show: config.showYAxis,
@@ -580,6 +586,38 @@ export const InteractiveChartDemo: React.FC = () => {
                       onChange={(e) => setConfig({ ...config, xAxisTitle: e.target.value })}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">X Tick Step</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={config.xAxisTickStep}
+                        onChange={(e) => {
+                          const nextValue = Math.max(1, parseInt(e.target.value, 10) || 1);
+                          setConfig({ ...config, xAxisTickStep: nextValue });
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Show every Nth label.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Max X Ticks</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={config.xAxisMaxTicks}
+                        onChange={(e) => {
+                          const rawValue = parseInt(e.target.value, 10);
+                          const nextValue = rawValue && rawValue > 0 ? rawValue : 0;
+                          setConfig({ ...config, xAxisMaxTicks: nextValue });
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">0 keeps all ticks.</p>
+                    </div>
                   </div>
 
                   <label className="flex items-center">

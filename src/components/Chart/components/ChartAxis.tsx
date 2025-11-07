@@ -10,6 +10,8 @@ export interface ChartAxisProps {
   tickLength?: number;
   tickColor?: string;
   labelPadding?: number;
+  tickStep?: number;
+  maxTicks?: number;
   
   // Axis title properties
   title?: string;
@@ -50,6 +52,8 @@ export const defaultChartAxisProps: Required<ChartAxisProps> = {
   tickLength: 5,
   tickColor: '#1f2937',
   labelPadding: 10,
+  tickStep: 1,
+  maxTicks: Number.POSITIVE_INFINITY,
   
   // Axis title defaults
   title: '',
@@ -88,6 +92,8 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     tickLength = defaultChartAxisProps.tickLength,
     tickColor = defaultChartAxisProps.tickColor,
     labelPadding = defaultChartAxisProps.labelPadding,
+    tickStep = defaultChartAxisProps.tickStep,
+    maxTicks = defaultChartAxisProps.maxTicks,
     
     // Title properties
     title = defaultChartAxisProps.title,
@@ -115,8 +121,18 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
 
   // Draw ticks and labels
   if (showTicks || showLabels) {
+    // Determine how frequently to render ticks while always including the axis edges.
+    const normalizedStep = Math.max(1, Math.round(tickStep) || 1);
+    const autoStep = Number.isFinite(maxTicks) && maxTicks > 0
+      ? Math.max(1, Math.ceil(labels.length / maxTicks))
+      : 1;
+    const effectiveStep = Math.max(normalizedStep, autoStep);
+
     labels.forEach((label, index) => {
       if (index >= labelPositions.length) return;
+      const isEdgeLabel = index === 0 || index === labels.length - 1;
+      const shouldRenderTick = (index % effectiveStep === 0) || isEdgeLabel;
+      if (!shouldRenderTick) return;
 
       const position = labelPositions[index];
       let tickX: number, tickY: number, labelX: number, labelY: number;
@@ -171,34 +187,49 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     if (type === 'x') {
       // X-axis title (horizontal axis)
       const axisLength = endX - startX;
-      titleX = startX + axisLength / 2; // Center horizontally
-      
-      // Position at a fixed distance from the bottom of canvas or axis line
-      if (canvasHeight) {
-        // Position from bottom of canvas
-        titleY = canvasHeight - 20;
+      const baseY = canvasHeight
+        ? canvasHeight - titlePadding
+        : startY + titlePadding;
+
+      if (titlePosition === 'start') {
+        titleX = startX;
+        context.textAlign = 'left';
+      } else if (titlePosition === 'end') {
+        titleX = endX;
+        context.textAlign = 'right';
       } else {
-        // Fallback: position relative to axis
-        titleY = startY + 35;
+        titleX = startX + axisLength / 2;
+        context.textAlign = 'center';
       }
-      
-      context.textAlign = 'center';
+
+      titleY = baseY;
       context.textBaseline = 'bottom';
-      
     } else {
-      // Y-axis title (vertical axis)  
+      // Y-axis title (vertical axis)
       const axisLength = startY - endY;
-      
-      // Calculate position to the left of the axis, considering ticks and labels
+
+      // Calculate position to the left of the axis, considering ticks, labels, and padding
       let xOffset = 5; // Start with small base offset
       if (showTicks) xOffset += tickLength;
       if (showLabels) xOffset += 50; // Approximate space for Y-axis labels
-      xOffset += 10; // Additional spacing for title
-      
+      xOffset += titlePadding;
+
       titleX = startX - xOffset;
-      titleY = endY + axisLength / 2; // Center vertically
+
+      if (titlePosition === 'start') {
+        titleY = startY;
+      } else if (titlePosition === 'end') {
+        titleY = endY;
+      } else {
+        titleY = endY + axisLength / 2;
+      }
+
       context.textAlign = 'center';
       context.textBaseline = 'middle';
+    }
+
+    if (typeof canvasWidth === 'number') {
+      titleX = Math.min(Math.max(titleX, 0), canvasWidth);
     }
     
     // Apply custom offsets

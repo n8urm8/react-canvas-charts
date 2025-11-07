@@ -4,7 +4,6 @@ import { Link, useLocation } from 'react-router';
 export const Navigation: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-  console.log('Current Path:', currentPath);
 
   const getLinkClass = (path: string) => {
     return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${

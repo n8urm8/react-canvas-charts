@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
 
 interface DataPoint {
@@ -7,16 +7,36 @@ interface DataPoint {
   value: number;
 }
 
+const formatTimeLabel = (date: Date): string => {
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  return `${timePart}.${date.getMilliseconds().toString().padStart(3, '0')}`;
+};
+
+const createInitialTimeSeries = (count: number): DataPoint[] => {
+  const now = Date.now();
+  let lastValue = 60;
+
+  return Array.from({ length: count }).map((_, index) => {
+    const timestamp = new Date(now - (count - 1 - index) * 1000);
+    const variation = (Math.random() - 0.5) * 20;
+    lastValue = Math.max(0, Math.round((lastValue + variation) * 10) / 10);
+
+    return {
+      id: (index + 1).toString(),
+      label: formatTimeLabel(timestamp),
+      value: lastValue,
+    };
+  });
+};
+
 export const InteractiveChartDemo: React.FC = () => {
   // Data state
-  const [dataPoints, setDataPoints] = useState<DataPoint[]>([
-    { id: '1', label: 'Jan', value: 65 },
-    { id: '2', label: 'Feb', value: 45 },
-    { id: '3', label: 'Mar', value: 78 },
-    { id: '4', label: 'Apr', value: 52 },
-    { id: '5', label: 'May', value: 89 },
-    { id: '6', label: 'Jun', value: 73 },
-  ]);
+  const [dataPoints, setDataPoints] = useState<DataPoint[]>(() => createInitialTimeSeries(12));
 
   // Chart configuration state
   const [config, setConfig] = useState({
@@ -48,8 +68,8 @@ export const InteractiveChartDemo: React.FC = () => {
     gridColor: '#e5e7eb',
     showXAxis: true,
     showYAxis: true,
-    xAxisTitle: 'Month',
-    yAxisTitle: 'Value',
+  xAxisTitle: 'Time',
+  yAxisTitle: 'Value',
   xAxisTickStep: 1,
   xAxisMaxTicks: 0,
     
@@ -59,36 +79,146 @@ export const InteractiveChartDemo: React.FC = () => {
     tooltipTemplate: '{label}: {value}',
   });
 
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingHz, setStreamingHz] = useState(1.0);
+  const [streamingPointsPerTick, setStreamingPointsPerTick] = useState(1);
+  const [streamingMaxPoints, setStreamingMaxPoints] = useState(24);
+  const [bulkAddCount, setBulkAddCount] = useState(10);
+  const intervalRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
+
   // Add new data point
   const addDataPoint = () => {
-    const newId = (Math.max(...dataPoints.map(d => parseInt(d.id))) + 1).toString();
-    setDataPoints([
-      ...dataPoints,
-      { id: newId, label: `Point ${newId}`, value: Math.floor(Math.random() * 100) }
-    ]);
+    setDataPoints(prev => {
+      const numericIds = prev
+        .map(point => Number.parseInt(point.id, 10))
+        .filter((id) => Number.isFinite(id));
+      const nextId = ((numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1).toString();
+      return [
+        ...prev,
+        { id: nextId, label: `Point ${nextId}`, value: Math.floor(Math.random() * 100) },
+      ];
+    });
   };
 
   // Remove data point
   const removeDataPoint = (id: string) => {
-    if (dataPoints.length > 1) {
-      setDataPoints(dataPoints.filter(d => d.id !== id));
-    }
+    setDataPoints(prev => {
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return prev.filter(d => d.id !== id);
+    });
   };
 
   // Update data point
   const updateDataPoint = (id: string, field: 'label' | 'value', value: string | number) => {
-    setDataPoints(dataPoints.map(d => 
+    setDataPoints(prev => prev.map(d =>
       d.id === id ? { ...d, [field]: value } : d
     ));
   };
 
   // Randomize data
   const randomizeData = () => {
-    setDataPoints(dataPoints.map(d => ({
+    setDataPoints(prev => prev.map(d => ({
       ...d,
       value: Math.floor(Math.random() * 100)
     })));
   };
+
+  const generateNewPoints = useCallback((prev: DataPoint[], count: number): DataPoint[] => {
+    const normalizedCount = Math.max(1, count);
+    const numericIds = prev
+      .map(point => Number.parseInt(point.id, 10))
+      .filter(id => Number.isFinite(id));
+    let nextIdBase = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
+
+    const points: DataPoint[] = [];
+    let previousValue = prev.length > 0 ? prev[prev.length - 1].value : 50;
+    const baseTime = Date.now();
+
+    for (let index = 0; index < normalizedCount; index += 1) {
+      const variation = (Math.random() - 0.5) * 20;
+      previousValue = Math.max(0, Math.round((previousValue + variation) * 10) / 10);
+      const timestamp = new Date(baseTime + index);
+
+      points.push({
+        id: (nextIdBase++).toString(),
+        label: formatTimeLabel(timestamp),
+        value: previousValue,
+      });
+    }
+
+    return points;
+  }, []);
+
+  const appendStreamingPoint = useCallback(() => {
+    setDataPoints(prev => {
+      const additions = generateNewPoints(prev, Math.max(1, streamingPointsPerTick));
+
+      let nextData = [...prev, ...additions];
+
+      if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
+        nextData = nextData.slice(nextData.length - streamingMaxPoints);
+      }
+
+      return nextData;
+    });
+  }, [generateNewPoints, streamingMaxPoints, streamingPointsPerTick]);
+
+  const addBulkPoints = () => {
+    if (bulkAddCount <= 0) return;
+    setDataPoints(prev => {
+      let nextData = [...prev, ...generateNewPoints(prev, bulkAddCount)];
+      if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
+        nextData = nextData.slice(nextData.length - streamingMaxPoints);
+      }
+      return nextData;
+    });
+  };
+
+  const toggleStreaming = () => {
+    setIsStreaming(prev => !prev);
+  };
+
+  useEffect(() => {
+    if (!isStreaming) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+  const safeHz = Math.max(0.1, Math.min(100, streamingHz));
+  const intervalMs = Math.max(10, Math.round(1000 / safeHz));
+    const id = window.setInterval(() => {
+      appendStreamingPoint();
+    }, intervalMs);
+    intervalRef.current = id;
+
+    return () => {
+      clearInterval(id);
+      if (intervalRef.current === id) {
+        intervalRef.current = null;
+      }
+    };
+  }, [appendStreamingPoint, isStreaming, streamingHz]);
+
+  useEffect(() => () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (streamingMaxPoints <= 0) return;
+    setDataPoints(prev => {
+      if (prev.length <= streamingMaxPoints) {
+        return prev;
+      }
+      return prev.slice(prev.length - streamingMaxPoints);
+    });
+  }, [streamingMaxPoints]);
 
   // Convert data for LineChart
   const chartData: LineChartData[] = dataPoints.map(d => ({
@@ -298,6 +428,152 @@ export const InteractiveChartDemo: React.FC = () => {
                 >
                   {config.showValues ? '🔢 Hide Values' : '🔢 Show Values'}
                 </button>
+              </div>
+
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-gray-700">Live Data Stream</h4>
+                    <p className="text-xs text-gray-500">
+                      {isStreaming ? `Streaming at ${streamingHz.toFixed(1)} Hz` : 'Stream is paused'}
+                      {streamingMaxPoints > 0 ? ` • Max ${streamingMaxPoints} pts` : ' • Unlimited points'}
+                      {` • ${dataPoints.length} total points`}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{`Points per update: ${streamingPointsPerTick}`}</p>
+                  </div>
+                  <button
+                    onClick={toggleStreaming}
+                    className={`px-4 py-2 text-sm font-medium rounded transition ${
+                      isStreaming
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                  >
+                    {isStreaming ? '⏹️ Stop Stream' : '▶️ Start Stream'}
+                  </button>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Update Rate: {streamingHz.toFixed(1)} Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="100"
+                    step="0.1"
+                    value={streamingHz}
+                    onChange={(e) => {
+                      const parsed = parseFloat(e.target.value);
+                      setStreamingHz(Number.isNaN(parsed) ? 0.1 : Math.min(100, Math.max(0.1, parsed)));
+                    }}
+                    className="w-full"
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="100"
+                      step="0.1"
+                      value={streamingHz}
+                      onChange={(e) => {
+                        const parsed = parseFloat(e.target.value);
+                        if (Number.isNaN(parsed)) {
+                          return;
+                        }
+                        setStreamingHz(Math.min(100, Math.max(0.1, parsed)));
+                      }}
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="text-sm text-gray-500">Hz</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Higher Hz adds points faster. Minimum 0.1 Hz.</p>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Points Added Per Update: {streamingPointsPerTick}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value={streamingPointsPerTick}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10);
+                      if (!Number.isNaN(parsed)) {
+                        setStreamingPointsPerTick(Math.min(100, Math.max(1, parsed)));
+                      }
+                    }}
+                    className="w-full"
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={streamingPointsPerTick}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(parsed)) {
+                          setStreamingPointsPerTick(Math.min(100, Math.max(1, parsed)));
+                        }
+                      }}
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    />
+                    <span className="text-sm text-gray-500">points/update</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Each tick pushes multiple points to simulate higher throughput.</p>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Max Points (0 = unlimited)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={streamingMaxPoints}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10);
+                      if (Number.isNaN(parsed)) {
+                        setStreamingMaxPoints(0);
+                        return;
+                      }
+                      setStreamingMaxPoints(Math.max(0, parsed));
+                    }}
+                    className="w-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Older points drop when the limit is reached.
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Add Points Manually</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={bulkAddCount}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(parsed)) {
+                          setBulkAddCount(Math.max(1, parsed));
+                        }
+                      }}
+                      className="w-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Generates additional points instantly.</p>
+                  </div>
+                  <button
+                    onClick={addBulkPoints}
+                    className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 transition"
+                  >
+                    ➕ Add {bulkAddCount} Points
+                  </button>
+                </div>
               </div>
             </div>
 

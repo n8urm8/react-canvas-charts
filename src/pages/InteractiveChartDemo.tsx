@@ -94,6 +94,115 @@ export const InteractiveChartDemo: React.FC = () => {
     value: d.value,
   }));
 
+  // Generate code preview
+  const generateCodePreview = () => {
+    const firstDataEntry = chartData[0];
+    const formattedFirstEntry = firstDataEntry
+      ? JSON.stringify(firstDataEntry, null, 2)
+          .split('\n')
+          .map(line => `  ${line}`)
+          .join('\n')
+      : '';
+
+    const dataCode = firstDataEntry
+      ? `const data = [\n${formattedFirstEntry}${chartData.length > 1 ? `,\n  // ...more data points` : ''}\n];`
+      : 'const data = [];';
+    
+    const propsArray = [
+      `data={data}`,
+      `title="${config.title}"`,
+      `width="100%"`,
+      `height={${config.height}}`,
+      `padding={${config.padding}}`,
+      `showPoints={${config.showPoints}}`,
+      `showLines={${config.showLines}}`,
+      config.showValues && `showValues={true}`,
+      config.fillArea && `fillArea={true}`,
+      config.fillArea && config.fillOpacity !== 0.1 && `fillOpacity={${config.fillOpacity}}`,
+      config.enableCursor && `enableCursor={true}`,
+  config.enableTooltip && `enableTooltip={true}`,
+    ].filter(Boolean);
+
+    const lineProps = [
+      config.lineWidth !== 2 && `  lineWidth: ${config.lineWidth},`,
+      config.lineColor !== '#3b82f6' && `  color: '${config.lineColor}',`,
+      config.lineSmooth && `  smooth: true,`,
+      config.lineDash.length > 0 && `  lineDash: [${config.lineDash.join(', ')}],`,
+    ].filter(Boolean);
+
+    const pointProps = [
+      config.pointSize !== 6 && `  size: ${config.pointSize},`,
+      config.pointShape !== 'circle' && `  shape: '${config.pointShape}',`,
+      config.pointColor !== '#3b82f6' && `  color: '${config.pointColor}',`,
+      config.pointColor !== '#3b82f6' && `  fillColor: '${config.pointColor}',`,
+    ].filter(Boolean);
+
+    const gridProps = [
+      !config.showGrid && `  show: false,`,
+      config.gridColor !== '#e5e7eb' && `  color: '${config.gridColor}',`,
+    ].filter(Boolean);
+
+    const xAxisProps = [
+      !config.showXAxis && `  show: false,`,
+      config.xAxisTitle && `  title: '${config.xAxisTitle}',`,
+      config.xAxisTitle && `  showTitle: true,`,
+    ].filter(Boolean);
+
+    const yAxisProps = [
+      !config.showYAxis && `  show: false,`,
+      config.yAxisTitle && `  title: '${config.yAxisTitle}',`,
+      config.yAxisTitle && `  showTitle: true,`,
+      config.yAxisTitle && `  titleRotation: -90,`,
+    ].filter(Boolean);
+
+    const cursorProps = [
+      !config.cursorSnapToPoints && `  snapToDataPoints: false,`,
+    ].filter(Boolean);
+
+    const tooltipProps = [
+      config.tooltipPosition !== 'follow' && `  position: '${config.tooltipPosition}',`,
+      config.tooltipTemplate !== '{label}: {value}' && `  template: '${config.tooltipTemplate}',`,
+    ].filter(Boolean);
+
+    let code = `import { LineChart } from './components/LineChart/LineChart';\n\n${dataCode}\n\n<LineChart\n  ${propsArray.join('\n  ')}`;
+
+    if (lineProps.length > 0) {
+      code += `\n  lineComponent={{\n${lineProps.join('\n')}\n  }}`;
+    }
+    if (pointProps.length > 0) {
+      code += `\n  pointComponent={{\n${pointProps.join('\n')}\n  }}`;
+    }
+    if (gridProps.length > 0) {
+      code += `\n  gridComponent={{\n${gridProps.join('\n')}\n  }}`;
+    }
+    if (xAxisProps.length > 0) {
+      code += `\n  xAxisComponent={{\n${xAxisProps.join('\n')}\n  }}`;
+    }
+    if (yAxisProps.length > 0) {
+      code += `\n  yAxisComponent={{\n${yAxisProps.join('\n')}\n  }}`;
+    }
+    if (cursorProps.length > 0 && config.enableCursor) {
+      code += `\n  cursorComponent={{\n${cursorProps.join('\n')}\n  }}`;
+    }
+    if (tooltipProps.length > 0 && config.enableTooltip) {
+      code += `\n  tooltipComponent={{\n${tooltipProps.join('\n')}\n  }}`;
+    }
+
+    code += `\n/>`;
+    return code;
+  };
+
+  const codePreview = generateCodePreview();
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(codePreview);
+      alert('Code copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div className="p-5 font-sans bg-gray-50 min-h-screen">
       <div className="w-full mx-auto">
@@ -184,6 +293,21 @@ export const InteractiveChartDemo: React.FC = () => {
                   {config.showValues ? '🔢 Hide Values' : '🔢 Show Values'}
                 </button>
               </div>
+            </div>
+
+            <div className="mt-4 bg-gray-900 text-gray-100 rounded-lg shadow p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Generated Code Preview</h3>
+                <button
+                  onClick={copyToClipboard}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <pre className="text-left font-mono text-xs md:text-sm whitespace-pre overflow-x-auto bg-gray-950 rounded p-3 border border-gray-800">
+                <code className='text-left w-full'>{codePreview}</code>
+              </pre>
             </div>
           </div>
 

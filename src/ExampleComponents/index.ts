@@ -3,6 +3,5 @@ export * from './ChartControls';
 export * from './ChartContainer';
 export * from './FeatureDocumentation';
 export * from './UsageExamples';
-export * from './LineChartShowcase';
 export * from './Navigation';
-export * from './StreamingTemperatureChart'; 
+export * from './StreamingTemperatureChart';

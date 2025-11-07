@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 import {
@@ -104,6 +104,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   showLines = true,
   showValues = false,
   backgroundColor = '#ffffff',
+  // textColor prop is available but currently unused - reserved for future use
   textColor = '#1f2937',
   className,
   style,
@@ -148,11 +149,16 @@ export const LineChart: React.FC<LineChartProps> = ({
 }) => {
   
   // Normalize data to series format
-  const normalizedData: LineChartDataSeries[] = Array.isArray(data) && data.length > 0
-    ? 'name' in data[0]
-      ? data as LineChartDataSeries[]
-      : [{ name: 'Series 1', data: data as LineChartData[] }]
-    : [];
+  const normalizedData: LineChartDataSeries[] = useMemo(() => 
+    Array.isArray(data) && data.length > 0
+      ? 'name' in data[0]
+        ? data as LineChartDataSeries[]
+        : [{ name: 'Series 1', data: data as LineChartData[] }]
+      : []
+  , [data]);
+
+  // Keep textColor reserved for future theming support without triggering compiler warnings.
+  void textColor;
 
   // Interactive state
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -244,7 +250,8 @@ export const LineChart: React.FC<LineChartProps> = ({
     onHover?.(null);
   }, [onHover]);
 
-  const handleClick = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleClick = useCallback((_event: MouseEvent, _canvas: HTMLCanvasElement) => {
     if (!onClick) return;
     onClick(hoveredDataPoint);
   }, [onClick, hoveredDataPoint]);
@@ -271,14 +278,23 @@ export const LineChart: React.FC<LineChartProps> = ({
     const chartHeight = canvasHeight - padding - titleHeight - 40;
 
     // Store chart dimensions for interactive features
-    setChartDimensions({
-      chartX,
-      chartY,
-      chartWidth,
-      chartHeight,
-      canvasWidth,
-      canvasHeight,
-    });
+    // Only update if dimensions have changed to prevent infinite render loop
+    if (!chartDimensions || 
+        chartDimensions.chartX !== chartX ||
+        chartDimensions.chartY !== chartY ||
+        chartDimensions.chartWidth !== chartWidth ||
+        chartDimensions.chartHeight !== chartHeight ||
+        chartDimensions.canvasWidth !== canvasWidth ||
+        chartDimensions.canvasHeight !== canvasHeight) {
+      setChartDimensions({
+        chartX,
+        chartY,
+        chartWidth,
+        chartHeight,
+        canvasWidth,
+        canvasHeight,
+      });
+    }
 
     // Render title
     if (title) {
@@ -331,6 +347,38 @@ export const LineChart: React.FC<LineChartProps> = ({
       yLabelPositions.push(y);
     }
 
+    const resolveTickIndices = (totalLabels: number, axisOptions?: ChartAxisProps): number[] => {
+      if (totalLabels === 0) return [];
+
+      const showAxis = axisOptions?.show ?? defaultChartAxisProps.show;
+      if (!showAxis) {
+        return Array.from({ length: totalLabels }, (_, index) => index);
+      }
+
+      const rawTickStep = axisOptions?.tickStep ?? defaultChartAxisProps.tickStep;
+      const rawMaxTicks = axisOptions?.maxTicks ?? defaultChartAxisProps.maxTicks;
+
+      const normalizedStep = Math.max(1, Math.round(rawTickStep) || 1);
+      const autoStep = Number.isFinite(rawMaxTicks) && rawMaxTicks > 0
+        ? Math.max(1, Math.ceil(totalLabels / rawMaxTicks))
+        : 1;
+      const effectiveStep = Math.max(normalizedStep, autoStep);
+
+      const indices = new Set<number>();
+
+      for (let index = 0; index < totalLabels; index += 1) {
+        const isEdgeLabel = index === 0 || index === totalLabels - 1;
+        if (isEdgeLabel || index % effectiveStep === 0) {
+          indices.add(index);
+        }
+      }
+
+      return Array.from(indices).sort((a, b) => a - b);
+    };
+
+    const xTickIndices = resolveTickIndices(uniqueLabels.length, xAxisComponent);
+    const verticalLines = xTickIndices.map(index => chartX + index * labelSpacing);
+
     // Render grid
     customGridRenderer({
       ...defaultChartGridProps,
@@ -342,7 +390,7 @@ export const LineChart: React.FC<LineChartProps> = ({
       chartWidth,
       chartHeight,
       horizontalLines,
-      verticalLines: uniqueLabels.map((_, i) => chartX + i * labelSpacing),
+      verticalLines,
     });
 
     // Prepare axis data

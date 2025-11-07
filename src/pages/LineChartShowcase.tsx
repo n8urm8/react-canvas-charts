@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
-import { StreamingTemperatureChart } from './StreamingTemperatureChart';
+import { StreamingTemperatureChart } from '../ExampleComponents';
 
 export const LineChartShowcase: React.FC = () => {
   // Sample data for demonstrations

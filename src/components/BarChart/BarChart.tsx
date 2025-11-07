@@ -200,6 +200,7 @@ export const BarChart: React.FC<BarChartProps> = ({
     onHover?.(null);
   }, [onHover]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleClick = useCallback((_event: MouseEvent, _canvas: HTMLCanvasElement) => {
     if (!onClick) return;
     onClick(hoveredDataPoint);

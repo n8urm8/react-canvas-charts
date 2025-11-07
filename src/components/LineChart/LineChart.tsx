@@ -105,7 +105,6 @@ export const LineChart: React.FC<LineChartProps> = ({
   showValues = false,
   backgroundColor = '#ffffff',
   // textColor prop is available but currently unused - reserved for future use
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   textColor = '#1f2937',
   className,
   style,
@@ -157,6 +156,9 @@ export const LineChart: React.FC<LineChartProps> = ({
         : [{ name: 'Series 1', data: data as LineChartData[] }]
       : []
   , [data]);
+
+  // Keep textColor reserved for future theming support without triggering compiler warnings.
+  void textColor;
 
   // Interactive state
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
@@ -345,6 +347,38 @@ export const LineChart: React.FC<LineChartProps> = ({
       yLabelPositions.push(y);
     }
 
+    const resolveTickIndices = (totalLabels: number, axisOptions?: ChartAxisProps): number[] => {
+      if (totalLabels === 0) return [];
+
+      const showAxis = axisOptions?.show ?? defaultChartAxisProps.show;
+      if (!showAxis) {
+        return Array.from({ length: totalLabels }, (_, index) => index);
+      }
+
+      const rawTickStep = axisOptions?.tickStep ?? defaultChartAxisProps.tickStep;
+      const rawMaxTicks = axisOptions?.maxTicks ?? defaultChartAxisProps.maxTicks;
+
+      const normalizedStep = Math.max(1, Math.round(rawTickStep) || 1);
+      const autoStep = Number.isFinite(rawMaxTicks) && rawMaxTicks > 0
+        ? Math.max(1, Math.ceil(totalLabels / rawMaxTicks))
+        : 1;
+      const effectiveStep = Math.max(normalizedStep, autoStep);
+
+      const indices = new Set<number>();
+
+      for (let index = 0; index < totalLabels; index += 1) {
+        const isEdgeLabel = index === 0 || index === totalLabels - 1;
+        if (isEdgeLabel || index % effectiveStep === 0) {
+          indices.add(index);
+        }
+      }
+
+      return Array.from(indices).sort((a, b) => a - b);
+    };
+
+    const xTickIndices = resolveTickIndices(uniqueLabels.length, xAxisComponent);
+    const verticalLines = xTickIndices.map(index => chartX + index * labelSpacing);
+
     // Render grid
     customGridRenderer({
       ...defaultChartGridProps,
@@ -356,7 +390,7 @@ export const LineChart: React.FC<LineChartProps> = ({
       chartWidth,
       chartHeight,
       horizontalLines,
-      verticalLines: uniqueLabels.map((_, i) => chartX + i * labelSpacing),
+      verticalLines,
     });
 
     // Prepare axis data

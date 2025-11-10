@@ -84,7 +84,6 @@ export const BarChart: React.FC<BarChartProps> = ({
   barSpacing = 10,
   backgroundColor = '#ffffff',
   // textColor prop is available but currently unused - reserved for future use
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   textColor = '#1f2937',
   className,
   style,
@@ -121,6 +120,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   customCursorRenderer = renderChartCursor,
   customTooltipRenderer = renderChartTooltip,
 }) => {
+  void textColor;
   // Memoize data to prevent unnecessary recalculations
   const memoizedData = useMemo(() => data, [data]);
 

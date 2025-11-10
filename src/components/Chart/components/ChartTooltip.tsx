@@ -95,6 +95,9 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
     template = defaultChartTooltipProps.template,
   } = props;
 
+  void chartWidth;
+  void chartHeight;
+
   if (!show || !dataPoint) return;
 
   // Generate tooltip content

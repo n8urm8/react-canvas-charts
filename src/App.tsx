@@ -5,7 +5,7 @@ import {
 import { MainDemo } from "./pages/MainDemo";
 import "./App.css";
 import { LineChartShowcase } from "./pages/LineChartShowcase";
-import { InteractiveChartDemo } from "./pages/InteractiveChartDemo";
+import InteractiveChartDemoNew from "./pages/InteractiveChartDemoNew";
 
 function App() {
   return (
@@ -15,7 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MainDemo />} />
         <Route path="/linechart-showcase" element={<LineChartShowcase />} />
-        <Route path="/interactive" element={<InteractiveChartDemo />} />
+        <Route path="/interactive" element={<InteractiveChartDemoNew />} />
       </Routes>
     </div>
   );

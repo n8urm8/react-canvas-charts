@@ -2,6 +2,8 @@ import type { ChartRecord, InteractiveChartConfig } from './types';
 
 const serializeLayer = (lines: string[]): string => lines.filter(Boolean).join('\n');
 
+const formatArray = (items: string[]): string => `[${items.join(', ')}]`;
+
 export const buildInteractiveChartCodePreview = (
   config: InteractiveChartConfig,
   chartRecords: ChartRecord[],
@@ -18,17 +20,37 @@ export const buildInteractiveChartCodePreview = (
     ? `const data = [\n${formattedFirstEntry}${chartRecords.length > 1 ? `,\n  // ...more data points` : ''}\n];`
     : 'const data = [];';
 
+  const seriesKeys = config.series.map((series) => JSON.stringify(series.id));
+  const defaultColors = config.series.map((series) => JSON.stringify(series.color));
+
+  const valueScales = config.axes.length
+    ? `valueScales={[${config.axes
+        .map((axis) => {
+          const keys = config.series
+            .filter((series) => series.axisId === axis.id)
+            .map((series) => JSON.stringify(series.id));
+          return `
+    {
+      id: ${JSON.stringify(axis.id)},
+      dataKeys: ${formatArray(keys)},
+    }`;
+        })
+        .join(',')}
+  ]}`
+    : '';
+
   const surfaceProps = serializeLayer([
     'data={data}',
     'xKey="label"',
-    'yKeys={["value"]}',
+    `yKeys={${formatArray(seriesKeys)}}`,
     'width="100%"',
     `height={${config.height}}`,
     `margin={{ top: ${config.padding}, right: ${config.padding}, bottom: ${config.padding}, left: ${config.padding} }}`,
-    `defaultColors={[${JSON.stringify(config.lineColor)}]}`,
+    `defaultColors={${formatArray(defaultColors)}}`,
+    valueScales,
   ]);
 
-  const gridLayer = `  <ChartGridLayer show={${config.showGrid}} color=${JSON.stringify(config.gridColor)} />`;
+  const gridLayer = `  <ChartGridLayer show={${config.showGrid}} color=${JSON.stringify(config.gridColor)} alignWithXAxisTicks />`;
 
   const xAxisProps = [
     `show={${config.showXAxis}}`,
@@ -41,29 +63,47 @@ export const buildInteractiveChartCodePreview = (
   }
   const xAxisLayer = `  <ChartXAxis ${xAxisProps.join(' ')} />`;
 
-  const yAxisProps = [
-    `show={${config.showYAxis}}`,
-    `title=${JSON.stringify(config.yAxisTitle)}`,
-    `showTitle={${config.yAxisTitle.length > 0}}`,
-  ];
-  if (config.yAxisTitle.length > 0) {
-    yAxisProps.push('titleRotation={-90}');
-  }
-  const yAxisLayer = `  <ChartYAxis ${yAxisProps.join(' ')} />`;
-
-  const areaLayer = config.fillArea
-    ? `  <ChartAreaSeries dataKey="value" color=${JSON.stringify(config.lineColor)} opacity={${config.fillOpacity}} />`
+  const yAxisLayers = config.showYAxis
+    ? config.axes
+        .map((axis) => {
+          const line = `  <ChartYAxis show title=${JSON.stringify(axis.title)} showTitle={${axis.title.length > 0}} titleRotation={${axis.title.length > 0 ? -90 : 0}} scaleId=${JSON.stringify(axis.id)} side=${JSON.stringify(axis.position)} orientation=${JSON.stringify(axis.position === 'right' ? 'right' : 'left')} />`;
+          return line;
+        })
+        .join('\n')
     : '';
 
-  const lineLayer = config.showLines
-    ? `  <ChartLineSeries dataKey="value" color=${JSON.stringify(config.lineColor)} lineWidth={${config.lineWidth}} smooth={${config.lineSmooth}} lineDash={${JSON.stringify(config.lineDash)}} />`
+  const areaLayers = config.fillArea
+    ? config.series
+        .map(
+          (series) =>
+            `  <ChartAreaSeries dataKey=${JSON.stringify(series.id)} color=${JSON.stringify(series.color)} opacity={${config.fillOpacity}} />`,
+        )
+        .join('\n')
     : '';
 
-  const pointLayer = config.showPoints
-    ? `  <ChartPointSeries dataKey="value" size={${config.pointSize}} shape=${JSON.stringify(config.pointShape)} color=${JSON.stringify(config.pointColor)} fillColor=${JSON.stringify(config.pointColor)} />`
+  const lineLayers = config.showLines
+    ? config.series
+        .map(
+          (series) =>
+            `  <ChartLineSeries dataKey=${JSON.stringify(series.id)} color=${JSON.stringify(series.color)} lineWidth={${config.lineWidth}} smooth={${config.lineSmooth}} lineDash={${JSON.stringify(config.lineDash)}} />`,
+        )
+        .join('\n')
     : '';
 
-  const valueLabelsLayer = config.showValues ? '  <ChartValueLabels dataKey="value" />' : '';
+  const pointLayers = config.showPoints
+    ? config.series
+        .map(
+          (series) =>
+            `  <ChartPointSeries dataKey=${JSON.stringify(series.id)} size={${config.pointSize}} shape=${JSON.stringify(config.pointShape)} color=${JSON.stringify(series.color)} fillColor=${JSON.stringify(series.color)} />`,
+        )
+        .join('\n')
+    : '';
+
+  const valueLabelLayers = config.showValues
+    ? config.series
+        .map((series) => `  <ChartValueLabels dataKey=${JSON.stringify(series.id)} />`)
+        .join('\n')
+    : '';
 
   const cursorLayer = config.enableCursor
     ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} />`
@@ -81,11 +121,11 @@ export const buildInteractiveChartCodePreview = (
     titleLayer,
     gridLayer,
     xAxisLayer,
-    yAxisLayer,
-    areaLayer,
-    lineLayer,
-    pointLayer,
-    valueLabelsLayer,
+    yAxisLayers,
+    areaLayers,
+    lineLayers,
+    pointLayers,
+    valueLabelLayers,
     cursorLayer,
     tooltipLayer,
   ]

@@ -13,44 +13,72 @@ import {
 export interface ChartYAxisProps extends ChartAxisProps {
   tickCount?: number;
   formatLabel?: (value: number) => string;
+  scaleId?: string;
+  side?: 'left' | 'right';
+  registerTicks?: boolean;
 }
 
 export const ChartYAxis: React.FC<ChartYAxisProps> = ({
   tickCount = 5,
   formatLabel,
-  ...axisProps
+  scaleId,
+  side = 'left',
+  registerTicks,
+  orientation,
+  ...restAxisProps
 }) => {
   const {
     chartArea,
     canvasSize,
-    valueDomain,
-    getYPosition,
+    getScaleDomain,
+    getYPositionForScale,
+    defaultScaleId,
     setAxisTicks,
   } = useChartSurface();
 
+  const resolvedScaleId = useMemo(
+    () => scaleId ?? defaultScaleId,
+    [scaleId, defaultScaleId]
+  );
+
+  const axisOrientation = useMemo(
+    () => orientation ?? (side === 'right' ? 'right' : 'left'),
+    [orientation, side]
+  );
+
   const layerOptions = useMemo(() => ({ order: LayerOrder.axes }), []);
+
+  const domain = useMemo(
+    () => getScaleDomain(resolvedScaleId),
+    [getScaleDomain, resolvedScaleId]
+  );
 
   const tickValues = useMemo(() => {
     const count = Math.max(1, tickCount);
-    const range = valueDomain.paddedMax - valueDomain.paddedMin;
+    const range = domain.paddedMax - domain.paddedMin;
 
     if (range === 0) {
-      return [valueDomain.paddedMin];
+      return [domain.paddedMin];
     }
 
     const step = range / count;
     const values: number[] = [];
 
     for (let i = 0; i <= count; i += 1) {
-      values.push(valueDomain.paddedMin + step * i);
+      values.push(domain.paddedMin + step * i);
     }
 
     return values;
-  }, [tickCount, valueDomain.paddedMax, valueDomain.paddedMin]);
+  }, [domain.paddedMax, domain.paddedMin, tickCount]);
+
+  const getPositionForValue = useCallback(
+    (value: number) => getYPositionForScale(resolvedScaleId, value),
+    [getYPositionForScale, resolvedScaleId]
+  );
 
   const tickPositions = useMemo(
-    () => tickValues.map((value) => getYPosition(value)),
-    [getYPosition, tickValues]
+    () => tickValues.map((value) => getPositionForValue(value)),
+    [getPositionForValue, tickValues]
   );
 
   const tickLabels = useMemo(
@@ -63,7 +91,13 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     [formatLabel, tickValues]
   );
 
+  const shouldRegisterTicks = registerTicks ?? resolvedScaleId === defaultScaleId;
+
   useEffect(() => {
+    if (!shouldRegisterTicks) {
+      return undefined;
+    }
+
     setAxisTicks('y', {
       positions: tickPositions,
       labels: tickLabels,
@@ -72,29 +106,33 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     return () => {
       setAxisTicks('y', null);
     };
-  }, [setAxisTicks, tickLabels, tickPositions, tickValues]);
+  }, [setAxisTicks, shouldRegisterTicks, tickLabels, tickPositions, tickValues]);
+
+  const axisX = side === 'right' ? chartArea.x + chartArea.width : chartArea.x;
 
   const draw = useCallback<ChartLayerRenderer>((context) => {
     renderChartAxis({
       context,
       type: 'y',
-      startX: chartArea.x,
+      startX: axisX,
       startY: chartArea.y,
-      endX: chartArea.x,
+      endX: axisX,
       endY: chartArea.y + chartArea.height,
       labels: tickLabels,
       labelPositions: tickPositions,
       canvasWidth: canvasSize.width,
       canvasHeight: canvasSize.height,
-      ...axisProps,
+      orientation: axisOrientation,
+      ...restAxisProps,
     });
   }, [
-    axisProps,
+    axisOrientation,
+    axisX,
     canvasSize.height,
     canvasSize.width,
     chartArea.height,
-    chartArea.x,
     chartArea.y,
+    restAxisProps,
     tickLabels,
     tickPositions,
   ]);

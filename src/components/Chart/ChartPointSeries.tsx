@@ -20,7 +20,7 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
   fillColor,
   ...pointProps
 }) => {
-  const { normalizedData, getYPosition, getColorForKey } = useChartSurface();
+  const { normalizedData, getYPositionForKey, getColorForKey } = useChartSurface();
 
   const points = useMemo(
     () =>
@@ -32,12 +32,12 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
           }
           return {
             x: datum.x,
-            y: getYPosition(value),
+            y: getYPositionForKey(dataKey, value),
             value,
           };
         })
         .filter((point): point is { x: number; y: number; value: number } => point !== null),
-    [dataKey, getYPosition, normalizedData]
+    [dataKey, getYPositionForKey, normalizedData]
   );
 
   const resolvedColor = useMemo(

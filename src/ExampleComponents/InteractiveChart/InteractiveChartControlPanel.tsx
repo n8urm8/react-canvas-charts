@@ -1,21 +1,42 @@
 import React from 'react';
-import type { DataPoint, InteractiveChartConfig } from './types';
+import type {
+  InteractiveChartAxisConfig,
+  InteractiveChartConfig,
+  InteractiveChartSeriesConfig,
+} from './types';
+
+type AxisSeriesSummary = {
+  axis: InteractiveChartAxisConfig;
+  seriesCount: number;
+};
 
 type InteractiveChartControlPanelProps = {
-  dataPoints: DataPoint[];
+  dataPointsCount: number;
   config: InteractiveChartConfig;
-  onAddDataPoint: () => void;
-  onRemoveDataPoint: (id: string) => void;
-  onUpdateDataPoint: (id: string, field: 'label' | 'value', value: string | number) => void;
+  axisSummaries: AxisSeriesSummary[];
+  onSetAxisCount: (count: number) => void;
+  onSetAxisSeriesCount: (axisId: string, count: number) => void;
+  onAddSeries: () => void;
+  onRemoveSeries: (seriesId: string) => void;
+  onUpdateSeries: (seriesId: string, updates: Partial<InteractiveChartSeriesConfig>) => void;
+  onAddAxis: () => void;
+  onRemoveAxis: (axisId: string) => void;
+  onUpdateAxis: (axisId: string, updates: Partial<InteractiveChartAxisConfig>) => void;
   setConfig: React.Dispatch<React.SetStateAction<InteractiveChartConfig>>;
 };
 
 export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanelProps> = ({
-  dataPoints,
+  dataPointsCount,
   config,
-  onAddDataPoint,
-  onRemoveDataPoint,
-  onUpdateDataPoint,
+  axisSummaries,
+  onSetAxisCount,
+  onSetAxisSeriesCount,
+  onAddSeries,
+  onRemoveSeries,
+  onUpdateSeries,
+  onAddAxis,
+  onRemoveAxis,
+  onUpdateAxis,
   setConfig,
 }) => (
   <div className="bg-white rounded-lg shadow-lg p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
@@ -23,41 +44,81 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
 
     {/* Data Points Section */}
     <section className="mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-gray-700">Data Points</h3>
-        <button
-          onClick={onAddDataPoint}
-          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition"
-        >
-          + Add
-        </button>
-      </div>
-      <div className="space-y-2 max-h-60 overflow-y-auto">
-        {dataPoints.map((point) => (
-          <div key={point.id} className="flex gap-2 items-center p-2 bg-gray-50 rounded">
-            <input
-              type="text"
-              value={point.label}
-              onChange={(event) => onUpdateDataPoint(point.id, 'label', event.target.value)}
-              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-              placeholder="Label"
-            />
+      <h3 className="font-semibold text-gray-700 mb-3">Data Points</h3>
+      <p className="text-xs text-gray-500 mb-4">
+        Configure how many axes and lines to render. Values for every line are regenerated
+        automatically using randomized data.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Number of Y-Axes</label>
+          <input
+            type="range"
+            min="1"
+            max="6"
+            value={axisSummaries.length}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              onSetAxisCount(Number.isNaN(parsed) ? 1 : parsed);
+            }}
+            className="w-full"
+          />
+          <div className="flex items-center gap-2 mt-2">
             <input
               type="number"
-              value={point.value}
-              onChange={(event) => onUpdateDataPoint(point.id, 'value', Number.parseInt(event.target.value, 10) || 0)}
-              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              min="1"
+              max="6"
+              value={axisSummaries.length}
+              onChange={(event) => {
+                const parsed = Number.parseInt(event.target.value, 10);
+                onSetAxisCount(Number.isNaN(parsed) ? 1 : parsed);
+              }}
+              className="w-24 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
             />
-            <button
-              onClick={() => onRemoveDataPoint(point.id)}
-              className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
-              disabled={dataPoints.length === 1}
-            >
-              ×
-            </button>
+            <span className="text-sm text-gray-600">axes</span>
           </div>
-        ))}
+        </div>
+
+        <div className="space-y-2">
+          {axisSummaries.map((summary, index) => {
+            const seriesCount = Math.max(0, summary.seriesCount);
+            return (
+              <div key={summary.axis.id} className="p-3 bg-gray-50 rounded">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Axis {index + 1}: {summary.axis.title || summary.axis.id}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Position: {summary.axis.position} • {seriesCount} line{seriesCount === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Lines</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="8"
+                      value={Math.max(1, seriesCount)}
+                      onChange={(event) => {
+                        const parsed = Number.parseInt(event.target.value, 10);
+                        onSetAxisSeriesCount(
+                          summary.axis.id,
+                          Number.isNaN(parsed) ? 1 : parsed,
+                        );
+                      }}
+                      className="w-20 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+      <p className="text-xs text-gray-500 mt-3">
+        Currently rendering {dataPointsCount} time-series samples per line.
+      </p>
     </section>
 
     {/* Basic Settings */}
@@ -123,16 +184,6 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
             value={config.lineWidth}
             onChange={(event) => setConfig((prev) => ({ ...prev, lineWidth: Number.parseInt(event.target.value, 10) }))}
             className="w-full"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Line Color</label>
-          <input
-            type="color"
-            value={config.lineColor}
-            onChange={(event) => setConfig((prev) => ({ ...prev, lineColor: event.target.value }))}
-            className="w-full h-10 rounded cursor-pointer"
           />
         </div>
 
@@ -206,16 +257,6 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
             <option value="cross">Cross</option>
             <option value="star">Star</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Point Color</label>
-          <input
-            type="color"
-            value={config.pointColor}
-            onChange={(event) => setConfig((prev) => ({ ...prev, pointColor: event.target.value }))}
-            className="w-full h-10 rounded cursor-pointer"
-          />
         </div>
       </div>
     </section>
@@ -326,18 +367,118 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
             onChange={(event) => setConfig((prev) => ({ ...prev, showYAxis: event.target.checked }))}
             className="mr-2"
           />
-          <span className="text-sm text-gray-600">Show Y-Axis</span>
+          <span className="text-sm text-gray-600">Show Y-Axes</span>
         </label>
+      </div>
+    </section>
 
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Y-Axis Title</label>
-          <input
-            type="text"
-            value={config.yAxisTitle}
-            onChange={(event) => setConfig((prev) => ({ ...prev, yAxisTitle: event.target.value }))}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-          />
-        </div>
+    {/* Series Configuration */}
+    <section className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-700">Series</h3>
+        <button
+          onClick={onAddSeries}
+          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
+        >
+          + Add Series
+        </button>
+      </div>
+      <div className="space-y-3">
+        {config.series.map((series) => (
+          <div key={series.id} className="p-3 bg-gray-50 rounded space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={series.name}
+                onChange={(event) => onUpdateSeries(series.id, { name: event.target.value })}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                placeholder="Series name"
+              />
+              <input
+                type="color"
+                value={series.color}
+                onChange={(event) => onUpdateSeries(series.id, { color: event.target.value })}
+                className="w-12 h-10 rounded cursor-pointer"
+              />
+              <button
+                onClick={() => onRemoveSeries(series.id)}
+                className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
+                disabled={config.series.length === 1}
+              >
+                Remove
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Assigned Axis</label>
+              <select
+                value={series.axisId}
+                onChange={(event) => onUpdateSeries(series.id, { axisId: event.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              >
+                {config.axes.map((axis) => (
+                  <option key={axis.id} value={axis.id}>
+                    {axis.title || axis.id} ({axis.position})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* Axis Configuration */}
+    <section className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-700">Y-Axes</h3>
+        <button
+          onClick={onAddAxis}
+          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
+        >
+          + Add Axis
+        </button>
+      </div>
+      <div className="space-y-3">
+        {config.axes.map((axis) => {
+          const attachedSeries = config.series.filter((series) => series.axisId === axis.id);
+          return (
+            <div key={axis.id} className="p-3 bg-gray-50 rounded space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={axis.title}
+                  onChange={(event) => onUpdateAxis(axis.id, { title: event.target.value })}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  placeholder="Axis title"
+                />
+                <select
+                  value={axis.position}
+                  onChange={(event) =>
+                    onUpdateAxis(axis.id, {
+                      position: event.target.value as InteractiveChartAxisConfig['position'],
+                    })
+                  }
+                  className="px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                >
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+                <button
+                  onClick={() => onRemoveAxis(axis.id)}
+                  className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
+                  disabled={config.axes.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">
+                {attachedSeries.length > 0
+                  ? `${attachedSeries.length} series: ${attachedSeries.map((series) => series.name).join(', ')}`
+                  : 'No series assigned'}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </section>
 
@@ -407,7 +548,7 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                 placeholder="{label}: {value}"
               />
-              <p className="text-xs text-gray-500 mt-1">Use {'{label}'} and {'{value}'}</p>
+              <p className="text-xs text-gray-500 mt-1">Use {'{label}'} and series keys like {'{seriesId}'}</p>
             </div>
           </>
         ) : null}

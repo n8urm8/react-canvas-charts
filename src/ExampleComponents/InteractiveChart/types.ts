@@ -1,12 +1,25 @@
 export interface DataPoint {
   id: string;
   label: string;
-  value: number;
+  values: Record<string, number>;
 }
 
 export type PointShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'star';
 
 export type TooltipPosition = 'follow' | 'top' | 'bottom' | 'left' | 'right' | 'fixed';
+
+export interface InteractiveChartAxisConfig {
+  id: string;
+  title: string;
+  position: 'left' | 'right';
+}
+
+export interface InteractiveChartSeriesConfig {
+  id: string;
+  name: string;
+  color: string;
+  axisId: string;
+}
 
 export interface InteractiveChartConfig {
   title: string;
@@ -21,26 +34,24 @@ export interface InteractiveChartConfig {
   enableCursor: boolean;
   enableTooltip: boolean;
   lineWidth: number;
-  lineColor: string;
   lineSmooth: boolean;
   lineDash: number[];
   pointSize: number;
   pointShape: PointShape;
-  pointColor: string;
   showGrid: boolean;
   gridColor: string;
   showXAxis: boolean;
   showYAxis: boolean;
   xAxisTitle: string;
-  yAxisTitle: string;
   xAxisTickStep: number;
   xAxisMaxTicks: number;
   cursorSnapToPoints: boolean;
   tooltipPosition: TooltipPosition;
   tooltipTemplate: string;
+  axes: InteractiveChartAxisConfig[];
+  series: InteractiveChartSeriesConfig[];
 }
 
-export interface ChartRecord extends Record<string, unknown> {
+export type ChartRecord = {
   label: string;
-  value: number;
-}
+} & Record<string, number>;

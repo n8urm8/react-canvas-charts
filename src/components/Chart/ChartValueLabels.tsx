@@ -18,7 +18,7 @@ export const ChartValueLabels: React.FC<ChartValueLabelsProps> = ({
   dataKey,
   ...labelProps
 }) => {
-  const { normalizedData, getYPosition } = useChartSurface();
+  const { normalizedData, getYPositionForKey } = useChartSurface();
 
   const points = useMemo(
     () =>
@@ -30,12 +30,12 @@ export const ChartValueLabels: React.FC<ChartValueLabelsProps> = ({
           }
           return {
             x: datum.x,
-            y: getYPosition(value),
+            y: getYPositionForKey(dataKey, value),
             value,
           };
         })
         .filter((point): point is { x: number; y: number; value: number } => point !== null),
-    [dataKey, getYPosition, normalizedData]
+    [dataKey, getYPositionForKey, normalizedData]
   );
 
   const draw = useCallback<ChartLayerRenderer>((context) => {

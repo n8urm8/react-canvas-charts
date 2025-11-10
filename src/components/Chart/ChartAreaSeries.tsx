@@ -14,7 +14,7 @@ export const ChartAreaSeries: React.FC<ChartAreaSeriesProps> = ({
   opacity = 0.1,
   show = true,
 }) => {
-  const { normalizedData, getYPosition, getColorForKey } = useChartSurface();
+  const { normalizedData, getYPositionForKey, getColorForKey } = useChartSurface();
 
   const points = useMemo(
     () =>
@@ -26,11 +26,11 @@ export const ChartAreaSeries: React.FC<ChartAreaSeriesProps> = ({
           }
           return {
             x: datum.x,
-            y: getYPosition(value),
+            y: getYPositionForKey(dataKey, value),
           };
         })
         .filter((point): point is { x: number; y: number } => point !== null),
-    [dataKey, getYPosition, normalizedData]
+    [dataKey, getYPositionForKey, normalizedData]
   );
 
   const fillColor = useMemo(

@@ -97,6 +97,7 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
       labelPositions,
       canvasWidth: canvasSize.width,
       canvasHeight: canvasSize.height,
+      orientation: position === 'bottom' ? 'bottom' : 'top',
       ...axisProps,
     });
   }, [axisProps, canvasSize.height, canvasSize.width, chartArea.height, chartArea.width, chartArea.x, chartArea.y, labelPositions, labels, position]);

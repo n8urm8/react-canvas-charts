@@ -25,6 +25,7 @@ export interface ChartAxisProps {
   titleRotation?: number; // in degrees, useful for Y-axis titles
   titleOffsetX?: number;
   titleOffsetY?: number;
+  orientation?: 'left' | 'right' | 'top' | 'bottom';
 }
 
 export interface ChartAxisRenderProps extends ChartAxisProps {
@@ -67,6 +68,7 @@ export const defaultChartAxisProps: Required<ChartAxisProps> = {
   titleRotation: 0,
   titleOffsetX: 0,
   titleOffsetY: 0,
+  orientation: 'bottom',
 };
 
 export const renderChartAxis = (props: ChartAxisRenderProps): void => {
@@ -79,8 +81,7 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     endY,
     labels = [],
     labelPositions = [],
-    canvasWidth,
-    canvasHeight,
+  canvasWidth,
     show = defaultChartAxisProps.show,
     color = defaultChartAxisProps.color,
     lineWidth = defaultChartAxisProps.lineWidth,
@@ -107,9 +108,19 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     titleRotation = defaultChartAxisProps.titleRotation,
     titleOffsetX = defaultChartAxisProps.titleOffsetX,
     titleOffsetY = defaultChartAxisProps.titleOffsetY,
+    orientation = defaultChartAxisProps.orientation,
   } = props;
 
   if (!show) return;
+
+  const derivedOrientation = orientation
+    ?? (type === 'x'
+      ? startY <= endY ? 'bottom' : 'top'
+      : 'left');
+
+  const isHorizontal = type === 'x';
+  const isTop = derivedOrientation === 'top';
+  const isRight = derivedOrientation === 'right';
 
   // Draw axis line
   context.strokeStyle = color;
@@ -137,15 +148,19 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       const position = labelPositions[index];
       let tickX: number, tickY: number, labelX: number, labelY: number;
 
-      if (type === 'x') {
+      if (isHorizontal) {
         tickX = position;
         tickY = startY;
         labelX = position;
-        labelY = startY + labelPadding + labelFontSize;
+        labelY = isTop
+          ? startY - labelPadding
+          : startY + labelPadding + labelFontSize;
       } else {
         tickX = startX;
         tickY = position;
-        labelX = startX - labelPadding;
+        labelX = isRight
+          ? startX + labelPadding
+          : startX - labelPadding;
         labelY = position + labelFontSize / 3;
       }
 
@@ -154,12 +169,14 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
         context.strokeStyle = tickColor;
         context.lineWidth = 1;
         context.beginPath();
-        if (type === 'x') {
+        if (isHorizontal) {
+          const direction = isTop ? -1 : 1;
           context.moveTo(tickX, tickY);
-          context.lineTo(tickX, tickY + tickLength);
+          context.lineTo(tickX, tickY + direction * tickLength);
         } else {
           context.moveTo(tickX, tickY);
-          context.lineTo(tickX - tickLength, tickY);
+          const direction = isRight ? 1 : -1;
+          context.lineTo(tickX + direction * tickLength, tickY);
         }
         context.stroke();
       }
@@ -168,7 +185,8 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       if (showLabels) {
         context.fillStyle = labelColor;
         context.font = `${labelFontSize}px ${labelFontFamily}`;
-        context.textAlign = type === 'x' ? 'center' : 'right';
+        context.textAlign = isHorizontal ? 'center' : isRight ? 'left' : 'right';
+        context.textBaseline = isHorizontal ? (isTop ? 'bottom' : 'top') : 'middle';
         context.fillText(label, labelX, labelY);
       }
     });
@@ -184,11 +202,11 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     
     let titleX: number, titleY: number;
     
-    if (type === 'x') {
+    if (isHorizontal) {
       // X-axis title (horizontal axis)
       const axisLength = endX - startX;
-      const baseY = canvasHeight
-        ? canvasHeight - titlePadding
+      const baseY = isTop
+        ? startY - titlePadding
         : startY + titlePadding;
 
       if (titlePosition === 'start') {
@@ -203,7 +221,7 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       }
 
       titleY = baseY;
-      context.textBaseline = 'bottom';
+      context.textBaseline = isTop ? 'bottom' : 'top';
     } else {
       // Y-axis title (vertical axis)
       const axisLength = startY - endY;
@@ -214,7 +232,11 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       if (showLabels) xOffset += 50; // Approximate space for Y-axis labels
       xOffset += titlePadding;
 
-      titleX = startX - xOffset;
+      if (isRight) {
+        titleX = startX + xOffset;
+      } else {
+        titleX = startX - xOffset;
+      }
 
       if (titlePosition === 'start') {
         titleY = startY;

@@ -11,6 +11,15 @@ import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { findNearestDataPoint } from './components/ChartCursor';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 
+export interface ValueScaleDefinition {
+  id: string;
+  dataKeys: string[];
+  domain?: {
+    min?: number;
+    max?: number;
+  };
+}
+
 export type ChartLayerRenderer = (
   context: CanvasRenderingContext2D,
   helpers: ChartSurfaceRenderHelpers
@@ -35,11 +44,17 @@ export interface ChartSurfaceRenderHelpers {
   normalizedData: NormalizedDatum[];
   getXPosition: (index: number) => number;
   getYPosition: (value: number) => number;
+  getYPositionForScale: (scaleId: string, value: number) => number;
+  getYPositionForKey: (dataKey: string, value: number) => number;
+  getScaleDomain: (scaleId: string) => ValueDomain;
+  getScaleIdForKey: (dataKey: string) => string;
+  defaultScaleId: string;
   colorForKey: (dataKey: string) => string;
   pointer: ChartPointer | null;
   dataPoints: CursorDataPoint[];
   axisTicks: AxisTickState;
   valueDomain: ValueDomain;
+  valueDomainsByScale: Record<string, ValueDomain>;
   renderCycle: number;
 }
 
@@ -101,8 +116,14 @@ export interface ChartSurfaceContextValue {
   chartArea: ChartArea;
   canvasSize: { width: number; height: number };
   valueDomain: ValueDomain;
+  valueDomainsByScale: Record<string, ValueDomain>;
   getXPosition: (index: number) => number;
   getYPosition: (value: number) => number;
+  getYPositionForScale: (scaleId: string, value: number) => number;
+  getYPositionForKey: (dataKey: string, value: number) => number;
+  getScaleDomain: (scaleId: string) => ValueDomain;
+  getScaleIdForKey: (dataKey: string) => string;
+  defaultScaleId: string;
   normalizedData: NormalizedDatum[];
   dataPoints: CursorDataPoint[];
   pointer: ChartPointer | null;
@@ -164,6 +185,7 @@ export interface ChartSurfaceProps {
   style?: React.CSSProperties;
   onHover?: (dataPoint: CursorDataPoint | null) => void;
   onClick?: (dataPoint: CursorDataPoint | null) => void;
+  valueScales?: ValueScaleDefinition[];
   children?: React.ReactNode;
 }
 
@@ -183,6 +205,13 @@ const DEFAULT_MARGIN: ChartMargin = {
   right: 40,
   bottom: 48,
   left: 56,
+};
+
+const DEFAULT_VALUE_DOMAIN: ValueDomain = {
+  min: 0,
+  max: 1,
+  paddedMin: -0.1,
+  paddedMax: 1.1,
 };
 
 const shallowEqualArray = (a: number[], b: number[]): boolean => {
@@ -213,6 +242,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   style,
   onHover,
   onClick,
+  valueScales,
   children,
 }) => {
   const resolvedMargin = useMemo(() => mergeMargin(margin), [margin]);
@@ -374,59 +404,202 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     ]
   );
 
-  const valueDomain = useMemo<ValueDomain>(() => {
-    let minValue = Number.POSITIVE_INFINITY;
-    let maxValue = Number.NEGATIVE_INFINITY;
+  const perKeyStats = useMemo(() => {
+    const stats = new Map<string, { min: number; max: number }>();
+
+    resolvedYKeys.forEach((key) => {
+      stats.set(key, {
+        min: Number.POSITIVE_INFINITY,
+        max: Number.NEGATIVE_INFINITY,
+      });
+    });
 
     data.forEach((datum) => {
       resolvedYKeys.forEach((key) => {
         const rawValue = datum[key];
         const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         if (Number.isFinite(numeric)) {
-          minValue = Math.min(minValue, numeric);
-          maxValue = Math.max(maxValue, numeric);
+          const entry = stats.get(key);
+          if (entry) {
+            entry.min = Math.min(entry.min, numeric);
+            entry.max = Math.max(entry.max, numeric);
+          }
         }
       });
     });
 
-    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
-      minValue = 0;
-      maxValue = 1;
-    }
+    const finalized = new Map<string, { min: number; max: number }>();
 
-    if (minValue === maxValue) {
-      minValue -= 1;
-      maxValue += 1;
-    }
+    stats.forEach((value, key) => {
+      let min = value.min;
+      let max = value.max;
 
-    const range = maxValue - minValue;
-    const padding = range === 0 ? 1 : range * 0.1;
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        min = 0;
+        max = 1;
+      }
 
-    return {
-      min: minValue,
-      max: maxValue,
-      paddedMin: minValue - padding,
-      paddedMax: maxValue + padding,
-    };
+      if (min === max) {
+        min -= 1;
+        max += 1;
+      }
+
+      finalized.set(key, { min, max });
+    });
+
+    return finalized;
   }, [data, resolvedYKeys]);
 
-  const getYPosition = useCallback(
-    (value: number) => {
+  const valueScaleState = useMemo<{
+    scales: Array<{
+      id: string;
+      dataKeys: string[];
+      domain?: ValueScaleDefinition['domain'];
+    }>;
+    assignments: Map<string, string>;
+  }>(() => {
+    const assignments = new Map<string, string>();
+
+    if (valueScales && valueScales.length > 0) {
+      const sanitized = valueScales.map((scale, index) => {
+        const id = scale.id ?? `scale-${index + 1}`;
+        const uniqueKeys = Array.from(
+          new Set(scale.dataKeys && scale.dataKeys.length > 0 ? scale.dataKeys : resolvedYKeys)
+        );
+        uniqueKeys.forEach((key) => assignments.set(key, id));
+        return {
+          id,
+          dataKeys: uniqueKeys,
+          domain: scale.domain,
+        };
+      });
+
+      if (sanitized.length === 0) {
+        sanitized.push({ id: 'default', dataKeys: [...resolvedYKeys], domain: undefined });
+      }
+
+      resolvedYKeys.forEach((key) => {
+        if (!assignments.has(key)) {
+          const fallback = sanitized[0];
+          fallback.dataKeys = Array.from(new Set([...fallback.dataKeys, key]));
+          assignments.set(key, fallback.id);
+        }
+      });
+
+      return { scales: sanitized, assignments };
+    }
+
+    const fallback = [{ id: 'default', dataKeys: [...resolvedYKeys], domain: undefined }];
+    resolvedYKeys.forEach((key) => assignments.set(key, 'default'));
+    return { scales: fallback, assignments };
+  }, [resolvedYKeys, valueScales]);
+
+  const resolvedValueScales = valueScaleState.scales;
+  const scaleAssignments = valueScaleState.assignments;
+
+  const valueDomainsByScale = useMemo<Record<string, ValueDomain>>(() => {
+    const domains: Record<string, ValueDomain> = {};
+
+    const computeDomain = (minValue: number, maxValue: number) => {
+      let min = minValue;
+      let max = maxValue;
+
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        min = 0;
+        max = 1;
+      }
+
+      if (min === max) {
+        min -= 1;
+        max += 1;
+      }
+
+      const range = max - min;
+      const padding = range === 0 ? 1 : range * 0.1;
+
+      return {
+        min,
+        max,
+        paddedMin: min - padding,
+        paddedMax: max + padding,
+      };
+    };
+
+    resolvedValueScales.forEach((scale) => {
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+
+      scale.dataKeys.forEach((key) => {
+        const stats = perKeyStats.get(key);
+        if (stats) {
+          min = Math.min(min, stats.min);
+          max = Math.max(max, stats.max);
+        }
+      });
+
+      if (scale.domain?.min !== undefined && Number.isFinite(scale.domain.min)) {
+        min = scale.domain.min;
+      }
+      if (scale.domain?.max !== undefined && Number.isFinite(scale.domain.max)) {
+        max = scale.domain.max;
+      }
+
+      domains[scale.id] = computeDomain(min, max);
+    });
+
+    return domains;
+  }, [perKeyStats, resolvedValueScales]);
+
+  const defaultScaleId = resolvedValueScales[0]?.id ?? 'default';
+  const defaultValueDomain = useMemo<ValueDomain>(
+    () => valueDomainsByScale[defaultScaleId] ?? DEFAULT_VALUE_DOMAIN,
+    [defaultScaleId, valueDomainsByScale]
+  );
+
+  const getScaleDomain = useCallback(
+    (scaleId: string) => valueDomainsByScale[scaleId] ?? defaultValueDomain,
+    [defaultValueDomain, valueDomainsByScale]
+  );
+
+  const getScaleIdForKey = useCallback(
+    (dataKey: string) => scaleAssignments.get(dataKey) ?? defaultScaleId,
+    [defaultScaleId, scaleAssignments]
+  );
+
+  const getYPositionForScale = useCallback(
+    (scaleId: string, value: number) => {
       if (!Number.isFinite(value)) {
         return chartArea.y + chartArea.height;
       }
 
-      const denominator = valueDomain.paddedMax - valueDomain.paddedMin;
+      const domain = valueDomainsByScale[scaleId] ?? defaultValueDomain;
+      const denominator = domain.paddedMax - domain.paddedMin;
+
       if (denominator === 0 || chartArea.height === 0) {
         return chartArea.y + chartArea.height / 2;
       }
 
-      const normalized = (value - valueDomain.paddedMin) / denominator;
+      const normalized = (value - domain.paddedMin) / denominator;
       const clamped = Math.max(0, Math.min(1, normalized));
       return chartArea.y + chartArea.height - clamped * chartArea.height;
     },
-    [chartArea.height, chartArea.y, valueDomain.paddedMax, valueDomain.paddedMin]
+    [chartArea.height, chartArea.y, defaultValueDomain, valueDomainsByScale]
   );
+
+  const getYPositionForKey = useCallback(
+    (dataKey: string, value: number) => {
+      const scaleId = getScaleIdForKey(dataKey);
+      return getYPositionForScale(scaleId, value);
+    },
+    [getScaleIdForKey, getYPositionForScale]
+  );
+
+  const getYPosition = useCallback(
+    (value: number) => getYPositionForScale(defaultScaleId, value),
+    [defaultScaleId, getYPositionForScale]
+  );
+
+  const valueDomain = defaultValueDomain;
 
   const getXPosition = useCallback(
     (index: number) => {
@@ -478,7 +651,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
         points.push({
           x: datum.x,
-          y: getYPosition(value),
+          y: getYPositionForKey(key, value),
           value,
           label: datum.label,
           seriesIndex,
@@ -492,7 +665,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     });
 
     return points;
-  }, [getYPosition, normalizedData, resolvedYKeys]);
+  }, [getYPositionForKey, normalizedData, resolvedYKeys]);
 
   const colorPalette = useMemo(
     () => (defaultColors.length > 0 ? defaultColors : DEFAULT_COLORS),
@@ -668,11 +841,17 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         normalizedData,
         getXPosition,
         getYPosition,
+        getYPositionForScale,
+        getYPositionForKey,
+        getScaleDomain,
+        getScaleIdForKey,
+        defaultScaleId,
         colorForKey: getColorForKey,
         pointer,
         dataPoints,
         axisTicks: axisTickStateRef.current,
         valueDomain,
+        valueDomainsByScale,
         renderCycle: renderVersion,
       };
 
@@ -689,12 +868,18 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       getColorForKey,
       getXPosition,
       getYPosition,
+      getYPositionForKey,
+      getYPositionForScale,
+      getScaleDomain,
+      getScaleIdForKey,
+  defaultScaleId,
       labelPositions,
       labels,
       layersSorted,
       normalizedData,
       pointer,
       renderVersion,
+      valueDomainsByScale,
       valueDomain,
     ]
   );
@@ -708,8 +893,14 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     chartArea,
     canvasSize,
     valueDomain,
+  defaultScaleId,
+    valueDomainsByScale,
     getXPosition,
     getYPosition,
+    getYPositionForScale,
+    getYPositionForKey,
+    getScaleDomain,
+    getScaleIdForKey,
     normalizedData,
     dataPoints,
     pointer,
@@ -728,6 +919,10 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     getColorForKey,
     getXPosition,
     getYPosition,
+  getYPositionForKey,
+  getYPositionForScale,
+  getScaleDomain,
+  getScaleIdForKey,
     labelPositions,
     labels,
     normalizedData,
@@ -737,6 +932,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     requestRender,
     resolvedYKeys,
     setAxisTicks,
+    defaultScaleId,
+    valueDomainsByScale,
     valueDomain,
     xKey,
   ]);

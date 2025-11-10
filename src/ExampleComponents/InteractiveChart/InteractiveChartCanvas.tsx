@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ChartSurface,
   ChartGridLayer,
@@ -22,85 +22,163 @@ type InteractiveChartCanvasProps = {
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   data,
   config,
-}) => (
-  <div className="bg-white rounded-lg shadow-lg p-6">
-    <ChartSurface
-      data={data}
-      xKey="label"
-      yKeys={["value"]}
-      width="100%"
-      height={config.height}
-      margin={{
-        top: config.padding,
-        right: config.padding,
-        bottom: config.padding,
-        left: config.padding,
-      }}
-      backgroundColor="#ffffff"
-      defaultColors={[config.lineColor]}
-    >
-      {config.title ? <ChartTitleLayer title={config.title} /> : null}
+}) => {
+  const resolvedAxes = useMemo(() => {
+    if (config.axes.length > 0) {
+      return config.axes;
+    }
 
-      <ChartGridLayer
-        show={config.showGrid}
-        showVertical={config.showGrid}
-        alignWithXAxisTicks
-        color={config.gridColor}
-      />
-      <ChartXAxis
-        show={config.showXAxis}
-        title={config.xAxisTitle}
-        showTitle={config.xAxisTitle.length > 0}
-        tickStep={config.xAxisTickStep}
-        maxTicks={config.xAxisMaxTicks > 0 ? config.xAxisMaxTicks : undefined}
-      />
-      <ChartYAxis
-        show={config.showYAxis}
-        title={config.yAxisTitle}
-        showTitle={config.yAxisTitle.length > 0}
-        titleRotation={config.yAxisTitle.length > 0 ? -90 : 0}
-      />
+    return [
+      {
+        id: 'axis-default',
+        title: 'Value',
+        position: 'left' as const,
+      },
+    ];
+  }, [config.axes]);
 
-      {config.fillArea ? (
-        <ChartAreaSeries
-          dataKey="value"
-          color={config.lineColor}
-          opacity={config.fillOpacity}
+  const axisIds = useMemo(() => resolvedAxes.map((axis) => axis.id), [resolvedAxes]);
+  const fallbackAxisId = axisIds[0] ?? 'axis-default';
+
+  const resolvedSeries = useMemo(
+    () =>
+      (config.series.length > 0
+        ? config.series
+        : [
+            {
+              id: 'series-default',
+              name: 'Series 1',
+              color: '#3b82f6',
+              axisId: fallbackAxisId,
+            },
+          ]
+      ).map((series, index) => ({
+        ...series,
+        axisId: axisIds.includes(series.axisId) ? series.axisId : fallbackAxisId,
+        color: series.color || `hsl(${(index * 137.5) % 360}deg 70% 50%)`,
+      })),
+    [axisIds, config.series, fallbackAxisId]
+  );
+
+  const yKeys = useMemo(() => resolvedSeries.map((series) => series.id), [resolvedSeries]);
+  const defaultColors = useMemo(
+    () => resolvedSeries.map((series) => series.color),
+    [resolvedSeries]
+  );
+
+  const valueScales = useMemo(
+    () =>
+      resolvedAxes.map((axis) => ({
+        id: axis.id,
+        dataKeys: resolvedSeries
+          .filter((series) => series.axisId === axis.id)
+          .map((series) => series.id),
+      })),
+    [resolvedAxes, resolvedSeries]
+  );
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6">
+      <ChartSurface
+        data={data}
+        xKey="label"
+        yKeys={yKeys}
+        width="100%"
+        height={config.height}
+        margin={{
+          top: config.padding,
+          right: config.padding,
+          bottom: config.padding,
+          left: config.padding,
+        }}
+        backgroundColor="#ffffff"
+        defaultColors={defaultColors}
+        valueScales={valueScales}
+      >
+        {config.title ? <ChartTitleLayer title={config.title} /> : null}
+
+        <ChartGridLayer
+          show={config.showGrid}
+          showVertical={config.showGrid}
+          alignWithXAxisTicks
+          color={config.gridColor}
         />
-      ) : null}
-
-      {config.showLines ? (
-        <ChartLineSeries
-          dataKey="value"
-          color={config.lineColor}
-          lineWidth={config.lineWidth}
-          smooth={config.lineSmooth}
-          lineDash={config.lineDash}
+        <ChartXAxis
+          show={config.showXAxis}
+          title={config.xAxisTitle}
+          showTitle={config.xAxisTitle.length > 0}
+          tickStep={config.xAxisTickStep}
+          maxTicks={config.xAxisMaxTicks > 0 ? config.xAxisMaxTicks : undefined}
         />
-      ) : null}
+        {config.showYAxis
+          ? resolvedAxes.map((axis) => (
+              <ChartYAxis
+                key={axis.id}
+                show
+                title={axis.title}
+                showTitle={axis.title.length > 0}
+                titleRotation={axis.title.length > 0 ? -90 : 0}
+                scaleId={axis.id}
+                side={axis.position}
+                orientation={axis.position === 'right' ? 'right' : 'left'}
+              />
+            ))
+          : null}
 
-      {config.showPoints ? (
-        <ChartPointSeries
-          dataKey="value"
-          size={config.pointSize}
-          shape={config.pointShape}
-          color={config.pointColor}
-          fillColor={config.pointColor}
-        />
-      ) : null}
+        {config.fillArea
+          ? resolvedSeries.map((series) => (
+              <ChartAreaSeries
+                key={`area-${series.id}`}
+                dataKey={series.id}
+                color={series.color}
+                opacity={config.fillOpacity}
+              />
+            ))
+          : null}
 
-      {config.showValues ? <ChartValueLabels dataKey="value" /> : null}
+        {config.showLines
+          ? resolvedSeries.map((series) => (
+              <ChartLineSeries
+                key={`line-${series.id}`}
+                dataKey={series.id}
+                color={series.color}
+                lineWidth={config.lineWidth}
+                smooth={config.lineSmooth}
+                lineDash={config.lineDash}
+              />
+            ))
+          : null}
 
-      {config.enableCursor ? (
-        <ChartCursorLayer snapToDataPoints={config.cursorSnapToPoints} />
-      ) : null}
+        {config.showPoints
+          ? resolvedSeries.map((series) => (
+              <ChartPointSeries
+                key={`point-${series.id}`}
+                dataKey={series.id}
+                size={config.pointSize}
+                shape={config.pointShape}
+                color={series.color}
+                fillColor={series.color}
+              />
+            ))
+          : null}
 
-      {config.enableTooltip ? (
-        <ChartTooltipLayer
-          position={config.tooltipPosition}
-          template={config.tooltipTemplate}
-        />
-      ) : null}
-    </ChartSurface>
-  </div>
-);
+        {config.showValues
+          ? resolvedSeries.map((series) => (
+              <ChartValueLabels key={`label-${series.id}`} dataKey={series.id} />
+            ))
+          : null}
+
+        {config.enableCursor ? (
+          <ChartCursorLayer snapToDataPoints={config.cursorSnapToPoints} />
+        ) : null}
+
+        {config.enableTooltip ? (
+          <ChartTooltipLayer
+            position={config.tooltipPosition}
+            template={config.tooltipTemplate}
+          />
+        ) : null}
+      </ChartSurface>
+    </div>
+  );
+};

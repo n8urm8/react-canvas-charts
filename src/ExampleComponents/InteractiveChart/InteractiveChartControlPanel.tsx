@@ -548,7 +548,9 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                 placeholder="{label}: {value}"
               />
-              <p className="text-xs text-gray-500 mt-1">Use {'{label}'} and series keys like {'{seriesId}'}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Use {'{label}'} and series keys like {'{seriesId}'} or leave blank to show all values automatically.
+              </p>
             </div>
           </>
         ) : null}

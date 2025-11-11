@@ -66,6 +66,14 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
     [resolvedSeries]
   );
 
+  const seriesLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    resolvedSeries.forEach((series) => {
+      map[series.id] = series.name || series.id;
+    });
+    return map;
+  }, [resolvedSeries]);
+
   const valueScales = useMemo(
     () =>
       resolvedAxes.map((axis) => ({
@@ -176,6 +184,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           <ChartTooltipLayer
             position={config.tooltipPosition}
             template={config.tooltipTemplate}
+            seriesLabels={seriesLabelMap}
           />
         ) : null}
       </ChartSurface>

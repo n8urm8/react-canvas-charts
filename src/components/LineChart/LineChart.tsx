@@ -228,6 +228,14 @@ export const LineChart: React.FC<LineChartProps> = ({
     [padding]
   );
 
+  const seriesLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    seriesConfigs.forEach((series) => {
+      map[series.key] = series.key;
+    });
+    return map;
+  }, [seriesConfigs]);
+
   const snapRadius = cursorComponent.snapRadius ?? defaultChartCursorProps.snapRadius;
   const snapToDataPoints =
     cursorComponent.snapToDataPoints ?? defaultChartCursorProps.snapToDataPoints;
@@ -332,6 +340,7 @@ export const LineChart: React.FC<LineChartProps> = ({
           {...tooltipComponent}
           snapRadius={snapRadius}
           snapToDataPoints={snapToDataPoints}
+          seriesLabels={seriesLabelMap}
         />
       ) : null}
     </ChartSurface>

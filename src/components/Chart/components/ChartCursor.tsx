@@ -116,7 +116,7 @@ export interface DataPoint {
   label?: string;
   seriesIndex?: number;
   dataIndex?: number;
-  originalData?: any;
+  originalData?: Record<string, unknown>;
 }
 
 export const findNearestDataPoint = (

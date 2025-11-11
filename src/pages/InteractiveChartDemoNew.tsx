@@ -51,7 +51,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	xAxisMaxTicks: 0,
 	cursorSnapToPoints: true,
 	tooltipPosition: 'follow',
-	tooltipTemplate: '{label}: {series-1}',
+	tooltipTemplate: '',
 	axes: [
 		{ id: 'axis-1', title: 'Value', position: 'left' },
 	],

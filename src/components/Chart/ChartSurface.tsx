@@ -11,6 +11,8 @@ import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { findNearestDataPoint } from './components/ChartCursor';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 
+const Y_AXIS_BAND_WIDTH = 56;
+
 export interface ValueScaleDefinition {
   id: string;
   dataKeys: string[];
@@ -56,6 +58,7 @@ export interface ChartSurfaceRenderHelpers {
   valueDomain: ValueDomain;
   valueDomainsByScale: Record<string, ValueDomain>;
   renderCycle: number;
+  yAxisCounts: { left: number; right: number };
 }
 
 export interface ChartPointer {
@@ -136,6 +139,10 @@ export interface ChartSurfaceContextValue {
   getColorForKey: (dataKey: string, fallback?: string) => string;
   registerCursorOptions: (options: Partial<CursorOptions>) => () => void;
   requestRender: () => void;
+  registerYAxis: (side: 'left' | 'right') => { id: string; unregister: () => void };
+  getYAxisIndex: (id: string, side: 'left' | 'right') => number;
+  yAxisCounts: { left: number; right: number };
+  yAxisSpacing: number;
 }
 
 export interface ChartLayerHandle {
@@ -279,6 +286,15 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     defaultCursorOptions
   );
 
+  const yAxisRegistryRef = useRef<{ left: string[]; right: string[] }>({
+    left: [],
+    right: [],
+  });
+  const yAxisIdRef = useRef(0);
+  const [yAxisCounts, setYAxisCounts] = useState<{ left: number; right: number}>(
+    () => ({ left: 0, right: 0 })
+  );
+
   const recomputeCursorOptions = useCallback(() => {
     const aggregated: CursorOptions = { ...defaultCursorOptions };
 
@@ -312,6 +328,33 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     },
     [recomputeCursorOptions]
   );
+
+  const registerYAxis = useCallback((side: 'left' | 'right') => {
+    const id = `y-axis-${(yAxisIdRef.current += 1)}`;
+    const registry = yAxisRegistryRef.current;
+    registry[side] = [...registry[side], id];
+    setYAxisCounts({
+      left: registry.left.length,
+      right: registry.right.length,
+    });
+
+    return {
+      id,
+      unregister: () => {
+        const current = yAxisRegistryRef.current;
+        current[side] = current[side].filter((axisId) => axisId !== id);
+        setYAxisCounts({
+          left: current.left.length,
+          right: current.right.length,
+        });
+      },
+    };
+  }, []);
+
+  const getYAxisIndex = useCallback((id: string, side: 'left' | 'right') => {
+    const registry = yAxisRegistryRef.current;
+    return registry[side].indexOf(id);
+  }, []);
 
   const registerLayer = useCallback(
     (draw: ChartLayerRenderer, options: ChartLayerOptions = {}) => {
@@ -383,11 +426,16 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const chartArea = useMemo<ChartArea>(
     () => ({
-      x: resolvedMargin.left,
+      x:
+        resolvedMargin.left + yAxisCounts.left * Y_AXIS_BAND_WIDTH,
       y: resolvedMargin.top,
       width: Math.max(
         0,
-        canvasSize.width - resolvedMargin.left - resolvedMargin.right
+        canvasSize.width -
+          resolvedMargin.left -
+          resolvedMargin.right -
+          yAxisCounts.left * Y_AXIS_BAND_WIDTH -
+          yAxisCounts.right * Y_AXIS_BAND_WIDTH
       ),
       height: Math.max(
         0,
@@ -401,6 +449,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       resolvedMargin.left,
       resolvedMargin.right,
       resolvedMargin.top,
+      yAxisCounts.left,
+      yAxisCounts.right,
     ]
   );
 
@@ -853,6 +903,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         valueDomain,
         valueDomainsByScale,
         renderCycle: renderVersion,
+        yAxisCounts,
       };
 
       layersSorted.forEach((layer) => {
@@ -881,6 +932,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       renderVersion,
       valueDomainsByScale,
       valueDomain,
+      yAxisCounts,
     ]
   );
 
@@ -910,6 +962,10 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     getColorForKey,
     registerCursorOptions,
     requestRender,
+    registerYAxis,
+    getYAxisIndex,
+    yAxisCounts,
+    yAxisSpacing: Y_AXIS_BAND_WIDTH,
   }), [
     axisTicks,
     canvasSize,
@@ -931,6 +987,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     registerLayer,
     requestRender,
     resolvedYKeys,
+  registerYAxis,
+  getYAxisIndex,
+  yAxisCounts,
     setAxisTicks,
     defaultScaleId,
     valueDomainsByScale,

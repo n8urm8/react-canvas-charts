@@ -111,6 +111,16 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
                     />
                   </div>
                 </div>
+                <div className="mt-3">
+                  <label className="block text-xs text-gray-500 mb-1">Axis Title</label>
+                  <input
+                    type="text"
+                    value={summary.axis.title}
+                    onChange={(event) => onUpdateAxis(summary.axis.id, { title: event.target.value })}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    placeholder="e.g. Temperature"
+                  />
+                </div>
               </div>
             );
           })}

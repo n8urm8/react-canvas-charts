@@ -360,6 +360,38 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">X Label Rotation (°)</label>
+          <input
+            type="number"
+            min="-90"
+            max="90"
+            value={config.xAxisLabelRotation}
+            onChange={(event) => {
+              const value = Number.parseInt(event.target.value, 10);
+              const nextValue = Number.isFinite(value) ? Math.max(-90, Math.min(90, value)) : 0;
+              setConfig((prev) => ({ ...prev, xAxisLabelRotation: nextValue }));
+            }}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">Helpful for long labels like dates.</p>
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">X Label Offset Y (px)</label>
+          <input
+            type="number"
+            value={config.xAxisLabelOffsetY}
+            onChange={(event) => {
+              const value = Number.parseInt(event.target.value, 10);
+              const nextValue = Number.isFinite(value) ? value : 0;
+              setConfig((prev) => ({ ...prev, xAxisLabelOffsetY: nextValue }));
+            }}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">Shift rotated labels away from the axis line.</p>
+        </div>
+
         <label className="flex items-center">
           <input
             type="checkbox"

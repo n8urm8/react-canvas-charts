@@ -12,6 +12,9 @@ export interface ChartAxisProps {
   labelPadding?: number;
   tickStep?: number;
   maxTicks?: number;
+  labelRotation?: number;
+  labelOffsetX?: number;
+  labelOffsetY?: number;
   
   // Axis title properties
   title?: string;
@@ -69,6 +72,9 @@ export const defaultChartAxisProps: Required<ChartAxisProps> = {
   titleOffsetX: 0,
   titleOffsetY: 0,
   orientation: 'bottom',
+  labelRotation: 0,
+  labelOffsetX: 0,
+  labelOffsetY: 0,
 };
 
 export const renderChartAxis = (props: ChartAxisRenderProps): void => {
@@ -81,7 +87,7 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     endY,
     labels = [],
     labelPositions = [],
-  canvasWidth,
+    canvasWidth,
     show = defaultChartAxisProps.show,
     color = defaultChartAxisProps.color,
     lineWidth = defaultChartAxisProps.lineWidth,
@@ -95,6 +101,9 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     labelPadding = defaultChartAxisProps.labelPadding,
     tickStep = defaultChartAxisProps.tickStep,
     maxTicks = defaultChartAxisProps.maxTicks,
+    labelRotation = defaultChartAxisProps.labelRotation,
+    labelOffsetX = defaultChartAxisProps.labelOffsetX,
+    labelOffsetY = defaultChartAxisProps.labelOffsetY,
     
     // Title properties
     title = defaultChartAxisProps.title,
@@ -122,6 +131,12 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
   const isTop = derivedOrientation === 'top';
   const isRight = derivedOrientation === 'right';
   let maxLabelWidth = 0;
+  let maxLabelHeight = labelFontSize;
+  const rotationRadians = (labelRotation * Math.PI) / 180;
+  const sinRotation = Math.sin(rotationRadians);
+  const cosRotation = Math.cos(rotationRadians);
+  const absSin = Math.abs(sinRotation);
+  const absCos = Math.abs(cosRotation);
 
   // Draw axis line
   context.strokeStyle = color;
@@ -189,14 +204,40 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
         context.textAlign = isHorizontal ? 'center' : isRight ? 'left' : 'right';
         context.textBaseline = isHorizontal ? (isTop ? 'bottom' : 'top') : 'middle';
 
-        if (!isHorizontal) {
-          const width = context.measureText(label).width;
-          if (width > maxLabelWidth) {
-            maxLabelWidth = width;
+        const textWidth = context.measureText(label).width;
+        const rotatedWidth = rotationRadians !== 0
+          ? absCos * textWidth + absSin * labelFontSize
+          : textWidth;
+        const rotatedHeight = rotationRadians !== 0
+          ? absSin * textWidth + absCos * labelFontSize
+          : labelFontSize;
+
+        if (isHorizontal) {
+          if (rotatedHeight > maxLabelHeight) {
+            maxLabelHeight = rotatedHeight;
           }
+        } else if (rotatedWidth > maxLabelWidth) {
+          maxLabelWidth = rotatedWidth;
         }
 
-        context.fillText(label, labelX, labelY);
+        let drawX = labelX;
+        let drawY = labelY;
+
+        if (isHorizontal && rotationRadians !== 0) {
+          const verticalRise = absSin * textWidth;
+          drawY = isTop ? drawY - verticalRise : drawY + verticalRise;
+        }
+
+        drawX += labelOffsetX;
+        drawY += labelOffsetY;
+
+        context.save();
+        context.translate(drawX, drawY);
+        if (rotationRadians !== 0) {
+          context.rotate(rotationRadians);
+        }
+        context.fillText(label, 0, 0);
+        context.restore();
       }
     });
   }
@@ -214,7 +255,12 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     if (isHorizontal) {
       // X-axis title (horizontal axis)
       const axisLength = endX - startX;
-      const labelSpace = showLabels ? labelPadding + labelFontSize : 0;
+      const offsetAdjustment = isTop
+        ? Math.max(0, -labelOffsetY)
+        : Math.max(0, labelOffsetY);
+      const labelSpace = showLabels
+        ? labelPadding + maxLabelHeight + offsetAdjustment
+        : 0;
       const tickSpace = showTicks ? tickLength : 0;
       const offset = labelSpace + tickSpace;
       const baseY = isTop
@@ -239,9 +285,9 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       const axisLength = startY - endY;
 
       // Calculate position to the left of the axis, considering ticks, labels, and padding
-      let xOffset = titlePadding;
-      if (showTicks) xOffset += tickLength;
-      if (showLabels) xOffset += labelPadding + maxLabelWidth;
+  let xOffset = titlePadding;
+  if (showTicks) xOffset += tickLength;
+  if (showLabels) xOffset += labelPadding + maxLabelWidth + Math.abs(labelOffsetX);
 
       if (isRight) {
         titleX = startX + xOffset;

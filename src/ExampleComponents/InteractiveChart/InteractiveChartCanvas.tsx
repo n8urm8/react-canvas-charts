@@ -117,6 +117,8 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           showTitle={config.xAxisTitle.length > 0}
           tickStep={config.xAxisTickStep}
           maxTicks={config.xAxisMaxTicks > 0 ? config.xAxisMaxTicks : undefined}
+          labelRotation={config.xAxisLabelRotation}
+          labelOffsetY={config.xAxisLabelOffsetY}
         />
         {config.showYAxis
           ? resolvedAxes.map((axis) => (

@@ -49,6 +49,8 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	xAxisTitle: 'Time',
 	xAxisTickStep: 1,
 	xAxisMaxTicks: 0,
+	xAxisLabelRotation: -40,
+	xAxisLabelOffsetY: 8,
 	cursorSnapToPoints: true,
 	tooltipPosition: 'follow',
 	tooltipTemplate: '',

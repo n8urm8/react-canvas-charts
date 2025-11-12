@@ -45,6 +45,8 @@ export interface InteractiveChartConfig {
   xAxisTitle: string;
   xAxisTickStep: number;
   xAxisMaxTicks: number;
+  xAxisLabelRotation: number;
+  xAxisLabelOffsetY: number;
   cursorSnapToPoints: boolean;
   tooltipPosition: TooltipPosition;
   tooltipTemplate: string;

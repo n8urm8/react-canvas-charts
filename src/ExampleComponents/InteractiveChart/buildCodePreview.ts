@@ -57,6 +57,8 @@ export const buildInteractiveChartCodePreview = (
     `title=${JSON.stringify(config.xAxisTitle)}`,
     `showTitle={${config.xAxisTitle.length > 0}}`,
     `tickStep={${config.xAxisTickStep}}`,
+    `labelRotation={${config.xAxisLabelRotation}}`,
+    `labelOffsetY={${config.xAxisLabelOffsetY}}`,
   ];
   if (config.xAxisMaxTicks > 0) {
     xAxisProps.push(`maxTicks={${config.xAxisMaxTicks}}`);

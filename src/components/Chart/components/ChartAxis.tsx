@@ -63,7 +63,7 @@ export const defaultChartAxisProps: Required<ChartAxisProps> = {
   titleFontFamily: 'ui-sans-serif, system-ui, sans-serif',
   titleColor: '#1f2937',
   titleFontWeight: 'bold',
-  titlePadding: 30,
+  titlePadding: 18,
   titlePosition: 'center',
   titleRotation: 0,
   titleOffsetX: 0,
@@ -121,6 +121,7 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
   const isHorizontal = type === 'x';
   const isTop = derivedOrientation === 'top';
   const isRight = derivedOrientation === 'right';
+  let maxLabelWidth = 0;
 
   // Draw axis line
   context.strokeStyle = color;
@@ -187,6 +188,14 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
         context.font = `${labelFontSize}px ${labelFontFamily}`;
         context.textAlign = isHorizontal ? 'center' : isRight ? 'left' : 'right';
         context.textBaseline = isHorizontal ? (isTop ? 'bottom' : 'top') : 'middle';
+
+        if (!isHorizontal) {
+          const width = context.measureText(label).width;
+          if (width > maxLabelWidth) {
+            maxLabelWidth = width;
+          }
+        }
+
         context.fillText(label, labelX, labelY);
       }
     });
@@ -205,9 +214,12 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
     if (isHorizontal) {
       // X-axis title (horizontal axis)
       const axisLength = endX - startX;
+      const labelSpace = showLabels ? labelPadding + labelFontSize : 0;
+      const tickSpace = showTicks ? tickLength : 0;
+      const offset = labelSpace + tickSpace;
       const baseY = isTop
-        ? startY - titlePadding
-        : startY + titlePadding;
+        ? startY - titlePadding - offset
+        : startY + titlePadding + offset;
 
       if (titlePosition === 'start') {
         titleX = startX;
@@ -227,10 +239,9 @@ export const renderChartAxis = (props: ChartAxisRenderProps): void => {
       const axisLength = startY - endY;
 
       // Calculate position to the left of the axis, considering ticks, labels, and padding
-      let xOffset = 5; // Start with small base offset
+      let xOffset = titlePadding;
       if (showTicks) xOffset += tickLength;
-      if (showLabels) xOffset += 50; // Approximate space for Y-axis labels
-      xOffset += titlePadding;
+      if (showLabels) xOffset += labelPadding + maxLabelWidth;
 
       if (isRight) {
         titleX = startX + xOffset;

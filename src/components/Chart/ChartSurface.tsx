@@ -425,23 +425,27 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   );
 
   const chartArea = useMemo<ChartArea>(
-    () => ({
-      x:
-        resolvedMargin.left + yAxisCounts.left * Y_AXIS_BAND_WIDTH,
+    () => {
+      const leftOffset = Math.max(0, yAxisCounts.left - 1) * Y_AXIS_BAND_WIDTH;
+      const rightOffset = Math.max(0, yAxisCounts.right - 1) * Y_AXIS_BAND_WIDTH;
+
+      return {
+        x: resolvedMargin.left + leftOffset,
       y: resolvedMargin.top,
       width: Math.max(
         0,
         canvasSize.width -
           resolvedMargin.left -
           resolvedMargin.right -
-          yAxisCounts.left * Y_AXIS_BAND_WIDTH -
-          yAxisCounts.right * Y_AXIS_BAND_WIDTH
+            leftOffset -
+            rightOffset
       ),
       height: Math.max(
         0,
         canvasSize.height - resolvedMargin.top - resolvedMargin.bottom
-      ),
-    }),
+        ),
+      };
+    },
     [
       canvasSize.height,
       canvasSize.width,

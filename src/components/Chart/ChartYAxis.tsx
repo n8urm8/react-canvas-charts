@@ -36,7 +36,6 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     setAxisTicks,
     registerYAxis,
     getYAxisIndex,
-    yAxisCounts,
     yAxisSpacing,
   } = useChartSurface();
 
@@ -130,24 +129,25 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
   }, [getYAxisIndex, registrationId, side]);
 
   const axisX = useMemo(() => {
-    if (axisIndex < 0) {
-      return side === 'right'
-        ? chartArea.x + chartArea.width
-        : chartArea.x;
+    const base = side === 'right'
+      ? chartArea.x + chartArea.width
+      : chartArea.x;
+
+    if (axisIndex <= 0) {
+      return base;
     }
 
-    if (side === 'left') {
-      const totalSpace = yAxisCounts.left * yAxisSpacing;
-      const base = chartArea.x - totalSpace;
-      return base + (axisIndex + 0.5) * yAxisSpacing;
-    }
+    const offset = axisIndex * yAxisSpacing;
+    return side === 'right' ? base + offset : base - offset;
+  }, [axisIndex, chartArea.width, chartArea.x, side, yAxisSpacing]);
 
-    const base = chartArea.x + chartArea.width;
-    return base + (axisIndex + 0.5) * yAxisSpacing;
-  }, [axisIndex, chartArea.width, chartArea.x, side, yAxisCounts.left, yAxisSpacing]);
+  const resolvedLabelPadding = restAxisProps.labelPadding ?? 6;
+  const resolvedTitlePadding = restAxisProps.titlePadding ?? 14;
+  const resolvedTitleOffsetX = restAxisProps.titleOffsetX ?? (axisIndex <= 0 ? 0 : (side === 'right' ? axisIndex * 4 : -axisIndex * 4));
 
   const draw = useCallback<ChartLayerRenderer>((context) => {
     renderChartAxis({
+      ...restAxisProps,
       context,
       type: 'y',
       startX: axisX,
@@ -159,7 +159,9 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
       canvasWidth: canvasSize.width,
       canvasHeight: canvasSize.height,
       orientation: axisOrientation,
-      ...restAxisProps,
+      labelPadding: resolvedLabelPadding,
+      titlePadding: resolvedTitlePadding,
+      titleOffsetX: resolvedTitleOffsetX,
     });
   }, [
     axisOrientation,
@@ -168,9 +170,12 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     canvasSize.width,
     chartArea.height,
     chartArea.y,
-    restAxisProps,
+    resolvedLabelPadding,
+    resolvedTitleOffsetX,
+    resolvedTitlePadding,
     tickLabels,
     tickPositions,
+    restAxisProps,
   ]);
 
   useChartLayer(draw, layerOptions);

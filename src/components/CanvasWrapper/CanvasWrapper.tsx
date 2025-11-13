@@ -11,6 +11,9 @@ export interface CanvasWrapperProps {
   onMouseLeave?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onClick?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onMouseEnter?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  canvasClassName?: string;
+  canvasStyle?: React.CSSProperties;
+  redrawOnPointerEvents?: boolean;
 }
 
 export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
@@ -23,6 +26,9 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   onMouseLeave,
   onClick,
   onMouseEnter,
+  canvasClassName,
+  canvasStyle,
+  redrawOnPointerEvents = true,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,12 +123,16 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
 
     const handleMouseMove = (event: MouseEvent) => {
       onMouseMove?.(event, canvas);
-      draw(); // Redraw to show cursor
+      if (redrawOnPointerEvents) {
+        draw();
+      }
     };
 
     const handleMouseLeave = (event: MouseEvent) => {
       onMouseLeave?.(event, canvas);
-      draw(); // Redraw to hide cursor
+      if (redrawOnPointerEvents) {
+        draw();
+      }
     };
 
     const handleClick = (event: MouseEvent) => {
@@ -152,7 +162,7 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('mouseenter', handleMouseEnter);
     };
-  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, draw]);
+  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, draw, redrawOnPointerEvents]);
 
   // Determine container styles based on width/height types
   const containerStyle: React.CSSProperties = {
@@ -179,10 +189,11 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full"
+        className={cn('w-full h-full', canvasClassName)}
         style={{
           width: '100%',
           height: '100%',
+          ...canvasStyle,
         }}
       />
     </div>

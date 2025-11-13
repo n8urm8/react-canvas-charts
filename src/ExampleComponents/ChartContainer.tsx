@@ -1,13 +1,13 @@
 import React from 'react';
-import { BarChart, type BarChartData } from '../components/BarChart/BarChart';
-import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
+import { BarChart, type BarChartData, type BarChartProps } from '../components/BarChart/BarChart';
+import { LineChart, type LineChartProps } from '../components/LineChart/LineChart';
 
 interface ChartContainerProps {
   chartType: 'bar' | 'line';
   data: BarChartData[];
   title: string;
   isResponsive: boolean;
-  currentStyle: any;
+  currentStyle: Partial<BarChartProps & LineChartProps>;
 }
 
 export const ChartContainer: React.FC<ChartContainerProps> = ({

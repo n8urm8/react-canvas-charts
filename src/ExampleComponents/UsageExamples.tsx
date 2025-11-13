@@ -49,7 +49,7 @@ export const UsageExamples: React.FC = () => {
   tooltipComponent={{
     backgroundColor: '#1f2937',
     borderRadius: 8,
-    template: '{label}: $\{value\}K'
+  template: '{label}: \${value}K'
   }}
 />`}
           </pre>

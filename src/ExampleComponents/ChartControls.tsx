@@ -25,6 +25,8 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   totalStyleVariants,
   onStyleChange,
 }) => {
+  void currentDataIndex;
+  void totalDatasets;
   return (
     <div className="text-center mb-5 space-x-4">
       <button

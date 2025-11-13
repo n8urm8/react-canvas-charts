@@ -10,6 +10,7 @@ import {
   type ChartCursorProps,
   type ChartTooltipProps,
   type DataPoint,
+  type TooltipSeriesEntry,
   renderChartTitle,
   renderChartAxis,
   renderChartGrid,
@@ -84,7 +85,6 @@ export const BarChart: React.FC<BarChartProps> = ({
   barSpacing = 10,
   backgroundColor = '#ffffff',
   // textColor prop is available but currently unused - reserved for future use
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   textColor = '#1f2937',
   className,
   style,
@@ -121,6 +121,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   customCursorRenderer = renderChartCursor,
   customTooltipRenderer = renderChartTooltip,
 }) => {
+  void textColor;
   // Memoize data to prevent unnecessary recalculations
   const memoizedData = useMemo(() => data, [data]);
 
@@ -162,6 +163,7 @@ export const BarChart: React.FC<BarChartProps> = ({
           const barY = chartY + (chartHeight - barHeight);
           const centerX = barX + barWidth / 2;
           const centerY = barY + barHeight / 2;
+          const color = item.color || defaultColors[index % defaultColors.length];
 
           dataPoints.push({
             x: centerX,
@@ -171,6 +173,8 @@ export const BarChart: React.FC<BarChartProps> = ({
             dataIndex: index,
             originalData: { 
               ...item, 
+              dataKey: 'value',
+              color,
               context: canvas.getContext('2d'),
               barX,
               barY,
@@ -192,7 +196,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         onHover?.(newHoveredPoint);
       }
     }
-  }, [enableCursor, enableTooltip, chartDimensions, memoizedData, barSpacing, cursorComponent.snapRadius, onHover, hoveredDataPoint]);
+  }, [enableCursor, enableTooltip, chartDimensions, memoizedData, barSpacing, cursorComponent.snapRadius, onHover, hoveredDataPoint, defaultColors]);
 
   const handleMouseLeave = useCallback(() => {
     setCursorPosition(null);
@@ -389,11 +393,27 @@ export const BarChart: React.FC<BarChartProps> = ({
 
       // Render tooltip
       if (enableTooltip && hoveredDataPoint) {
+        const tooltipEntries: TooltipSeriesEntry[] = [
+          {
+            id: (hoveredDataPoint.originalData?.dataKey as string) || 'value',
+            label: 'Value',
+            value: hoveredDataPoint.value,
+            color:
+              (hoveredDataPoint.originalData?.color as string) ||
+              defaultColors[hoveredDataPoint.dataIndex ?? 0] ||
+              '#3b82f6',
+            point: hoveredDataPoint,
+          },
+        ];
+
         customTooltipRenderer({
           ...defaultChartTooltipProps,
           ...tooltipComponent,
           context,
           dataPoint: hoveredDataPoint,
+          dataPoints: tooltipEntries.map((entry) => entry.point),
+          entries: tooltipEntries,
+          label: hoveredDataPoint.label ?? 'Value',
           cursorX: cursorPosition.x,
           cursorY: cursorPosition.y,
           chartX,

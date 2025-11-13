@@ -1,5 +1,20 @@
 import type { DataPoint } from './ChartCursor';
 
+export interface TooltipSeriesEntry {
+  id: string;
+  label: string;
+  value: number | string;
+  color: string;
+  point: DataPoint;
+}
+
+export interface ChartTooltipData {
+  label: string;
+  primary: DataPoint;
+  entries: TooltipSeriesEntry[];
+  points: DataPoint[];
+}
+
 export interface ChartTooltipProps {
   show?: boolean;
   backgroundColor?: string;
@@ -19,7 +34,7 @@ export interface ChartTooltipProps {
   offset?: number;
   maxWidth?: number;
   // Custom formatter for tooltip content
-  formatter?: (dataPoint: DataPoint) => string | string[];
+  formatter?: (data: ChartTooltipData) => string | string[];
   // Template for tooltip content (alternative to formatter)
   template?: string; // e.g., "{label}: {value}"
 }
@@ -27,6 +42,9 @@ export interface ChartTooltipProps {
 export interface ChartTooltipRenderProps extends ChartTooltipProps {
   context: CanvasRenderingContext2D;
   dataPoint: DataPoint | null;
+  dataPoints: DataPoint[];
+  entries: TooltipSeriesEntry[];
+  label: string;
   cursorX: number;
   cursorY: number;
   chartX: number;
@@ -38,7 +56,7 @@ export interface ChartTooltipRenderProps extends ChartTooltipProps {
 }
 
 export const defaultChartTooltipProps: Required<Omit<ChartTooltipProps, 'formatter' | 'template'>> & {
-  formatter?: (dataPoint: DataPoint) => string | string[];
+  formatter?: (data: ChartTooltipData) => string | string[];
   template?: string;
 } = {
   show: true,
@@ -59,13 +77,16 @@ export const defaultChartTooltipProps: Required<Omit<ChartTooltipProps, 'formatt
   offset: 10,
   maxWidth: 200,
   formatter: undefined,
-  template: '{label}: {value}',
+  template: undefined,
 };
 
 export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
   const {
     context,
     dataPoint,
+    dataPoints,
+    entries,
+    label,
     cursorX,
     cursorY,
     chartX,
@@ -95,25 +116,51 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
     template = defaultChartTooltipProps.template,
   } = props;
 
+  void chartWidth;
+  void chartHeight;
+
   if (!show || !dataPoint) return;
+
+  const tooltipData: ChartTooltipData = {
+    label,
+    primary: dataPoint,
+    entries,
+    points: dataPoints,
+  };
 
   // Generate tooltip content
   let content: string[];
   
   if (formatter) {
-    const formatted = formatter(dataPoint);
+    const formatted = formatter(tooltipData);
     content = Array.isArray(formatted) ? formatted : [formatted];
   } else if (template) {
-    // Replace template variables
-    let text = template;
-    text = text.replace('{label}', dataPoint.label || '');
-    text = text.replace('{value}', dataPoint.value.toString());
-    text = text.replace('{seriesIndex}', (dataPoint.seriesIndex || 0).toString());
-    text = text.replace('{dataIndex}', (dataPoint.dataIndex || 0).toString());
-    content = [text];
+    const replacementMap: Record<string, string> = {
+      label: label || '',
+      value: formatValue(dataPoint.value),
+      seriesIndex: (dataPoint.seriesIndex ?? 0).toString(),
+      dataIndex: (dataPoint.dataIndex ?? 0).toString(),
+    };
+
+    entries.forEach((entry) => {
+      replacementMap[entry.id] = formatValue(entry.value);
+      if (!replacementMap[entry.label]) {
+        replacementMap[entry.label] = formatValue(entry.value);
+      }
+    });
+
+    const resolved = template.replace(/\{([^}]+)\}/g, (match, token) => {
+      const key = String(token).trim();
+      return Object.prototype.hasOwnProperty.call(replacementMap, key)
+        ? replacementMap[key]
+        : match;
+    });
+
+    content = resolved.split(/\r?\n/).map((line) => line.trimEnd());
   } else {
-    // Default content
-    content = [`${dataPoint.label || 'Value'}: ${dataPoint.value}`];
+    const header = label ?? dataPoint.label ?? '';
+    const seriesLines = entries.map((entry) => `${entry.label}: ${formatValue(entry.value)}`);
+    content = header ? [header, ...seriesLines] : seriesLines;
   }
 
   if (content.length === 0) return;
@@ -274,3 +321,18 @@ function drawRoundedRect(
   context.quadraticCurveTo(x, y, x + radius, y);
   context.closePath();
 } 
+
+function formatValue(value: unknown): string {
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return value.toString();
+    }
+    return Number.isNaN(value) ? 'NaN' : value.toString();
+  }
+
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value);
+}

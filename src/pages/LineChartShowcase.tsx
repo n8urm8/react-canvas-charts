@@ -517,11 +517,19 @@ export const LineChartShowcase: React.FC = () => {
                       backgroundColor: '#10b981',
                       textColor: '#ffffff',
                       borderRadius: 12,
-                      formatter: (dataPoint) => [
-                        `Month: ${dataPoint.label}`,
-                        `Sales: $${dataPoint.value}K`,
-                        `Index: #${(dataPoint.dataIndex || 0) + 1}`
-                      ],
+                      formatter: (tooltip) => {
+                        const primary = tooltip.primary;
+                        const lines: string[] = [
+                          `Month: ${tooltip.label}`,
+                        ];
+
+                        tooltip.entries.forEach((entry) => {
+                          lines.push(`${entry.label}: $${entry.value}K`);
+                        });
+
+                        lines.push(`Index: #${(primary.dataIndex ?? 0) + 1}`);
+                        return lines;
+                      },
                     }}
                   />
                 </div>

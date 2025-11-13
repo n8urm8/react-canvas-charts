@@ -48,6 +48,7 @@ export interface InteractiveChartConfig {
   xAxisLabelRotation: number;
   xAxisLabelOffsetY: number;
   cursorSnapToPoints: boolean;
+  cursorSnapAlongYAxis: boolean;
   tooltipPosition: TooltipPosition;
   tooltipTemplate: string;
   axes: InteractiveChartAxisConfig[];

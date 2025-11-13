@@ -179,13 +179,17 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           : null}
 
         {config.enableCursor ? (
-          <ChartCursorLayer snapToDataPoints={config.cursorSnapToPoints} />
+          <ChartCursorLayer
+            snapToDataPoints={config.cursorSnapToPoints}
+            snapAlongYAxis={config.cursorSnapAlongYAxis}
+          />
         ) : null}
 
         {config.enableTooltip ? (
           <ChartTooltipLayer
             position={config.tooltipPosition}
             template={config.tooltipTemplate}
+            snapAlongYAxis={config.cursorSnapAlongYAxis}
             seriesLabels={seriesLabelMap}
           />
         ) : null}

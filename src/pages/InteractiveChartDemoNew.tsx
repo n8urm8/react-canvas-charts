@@ -52,6 +52,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	xAxisLabelRotation: 0,
 	xAxisLabelOffsetY: 0,
 	cursorSnapToPoints: true,
+	cursorSnapAlongYAxis: false,
 	tooltipPosition: 'follow',
 	tooltipTemplate: '',
 	axes: [

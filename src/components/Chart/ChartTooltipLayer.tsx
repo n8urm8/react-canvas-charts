@@ -20,11 +20,13 @@ export interface ChartTooltipLayerProps extends ChartTooltipProps {
   snapRadius?: number;
   snapToDataPoints?: boolean;
   seriesLabels?: Record<string, string>;
+  snapAlongYAxis?: boolean;
 }
 
 export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
   snapRadius = defaultChartCursorProps.snapRadius,
   snapToDataPoints = true,
+  snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
   seriesLabels,
   ...tooltipProps
 }) => {
@@ -43,7 +45,8 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         helpers.pointer.x,
         helpers.pointer.y,
         helpers.dataPoints,
-        snapRadius
+        snapRadius,
+        snapAlongYAxis
       );
       activePoint = nearest?.point ?? null;
       activeIndex = activePoint?.dataIndex;
@@ -93,7 +96,7 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
       ...defaultChartTooltipProps,
       ...tooltipProps,
     });
-  }, [seriesLabels, snapRadius, snapToDataPoints, tooltipProps]);
+  }, [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps]);
 
   useChartLayer(draw, layerOptions);
 

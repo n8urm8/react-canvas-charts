@@ -11,6 +11,7 @@ export interface ChartCursorProps {
   opacity?: number;
   snapToDataPoints?: boolean;
   snapRadius?: number; // Radius in pixels for snapping
+  snapAlongYAxis?: boolean;
 }
 
 export interface ChartCursorRenderProps extends ChartCursorProps {
@@ -38,6 +39,7 @@ export const defaultChartCursorProps: Required<ChartCursorProps> = {
   opacity: 0.8,
   snapToDataPoints: true,
   snapRadius: 20,
+  snapAlongYAxis: false,
 };
 
 export const renderChartCursor = (props: ChartCursorRenderProps): void => {
@@ -119,25 +121,149 @@ export interface DataPoint {
   originalData?: Record<string, unknown>;
 }
 
+type IndexedDataPoints = {
+  xs: number[];
+  buckets: DataPoint[][];
+};
+
+const dataPointIndexCache = new WeakMap<DataPoint[], IndexedDataPoints>();
+
+const buildIndexedDataPoints = (dataPoints: DataPoint[]): IndexedDataPoints => {
+  const bucketsByX = new Map<number, DataPoint[]>();
+
+  dataPoints.forEach((point) => {
+    const list = bucketsByX.get(point.x);
+    if (list) {
+      list.push(point);
+    } else {
+      bucketsByX.set(point.x, [point]);
+    }
+  });
+
+  const xs = Array.from(bucketsByX.keys()).sort((a, b) => a - b);
+  const buckets = xs.map((x) => bucketsByX.get(x) ?? []);
+
+  return { xs, buckets };
+};
+
+const getIndexedDataPoints = (dataPoints: DataPoint[]): IndexedDataPoints => {
+  let cached = dataPointIndexCache.get(dataPoints);
+  if (!cached) {
+    cached = buildIndexedDataPoints(dataPoints);
+    dataPointIndexCache.set(dataPoints, cached);
+  }
+  return cached;
+};
+
+const binarySearchClosestIndex = (values: number[], target: number): number => {
+  let low = 0;
+  let high = values.length - 1;
+
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const value = values[mid];
+    if (value === target) {
+      return mid;
+    }
+    if (value < target) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  if (low >= values.length) {
+    return values.length - 1;
+  }
+  if (high < 0) {
+    return 0;
+  }
+
+  return Math.abs(values[low] - target) < Math.abs(values[high] - target) ? low : high;
+};
+
 export const findNearestDataPoint = (
   cursorX: number,
   cursorY: number,
   dataPoints: DataPoint[],
-  snapRadius: number
+  snapRadius: number,
+  snapAlongYAxis: boolean = true
 ): { point: DataPoint; distance: number } | null => {
+  if (dataPoints.length === 0) {
+    return null;
+  }
+
+  const snapRadiusSq = snapRadius * snapRadius;
   let nearestPoint: DataPoint | null = null;
-  let nearestDistance = Infinity;
+  let nearestDistanceSq = snapRadiusSq;
 
-  dataPoints.forEach(point => {
-    const distance = Math.sqrt(
-      Math.pow(cursorX - point.x, 2) + Math.pow(cursorY - point.y, 2)
-    );
+  const { xs, buckets } = getIndexedDataPoints(dataPoints);
 
-    if (distance <= snapRadius && distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestPoint = point;
+  if (xs.length === 0) {
+    return null;
+  }
+
+  const centerIndex = binarySearchClosestIndex(xs, cursorX);
+
+  const processBucket = (points: DataPoint[]) => {
+    points.forEach((point) => {
+      const dx = cursorX - point.x;
+      if (Math.abs(dx) > snapRadius) {
+        return;
+      }
+
+      const dy = cursorY - point.y;
+      if (snapAlongYAxis && Math.abs(dy) > snapRadius) {
+        return;
+      }
+
+      const distanceSq = snapAlongYAxis ? dx * dx + dy * dy : dx * dx;
+
+      if (distanceSq <= nearestDistanceSq) {
+        nearestPoint = point;
+        nearestDistanceSq = distanceSq;
+      }
+    });
+  };
+
+  processBucket(buckets[centerIndex]);
+
+  if (nearestPoint && nearestDistanceSq === 0) {
+    return { point: nearestPoint, distance: 0 };
+  }
+
+  for (let offset = 1; offset < xs.length; offset += 1) {
+    let processed = false;
+
+    const leftIndex = centerIndex - offset;
+    if (leftIndex >= 0) {
+      const dx = Math.abs(xs[leftIndex] - cursorX);
+      if (dx <= snapRadius) {
+        processBucket(buckets[leftIndex]);
+        processed = true;
+      }
     }
-  });
 
-  return nearestPoint ? { point: nearestPoint, distance: nearestDistance } : null;
+    const rightIndex = centerIndex + offset;
+    if (rightIndex < xs.length) {
+      const dx = Math.abs(xs[rightIndex] - cursorX);
+      if (dx <= snapRadius) {
+        processBucket(buckets[rightIndex]);
+        processed = true;
+      }
+    }
+
+    if (!processed) {
+      break;
+    }
+  }
+
+  if (!nearestPoint) {
+    return null;
+  }
+
+  return {
+    point: nearestPoint,
+    distance: Math.sqrt(nearestDistanceSq),
+  };
 }; 

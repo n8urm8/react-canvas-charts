@@ -17,6 +17,7 @@ export type ChartCursorLayerProps = ChartCursorProps;
 export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
   snapRadius = defaultChartCursorProps.snapRadius,
   snapToDataPoints = defaultChartCursorProps.snapToDataPoints,
+  snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
   ...cursorProps
 }) => {
   const {
@@ -27,9 +28,10 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
     const unregister = registerCursorOptions({
       snapRadius,
       snapToDataPoints,
+      snapAlongYAxis,
     });
     return unregister;
-  }, [registerCursorOptions, snapRadius, snapToDataPoints]);
+  }, [registerCursorOptions, snapAlongYAxis, snapRadius, snapToDataPoints]);
 
   const layerOptions = useMemo(() => ({ order: LayerOrder.overlays }), []);
 
@@ -43,7 +45,8 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
           helpers.pointer.x,
           helpers.pointer.y,
           helpers.dataPoints,
-          snapRadius
+          snapRadius,
+          snapAlongYAxis
         )
       : null;
 
@@ -60,8 +63,11 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
       snapToDataPoints,
       snapRadius,
       ...cursorProps,
+      showHorizontalLine: snapAlongYAxis
+        ? cursorProps.showHorizontalLine ?? defaultChartCursorProps.showHorizontalLine
+        : false,
     });
-  }, [cursorProps, snapRadius, snapToDataPoints]);
+  }, [cursorProps, snapAlongYAxis, snapRadius, snapToDataPoints]);
 
   useChartLayer(draw, layerOptions);
 

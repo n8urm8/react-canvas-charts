@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
-import { findNearestDataPoint } from './components/ChartCursor';
+import { defaultChartCursorProps, findNearestDataPoint } from './components/ChartCursor';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
 
 const Y_AXIS_BAND_WIDTH = 56;
@@ -103,11 +103,13 @@ export interface AxisTickState {
 interface CursorOptions {
   snapRadius: number;
   snapToDataPoints: boolean;
+  snapAlongYAxis: boolean;
 }
 
 const defaultCursorOptions: CursorOptions = {
-  snapRadius: 20,
-  snapToDataPoints: true,
+  snapRadius: defaultChartCursorProps.snapRadius,
+  snapToDataPoints: defaultChartCursorProps.snapToDataPoints,
+  snapAlongYAxis: defaultChartCursorProps.snapAlongYAxis,
 };
 
 export interface ChartSurfaceContextValue {
@@ -305,11 +307,15 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       if (options.snapToDataPoints !== undefined) {
         aggregated.snapToDataPoints = options.snapToDataPoints;
       }
+      if (options.snapAlongYAxis !== undefined) {
+        aggregated.snapAlongYAxis = options.snapAlongYAxis;
+      }
     });
 
     setCursorOptions((prev) =>
       prev.snapRadius === aggregated.snapRadius &&
-      prev.snapToDataPoints === aggregated.snapToDataPoints
+      prev.snapToDataPoints === aggregated.snapToDataPoints &&
+      prev.snapAlongYAxis === aggregated.snapAlongYAxis
         ? prev
         : aggregated
     );
@@ -819,14 +825,22 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
             x,
             y,
             dataPointsRef.current,
-            cursorOptions.snapRadius
+            cursorOptions.snapRadius,
+            cursorOptions.snapAlongYAxis
           );
 
           hoverHandlerRef.current(nearest?.point ?? null);
         }
       }
     },
-    [chartArea.height, chartArea.width, chartArea.x, chartArea.y, cursorOptions.snapRadius]
+    [
+      chartArea.height,
+      chartArea.width,
+      chartArea.x,
+      chartArea.y,
+      cursorOptions.snapAlongYAxis,
+      cursorOptions.snapRadius,
+    ]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -860,12 +874,20 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         x,
         y,
         dataPointsRef.current,
-        cursorOptions.snapRadius
+        cursorOptions.snapRadius,
+        cursorOptions.snapAlongYAxis
       );
 
       clickHandlerRef.current(nearest?.point ?? null);
     },
-    [chartArea.height, chartArea.width, chartArea.x, chartArea.y, cursorOptions.snapRadius]
+    [
+      chartArea.height,
+      chartArea.width,
+      chartArea.x,
+      chartArea.y,
+      cursorOptions.snapAlongYAxis,
+      cursorOptions.snapRadius,
+    ]
   );
 
   const onDraw = useCallback(

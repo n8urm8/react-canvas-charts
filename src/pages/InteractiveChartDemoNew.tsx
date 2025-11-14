@@ -13,6 +13,7 @@ import {
 	InteractiveChartCodePreview,
 	InteractiveChartControlPanel,
 } from '../ExampleComponents/InteractiveChart';
+import type { ChartSelectionResult, ChartSelectionSeriesRange } from '../components/Chart';
 
 const SERIES_COLOR_PALETTE = [
 	'#3b82f6',
@@ -30,14 +31,14 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	width: 800,
 	height: 400,
 	padding: 80,
-	showPoints: true,
+	showPoints: false,
 	showLines: true,
 	showValues: false,
 	fillArea: false,
 	fillOpacity: 0.1,
 	enableCursor: true,
 	enableTooltip: true,
-	lineWidth: 2,
+	lineWidth: 1,
 	lineSmooth: false,
 	lineDash: [],
 	pointSize: 6,
@@ -48,7 +49,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	showYAxis: true,
 	xAxisTitle: 'Time',
 	xAxisTickStep: 1,
-	xAxisMaxTicks: 0,
+	xAxisMaxTicks: 10,
 	xAxisLabelRotation: 0,
 	xAxisLabelOffsetY: 0,
 	cursorSnapToPoints: true,
@@ -60,6 +61,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	],
 	series: [
 		{ id: 'series-1', name: 'Series 1', color: '#3b82f6', axisId: 'axis-1' },
+		{ id: 'series-2', name: 'Series 2', color: '#ef4444', axisId: 'axis-1' },
 	],
 };
 
@@ -78,13 +80,14 @@ export const InteractiveChartDemoNew: FC = () => {
 	const [dataPoints, setDataPoints] = useState<DataPoint[]>(() =>
 		createInitialTimeSeries(
 			INITIAL_CONFIG.series.map((series) => series.id),
-			12,
+			1200,
 		)
 	);
+	const [selection, setSelection] = useState<ChartSelectionResult | null>(null);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [streamingHz, setStreamingHz] = useState(1);
 	const [streamingPointsPerTick, setStreamingPointsPerTick] = useState(1);
-	const [streamingMaxPoints, setStreamingMaxPoints] = useState(24);
+	const [streamingMaxPoints, setStreamingMaxPoints] = useState(1200);
 	const [bulkAddCount, setBulkAddCount] = useState(10);
 	const intervalRef = useRef<number | null>(null);
 
@@ -494,6 +497,10 @@ export const InteractiveChartDemoNew: FC = () => {
 		[]
 	);
 
+	const handleSelectionChange = useCallback((nextSelection: ChartSelectionResult | null) => {
+		setSelection(nextSelection);
+	}, []);
+
 	return (
 		<div className="p-5 font-sans bg-gray-50 min-h-screen">
 			<div className="w-full mx-auto">
@@ -503,7 +510,41 @@ export const InteractiveChartDemoNew: FC = () => {
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
 					<div className="lg:col-span-2">
-						<InteractiveChartCanvas data={chartRecords} config={config} />
+						<InteractiveChartCanvas
+							data={chartRecords}
+							config={config}
+							onSelectionChange={handleSelectionChange}
+						/>
+
+						{selection ? (
+							<div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm text-gray-900">
+								<div className="font-semibold mb-2">Selection Window</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+									<div>
+										<span className="font-medium">Start:</span> {selection.minLabel} (#{selection.minIndex})
+									</div>
+									<div>
+										<span className="font-medium">End:</span> {selection.maxLabel} (#{selection.maxIndex})
+									</div>
+								</div>
+								<div className="mt-3">
+									<div className="font-medium mb-1">Series</div>
+									<ul className="space-y-1">
+										{(Object.entries(selection.series) as Array<[string, ChartSelectionSeriesRange]>).map(([seriesId, range]) => (
+											<li key={seriesId}>
+												<span className="font-medium">{seriesId}:</span>
+												<span className="ml-2 text-xs text-gray-700">
+													{range.min.label} ({range.min.value ?? 'N/A'}) → {range.max.label} ({range.max.value ?? 'N/A'})
+												</span>
+											</li>
+										))}
+									</ul>
+								</div>
+								<div className="mt-3 text-xs text-gray-700">
+									Captured {selection.maxIndex - selection.minIndex + 1} x-axis positions.
+								</div>
+							</div>
+						) : null}
 
 						<InteractiveChartQuickActions
 							config={config}
@@ -543,6 +584,20 @@ export const InteractiveChartDemoNew: FC = () => {
 							onUpdateAxis={handleUpdateAxis}
 							setConfig={setConfig}
 						/>
+
+						{selection ? (
+							<div className="mt-6 p-4 bg-white border border-gray-200 rounded-lg text-sm text-gray-900">
+								<div className="font-semibold mb-2">Selection Summary</div>
+								<div className="grid grid-cols-1 gap-2">
+									<div>
+										<span className="font-medium">Range:</span> {selection.minLabel} ➜ {selection.maxLabel}
+									</div>
+									<div>
+										<span className="font-medium">Span:</span> {selection.maxIndex - selection.minIndex} interval(s)
+									</div>
+								</div>
+							</div>
+						) : null}
 					</div>
 				</div>
 			</div>

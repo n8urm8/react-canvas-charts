@@ -11,6 +11,8 @@ export interface CanvasWrapperProps {
   onMouseLeave?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onClick?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onMouseEnter?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onMouseDown?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onMouseUp?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   canvasClassName?: string;
   canvasStyle?: React.CSSProperties;
   redrawOnPointerEvents?: boolean;
@@ -26,6 +28,8 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   onMouseLeave,
   onClick,
   onMouseEnter,
+  onMouseDown,
+  onMouseUp,
   canvasClassName,
   canvasStyle,
   redrawOnPointerEvents = true,
@@ -143,6 +147,20 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
       onMouseEnter?.(event, canvas);
     };
 
+    const handleMouseDown = (event: MouseEvent) => {
+      onMouseDown?.(event, canvas);
+      if (redrawOnPointerEvents) {
+        draw();
+      }
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      onMouseUp?.(event, canvas);
+      if (redrawOnPointerEvents) {
+        draw();
+      }
+    };
+
     if (onMouseMove) {
       canvas.addEventListener('mousemove', handleMouseMove);
     }
@@ -155,14 +173,22 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     if (onMouseEnter) {
       canvas.addEventListener('mouseenter', handleMouseEnter);
     }
+    if (onMouseDown) {
+      canvas.addEventListener('mousedown', handleMouseDown);
+    }
+    if (onMouseUp) {
+      canvas.addEventListener('mouseup', handleMouseUp);
+    }
 
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('mouseenter', handleMouseEnter);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, draw, redrawOnPointerEvents]);
+  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, onMouseDown, onMouseUp, draw, redrawOnPointerEvents]);
 
   // Determine container styles based on width/height types
   const containerStyle: React.CSSProperties = {
@@ -191,8 +217,6 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
         ref={canvasRef}
         className={cn('w-full h-full', canvasClassName)}
         style={{
-          width: '100%',
-          height: '100%',
           ...canvasStyle,
         }}
       />

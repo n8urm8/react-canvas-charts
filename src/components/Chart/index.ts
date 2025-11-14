@@ -1,4 +1,10 @@
 export * from './ChartSurface';
+export type {
+	ChartSurfaceProps,
+	ChartSelectionResult,
+	ChartSelectionSeriesEntry,
+	ChartSelectionSeriesRange,
+} from './ChartSurface';
 export * from './ChartGridLayer';
 export * from './ChartXAxis';
 export * from './ChartYAxis';

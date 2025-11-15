@@ -11,17 +11,20 @@ import {
   ChartAreaSeries,
   ChartValueLabels,
   ChartTitleLayer,
+  type ChartSelectionResult,
 } from '../../components/Chart';
 import type { ChartRecord, InteractiveChartConfig } from './types';
 
 type InteractiveChartCanvasProps = {
   data: ChartRecord[];
   config: InteractiveChartConfig;
+  onSelectionChange?: (selection: ChartSelectionResult | null) => void;
 };
 
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   data,
   config,
+  onSelectionChange,
 }) => {
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
@@ -102,6 +105,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         backgroundColor="#ffffff"
         defaultColors={defaultColors}
         valueScales={valueScales}
+        onSelectionChange={onSelectionChange}
       >
         {config.title ? <ChartTitleLayer title={config.title} /> : null}
 
@@ -179,13 +183,17 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           : null}
 
         {config.enableCursor ? (
-          <ChartCursorLayer snapToDataPoints={config.cursorSnapToPoints} />
+          <ChartCursorLayer
+            snapToDataPoints={config.cursorSnapToPoints}
+            snapAlongYAxis={config.cursorSnapAlongYAxis}
+          />
         ) : null}
 
         {config.enableTooltip ? (
           <ChartTooltipLayer
             position={config.tooltipPosition}
             template={config.tooltipTemplate}
+            snapAlongYAxis={config.cursorSnapAlongYAxis}
             seriesLabels={seriesLabelMap}
           />
         ) : null}

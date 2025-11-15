@@ -549,15 +549,28 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
         </label>
 
         {config.enableCursor ? (
-          <label className="flex items-center ml-4">
-            <input
-              type="checkbox"
-              checked={config.cursorSnapToPoints}
-              onChange={(event) => setConfig((prev) => ({ ...prev, cursorSnapToPoints: event.target.checked }))}
-              className="mr-2"
-            />
-            <span className="text-sm text-gray-600">Snap to Points</span>
-          </label>
+          <>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={config.cursorSnapToPoints}
+                onChange={(event) =>
+                  setConfig((prev) => ({ ...prev, cursorSnapToPoints: event.target.checked }))}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-600">Snap to Points</span>
+            </label>
+            <label className="flex items-center ml-4">
+              <input
+                type="checkbox"
+                checked={config.cursorSnapAlongYAxis}
+                onChange={(event) =>
+                  setConfig((prev) => ({ ...prev, cursorSnapAlongYAxis: event.target.checked }))}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-600">Include Y-Axis Snapping</span>
+            </label>
+          </>
         ) : null}
 
         {config.enableTooltip ? (

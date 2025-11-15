@@ -27,6 +27,26 @@ export interface NormalizedDatum {
   raw: Record<string, unknown>;
 }
 
+export interface ChartSelectionSeriesEntry {
+  index: number;
+  label: string;
+  value: number | null;
+}
+
+export interface ChartSelectionSeriesRange {
+  min: ChartSelectionSeriesEntry;
+  max: ChartSelectionSeriesEntry;
+}
+
+export interface ChartSelectionResult {
+  minIndex: number;
+  maxIndex: number;
+  minLabel: string;
+  maxLabel: string;
+  series: Record<string, ChartSelectionSeriesRange>;
+  rangePixels: { start: number; end: number };
+}
+
 export interface ChartArea {
   x: number;
   y: number;
@@ -193,6 +213,7 @@ export interface ChartSurfaceProps {
   style?: React.CSSProperties;
   onHover?: (dataPoint: CursorDataPoint | null) => void;
   onClick?: (dataPoint: CursorDataPoint | null) => void;
+  onSelectionChange?: (selection: ChartSelectionResult | null) => void;
   valueScales?: ValueScaleDefinition[];
   children?: React.ReactNode;
 }
@@ -223,6 +244,7 @@ const DEFAULT_VALUE_DOMAIN: ValueDomain = {
 };
 
 const Y_AXIS_BAND_WIDTH = 48;
+const MIN_SELECTION_WIDTH = 4;
 
 const shallowEqualArray = (a: number[], b: number[]): boolean => {
   if (a.length !== b.length) return false;
@@ -252,6 +274,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   style,
   onHover,
   onClick,
+  onSelectionChange,
   valueScales,
   children,
 }) => {
@@ -795,10 +818,28 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     clickHandlerRef.current = onClick;
   }, [onClick]);
 
+  const selectionHandlerRef = useRef(onSelectionChange);
+  useEffect(() => {
+    selectionHandlerRef.current = onSelectionChange;
+  }, [onSelectionChange]);
+
   const axisTickStateRef = useRef(axisTicks);
   useEffect(() => {
     axisTickStateRef.current = axisTicks;
   }, [axisTicks]);
+
+  const selectionActiveRef = useRef(false);
+  const selectionStartRef = useRef<number | null>(null);
+  const selectionWindowListenerRef = useRef<((event: MouseEvent) => void) | null>(null);
+  const skipClickRef = useRef(false);
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null);
+
+  useEffect(() => () => {
+    if (selectionWindowListenerRef.current) {
+      window.removeEventListener('mouseup', selectionWindowListenerRef.current);
+      selectionWindowListenerRef.current = null;
+    }
+  }, []);
 
   const [renderVersion, setRenderVersion] = useState(0);
   const requestRender = useCallback(() => {
@@ -863,14 +904,173 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     }
   }, []);
 
+  const getRelativePointerPosition = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = ((event.clientX - rect.left) * scaleX) / devicePixelRatio;
+    const y = ((event.clientY - rect.top) * scaleY) / devicePixelRatio;
+    return { x, y };
+  }, []);
+
+  const clampXToChart = useCallback(
+    (value: number) => {
+      const min = chartArea.x;
+      const max = chartArea.x + chartArea.width;
+      if (value <= min) return min;
+      if (value >= max) return max;
+      return value;
+    },
+    [chartArea.width, chartArea.x]
+  );
+
+  const computeSelectionResult = useCallback(
+    (rawStartX: number, rawEndX: number): ChartSelectionResult | null => {
+      if (labelPositions.length === 0) {
+        return null;
+      }
+
+      const startClamped = clampXToChart(rawStartX);
+      const endClamped = clampXToChart(rawEndX);
+      const startX = Math.min(startClamped, endClamped);
+      const endX = Math.max(startClamped, endClamped);
+
+      if (endX - startX < MIN_SELECTION_WIDTH) {
+        return null;
+      }
+
+      const findClosestIndex = (target: number): number => {
+        let low = 0;
+        let high = labelPositions.length - 1;
+
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          const position = labelPositions[mid];
+          if (position === target) {
+            return mid;
+          }
+          if (position < target) {
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+
+        if (low >= labelPositions.length) {
+          return labelPositions.length - 1;
+        }
+        if (high < 0) {
+          return 0;
+        }
+
+        return Math.abs(labelPositions[low] - target) < Math.abs(labelPositions[high] - target)
+          ? low
+          : high;
+      };
+
+      const startIndex = findClosestIndex(startX);
+      const endIndex = findClosestIndex(endX);
+      const minIndex = Math.min(startIndex, endIndex);
+      const maxIndex = Math.max(startIndex, endIndex);
+
+      const startDatum = normalizedData[minIndex];
+      const endDatum = normalizedData[maxIndex];
+
+      const seriesSelections: Record<string, ChartSelectionSeriesRange> = {};
+
+      resolvedYKeys.forEach((key) => {
+        seriesSelections[key] = {
+          min: {
+            index: minIndex,
+            label: startDatum?.label ?? labels[minIndex] ?? '',
+            value: startDatum?.values[key] ?? null,
+          },
+          max: {
+            index: maxIndex,
+            label: endDatum?.label ?? labels[maxIndex] ?? '',
+            value: endDatum?.values[key] ?? null,
+          },
+        };
+      });
+
+      return {
+        minIndex,
+        maxIndex,
+        minLabel: labels[minIndex] ?? '',
+        maxLabel: labels[maxIndex] ?? '',
+        series: seriesSelections,
+        rangePixels: { start: startX, end: endX },
+      };
+    },
+    [clampXToChart, labelPositions, labels, normalizedData, resolvedYKeys]
+  );
+
+  const updateSelectionDuringDrag = useCallback(
+    (currentX: number) => {
+      if (!selectionActiveRef.current || selectionStartRef.current === null) {
+        return;
+      }
+
+      const start = selectionStartRef.current;
+      setSelectionRange({ start, end: currentX });
+
+      if (!selectionHandlerRef.current) {
+        return;
+      }
+
+      if (Math.abs(currentX - start) >= MIN_SELECTION_WIDTH) {
+        selectionHandlerRef.current(computeSelectionResult(start, currentX));
+      } else {
+        selectionHandlerRef.current(null);
+      }
+    },
+    [computeSelectionResult]
+  );
+
+  const finalizeSelection = useCallback(
+    (currentX: number | null) => {
+      if (!selectionActiveRef.current || selectionStartRef.current === null) {
+        return;
+      }
+
+      selectionActiveRef.current = false;
+
+      if (selectionWindowListenerRef.current) {
+        window.removeEventListener('mouseup', selectionWindowListenerRef.current);
+        selectionWindowListenerRef.current = null;
+      }
+
+      const startRaw = selectionStartRef.current;
+      const endRaw = currentX ?? startRaw;
+      selectionStartRef.current = null;
+
+      const start = clampXToChart(startRaw);
+      const end = clampXToChart(endRaw);
+
+      if (Math.abs(end - start) < MIN_SELECTION_WIDTH) {
+        setSelectionRange(null);
+        selectionHandlerRef.current?.(null);
+        return;
+      }
+
+      const result = computeSelectionResult(start, end);
+
+      if (!result) {
+        setSelectionRange(null);
+        selectionHandlerRef.current?.(null);
+        return;
+      }
+
+      setSelectionRange({ start: result.rangePixels.start, end: result.rangePixels.end });
+      selectionHandlerRef.current?.(result);
+    },
+    [clampXToChart, computeSelectionResult]
+  );
+
   const handleMouseMove = useCallback(
     (event: MouseEvent, canvas: HTMLCanvasElement) => {
-      const rect = canvas.getBoundingClientRect();
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = ((event.clientX - rect.left) * scaleX) / devicePixelRatio;
-      const y = ((event.clientY - rect.top) * scaleY) / devicePixelRatio;
+      const { x, y } = getRelativePointerPosition(event, canvas);
 
       const withinChart =
         x >= chartArea.x &&
@@ -879,13 +1079,25 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         y <= chartArea.y + chartArea.height;
 
       schedulePointerUpdate({ x, y, withinChart });
+
+      if (selectionActiveRef.current) {
+        const clampedX = clampXToChart(x);
+        if (selectionStartRef.current !== null && Math.abs(clampedX - selectionStartRef.current) >= MIN_SELECTION_WIDTH) {
+          skipClickRef.current = true;
+        }
+        updateSelectionDuringDrag(clampedX);
+        event.preventDefault();
+      }
     },
     [
+      clampXToChart,
       chartArea.height,
       chartArea.width,
       chartArea.x,
       chartArea.y,
+      getRelativePointerPosition,
       schedulePointerUpdate,
+      updateSelectionDuringDrag,
     ]
   );
 
@@ -895,20 +1107,93 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       cancelAnimationFrame(pointerFrameRef.current);
       pointerFrameRef.current = null;
     }
+    if (selectionActiveRef.current) {
+      const fallback = selectionRange ? selectionRange.end : selectionStartRef.current;
+      finalizeSelection(fallback ?? null);
+    }
     setPointer(null);
     hoverHandlerRef.current?.(null);
-  }, []);
+  }, [finalizeSelection, selectionRange]);
+
+  const handleMouseDown = useCallback(
+    (event: MouseEvent, canvas: HTMLCanvasElement) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      const { x, y } = getRelativePointerPosition(event, canvas);
+
+      const withinChart =
+        x >= chartArea.x &&
+        x <= chartArea.x + chartArea.width &&
+        y >= chartArea.y &&
+        y <= chartArea.y + chartArea.height;
+
+      if (!withinChart) {
+        return;
+      }
+
+      const clampedX = clampXToChart(x);
+      selectionActiveRef.current = true;
+      selectionStartRef.current = clampedX;
+      skipClickRef.current = false;
+      setSelectionRange({ start: clampedX, end: clampedX });
+
+      if (selectionWindowListenerRef.current) {
+        window.removeEventListener('mouseup', selectionWindowListenerRef.current);
+        selectionWindowListenerRef.current = null;
+      }
+
+      const handleWindowMouseUp = (windowEvent: MouseEvent) => {
+        const coordinates = getRelativePointerPosition(windowEvent, canvas);
+        finalizeSelection(coordinates.x);
+      };
+
+      selectionWindowListenerRef.current = handleWindowMouseUp;
+      window.addEventListener('mouseup', handleWindowMouseUp);
+
+      event.preventDefault();
+    },
+    [
+      chartArea.height,
+      chartArea.width,
+      chartArea.x,
+      chartArea.y,
+      clampXToChart,
+      finalizeSelection,
+      getRelativePointerPosition,
+    ]
+  );
+
+  const handleMouseUp = useCallback(
+    (event: MouseEvent, canvas: HTMLCanvasElement) => {
+      if (!selectionActiveRef.current || selectionStartRef.current === null) {
+        return;
+      }
+
+      const { x } = getRelativePointerPosition(event, canvas);
+      const start = selectionStartRef.current;
+
+      if (Math.abs(x - start) >= MIN_SELECTION_WIDTH) {
+        skipClickRef.current = true;
+      }
+
+      finalizeSelection(x);
+      event.preventDefault();
+    },
+    [finalizeSelection, getRelativePointerPosition]
+  );
 
   const handleClick = useCallback(
     (event: MouseEvent, canvas: HTMLCanvasElement) => {
       if (!clickHandlerRef.current) return;
 
-      const rect = canvas.getBoundingClientRect();
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = ((event.clientX - rect.left) * scaleX) / devicePixelRatio;
-      const y = ((event.clientY - rect.top) * scaleY) / devicePixelRatio;
+      if (skipClickRef.current) {
+        skipClickRef.current = false;
+        return;
+      }
+
+      const { x, y } = getRelativePointerPosition(event, canvas);
 
       const withinChart =
         x >= chartArea.x &&
@@ -937,6 +1222,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       chartArea.width,
       chartArea.x,
       chartArea.y,
+      getRelativePointerPosition,
     ]
   );
 
@@ -1025,6 +1311,23 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       context.clearRect(0, 0, canvasWidth, canvasHeight);
       context.restore();
 
+      if (selectionRange) {
+        const rawStart = Math.min(selectionRange.start, selectionRange.end);
+        const rawEnd = Math.max(selectionRange.start, selectionRange.end);
+        const start = Math.max(chartArea.x, Math.min(rawStart, chartArea.x + chartArea.width));
+        const end = Math.max(chartArea.x, Math.min(rawEnd, chartArea.x + chartArea.width));
+
+        if (end - start >= 1) {
+          context.save();
+          context.fillStyle = 'rgba(59, 130, 246, 0.15)';
+          context.fillRect(start, chartArea.y, end - start, chartArea.height);
+          context.strokeStyle = 'rgba(59, 130, 246, 0.45)';
+          context.lineWidth = 1;
+          context.strokeRect(start + 0.5, chartArea.y + 0.5, (end - start) - 1, chartArea.height - 1);
+          context.restore();
+        }
+      }
+
       if (overlayLayers.length === 0) {
         return;
       }
@@ -1076,6 +1379,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
+      selectionRange,
       defaultScaleId,
     ]
   );
@@ -1159,6 +1463,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
           redrawOnPointerEvents={false}
         />
       </div>

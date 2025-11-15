@@ -108,11 +108,11 @@ export const buildInteractiveChartCodePreview = (
     : '';
 
   const cursorLayer = config.enableCursor
-    ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} />`
+    ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} snapAlongYAxis={${config.cursorSnapAlongYAxis}} />`
     : '';
 
   const tooltipLayer = config.enableTooltip
-    ? `  <ChartTooltipLayer position=${JSON.stringify(config.tooltipPosition)} template=${JSON.stringify(config.tooltipTemplate)} />`
+    ? `  <ChartTooltipLayer position=${JSON.stringify(config.tooltipPosition)} template=${JSON.stringify(config.tooltipTemplate)} snapAlongYAxis={${config.cursorSnapAlongYAxis}} />`
     : '';
 
   const titleLayer = config.title

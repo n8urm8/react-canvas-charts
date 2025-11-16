@@ -827,7 +827,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   const selectionStartRef = useRef<number | null>(null);
   const selectionWindowListenerRef = useRef<((event: MouseEvent) => void) | null>(null);
   const skipClickRef = useRef(false);
-  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null);
+  const selectionRangeRef = useRef<{ start: number; end: number } | null>(null);
 
   useEffect(() => () => {
     if (selectionWindowListenerRef.current) {
@@ -837,16 +837,21 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   }, []);
 
   const [baseRenderVersion, setBaseRenderVersion] = useState(0);
-  const [overlayRenderVersion, setOverlayRenderVersion] = useState(0);
-
-  const requestRender = useCallback(() => {
-    setBaseRenderVersion((version) => version + 1);
-    setOverlayRenderVersion((version) => version + 1);
+  const overlayRenderCycleRef = useRef(0);
+  const overlayRedrawRef = useRef<() => void>(() => {});
+  const handleOverlayRedrawRegister = useCallback((fn: (() => void) | null) => {
+    overlayRedrawRef.current = fn ?? (() => {});
   }, []);
 
   const requestOverlayRender = useCallback(() => {
-    setOverlayRenderVersion((version) => version + 1);
+    overlayRenderCycleRef.current += 1;
+    overlayRedrawRef.current();
   }, []);
+
+  const requestRender = useCallback(() => {
+    setBaseRenderVersion((version) => version + 1);
+    requestOverlayRender();
+  }, [requestOverlayRender]);
 
   const updatePointer = useCallback(
     (next: ChartPointer | null) => {
@@ -1027,7 +1032,13 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       }
 
       const start = selectionStartRef.current;
-      setSelectionRange({ start, end: currentX });
+      const previous = selectionRangeRef.current;
+      if (previous && previous.start === start && previous.end === currentX) {
+        return;
+      }
+
+      selectionRangeRef.current = { start, end: currentX };
+      requestOverlayRender();
 
       if (!selectionHandlerRef.current) {
         return;
@@ -1039,7 +1050,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         selectionHandlerRef.current(null);
       }
     },
-    [computeSelectionResult]
+    [computeSelectionResult, requestOverlayRender]
   );
 
   const finalizeSelection = useCallback(
@@ -1063,7 +1074,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       const end = clampXToChart(endRaw);
 
       if (Math.abs(end - start) < MIN_SELECTION_WIDTH) {
-        setSelectionRange(null);
+        selectionRangeRef.current = null;
+        requestOverlayRender();
         selectionHandlerRef.current?.(null);
         return;
       }
@@ -1071,15 +1083,20 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       const result = computeSelectionResult(start, end);
 
       if (!result) {
-        setSelectionRange(null);
+        selectionRangeRef.current = null;
+        requestOverlayRender();
         selectionHandlerRef.current?.(null);
         return;
       }
 
-      setSelectionRange({ start: result.rangePixels.start, end: result.rangePixels.end });
+      selectionRangeRef.current = {
+        start: result.rangePixels.start,
+        end: result.rangePixels.end,
+      };
+      requestOverlayRender();
       selectionHandlerRef.current?.(result);
     },
-    [clampXToChart, computeSelectionResult]
+    [clampXToChart, computeSelectionResult, requestOverlayRender]
   );
 
   const handleMouseMove = useCallback(
@@ -1122,12 +1139,12 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       pointerFrameRef.current = null;
     }
     if (selectionActiveRef.current) {
-      const fallback = selectionRange ? selectionRange.end : selectionStartRef.current;
+      const fallback = selectionRangeRef.current ? selectionRangeRef.current.end : selectionStartRef.current;
       finalizeSelection(fallback ?? null);
     }
     updatePointer(null);
     hoverHandlerRef.current?.(null);
-  }, [finalizeSelection, selectionRange, updatePointer]);
+  }, [finalizeSelection, updatePointer]);
 
   const handleMouseDown = useCallback(
     (event: MouseEvent, canvas: HTMLCanvasElement) => {
@@ -1147,11 +1164,12 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         return;
       }
 
-      const clampedX = clampXToChart(x);
-      selectionActiveRef.current = true;
-      selectionStartRef.current = clampedX;
-      skipClickRef.current = false;
-      setSelectionRange({ start: clampedX, end: clampedX });
+  const clampedX = clampXToChart(x);
+  selectionActiveRef.current = true;
+  selectionStartRef.current = clampedX;
+  skipClickRef.current = false;
+  selectionRangeRef.current = { start: clampedX, end: clampedX };
+  requestOverlayRender();
 
       if (selectionWindowListenerRef.current) {
         window.removeEventListener('mouseup', selectionWindowListenerRef.current);
@@ -1176,6 +1194,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       clampXToChart,
       finalizeSelection,
       getRelativePointerPosition,
+      requestOverlayRender,
     ]
   );
 
@@ -1325,6 +1344,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       context.clearRect(0, 0, canvasWidth, canvasHeight);
       context.restore();
 
+      const selectionRange = selectionRangeRef.current;
       if (selectionRange) {
         const rawStart = Math.min(selectionRange.start, selectionRange.end);
         const rawEnd = Math.max(selectionRange.start, selectionRange.end);
@@ -1366,7 +1386,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         axisTicks: axisTickStateRef.current,
         valueDomain,
         valueDomainsByScale,
-        renderCycle: overlayRenderVersion,
+        renderCycle: overlayRenderCycleRef.current,
         yAxisCounts,
       };
 
@@ -1388,11 +1408,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       labels,
       normalizedData,
       overlayLayers,
-      overlayRenderVersion,
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
-      selectionRange,
       defaultScaleId,
     ]
   );
@@ -1479,6 +1497,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           redrawOnPointerEvents={false}
+          onRegisterRedraw={handleOverlayRedrawRegister}
         />
       </div>
       {children}

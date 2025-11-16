@@ -17,6 +17,7 @@ export interface CanvasWrapperProps {
   canvasClassName?: string;
   canvasStyle?: React.CSSProperties;
   redrawOnPointerEvents?: boolean;
+  onRegisterRedraw?: (redraw: (() => void) | null) => void;
 }
 
 export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
@@ -35,6 +36,7 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   canvasClassName,
   canvasStyle,
   redrawOnPointerEvents = true,
+  onRegisterRedraw,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,17 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     // Call the drawing function
     onDraw(context, canvas);
   }, [debugLabel, dimensions, onDraw]);
+
+  useEffect(() => {
+    if (!onRegisterRedraw) {
+      return;
+    }
+
+    onRegisterRedraw(draw);
+    return () => {
+      onRegisterRedraw(null);
+    };
+  }, [draw, onRegisterRedraw]);
 
   useEffect(() => {
     updateDimensions();

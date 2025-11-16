@@ -52,7 +52,17 @@ export const generateNewPoints = (
   const numericIds = prev
     .map((point) => Number.parseInt(point.id, 10))
     .filter((id) => Number.isFinite(id));
-  let nextIdBase = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
+  let nextIdBase = 1;
+  if (numericIds.length > 0) {
+    let maxId = numericIds[0];
+    for (let index = 1; index < numericIds.length; index += 1) {
+      const candidate = numericIds[index];
+      if (candidate > maxId) {
+        maxId = candidate;
+      }
+    }
+    nextIdBase = maxId + 1;
+  }
 
   const points: DataPoint[] = [];
   const previousValues = new Map<string, number>();

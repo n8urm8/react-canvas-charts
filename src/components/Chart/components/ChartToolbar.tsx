@@ -25,6 +25,7 @@ export interface ChartToolbarProps {
   defaultActiveToolIds?: string[];
   onToggle?: (tool: ChartToolbarTool, isActive: boolean, nextActiveToolIds: string[]) => void;
   multiSelect?: boolean;
+  visibility?: 'always' | 'hover';
 }
 
 const formatPositionValue = (value: number | string | undefined): string | undefined => {
@@ -48,6 +49,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   defaultActiveToolIds,
   onToggle,
   multiSelect = true,
+  visibility = 'always',
 }) => {
   const isControlled = Array.isArray(activeToolIds);
   const [internalActive, setInternalActive] = useState<string[]>(
@@ -60,7 +62,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   );
 
   const positionStyle = useMemo<React.CSSProperties>(() => {
-    const style: React.CSSProperties = { pointerEvents: 'auto' };
+    const style: React.CSSProperties = {};
     const top = formatPositionValue(position?.top);
     const right = formatPositionValue(position?.right);
     const bottom = formatPositionValue(position?.bottom);
@@ -121,7 +123,10 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   return (
     <div
       className={cn(
-        'absolute z-20 flex flex-wrap gap-2 rounded-md border border-gray-200 bg-white/90 p-2 shadow-sm backdrop-blur-sm',
+        'absolute z-20 flex flex-wrap gap-2 rounded-md border border-gray-200 bg-white/90 p-2 shadow-sm backdrop-blur-sm transition-opacity duration-150 ease-out',
+        visibility === 'hover'
+          ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
+          : 'opacity-100 pointer-events-auto',
         className
       )}
       style={positionStyle}

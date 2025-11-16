@@ -59,7 +59,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 	tooltipPosition: 'follow',
 	tooltipTemplate: '',
 	axes: [
-		{ id: 'axis-1', title: 'Value', position: 'left' },
+		{ id: 'axis-1', title: 'Axis 1', position: 'left' },
 	],
 	series: [
 		{ id: 'series-1', name: 'Series 1', color: '#3b82f6', axisId: 'axis-1' },
@@ -70,6 +70,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 		multiSelect: false,
 		defaultActiveIds: [],
 		position: { top: 16, left: 16 },
+		visibility: 'hover',
 		tools: [
 			{ id: 'zoom-in', label: 'Zoom In' },
 			{ id: 'zoom-out', label: 'Zoom Out' },

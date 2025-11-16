@@ -44,6 +44,7 @@ export interface InteractiveChartToolbarConfig {
     bottom?: number | string;
     left?: number | string;
   };
+  visibility?: 'always' | 'hover';
 }
 
 export interface InteractiveChartConfig {

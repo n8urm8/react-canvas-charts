@@ -166,13 +166,16 @@ export const buildInteractiveChartCodePreview = (
     .join(', ');
 
   const toolbarPositionLiteral = formatPositionLiteral(toolbarConfig?.position);
+  const toolbarVisibilityLiteral = toolbarConfig?.visibility
+    ? ` visibility=${JSON.stringify(toolbarConfig.visibility)}`
+    : '';
 
   const toolbarLayer = toolbarEnabled && formattedToolbarTools.length > 0
     ? `  <ChartToolbar tools={[${formattedToolbarTools}]}${
         toolbarConfig?.multiSelect !== undefined
           ? ` multiSelect={${toolbarConfig.multiSelect}}`
           : ''
-      }${toolbarPositionLiteral ? ` position=${toolbarPositionLiteral}` : ''} />`
+      }${toolbarPositionLiteral ? ` position=${toolbarPositionLiteral}` : ''}${toolbarVisibilityLiteral} />`
     : '';
 
   const layers = [

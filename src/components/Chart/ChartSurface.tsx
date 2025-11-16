@@ -1489,7 +1489,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   return (
     <ChartSurfaceContext.Provider value={contextValue}>
-      <div className={cn('relative', className)} style={style}>
+      <div className={cn('relative group', className)} style={style}>
         <CanvasWrapper
           width={width}
           height={height}

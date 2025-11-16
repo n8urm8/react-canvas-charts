@@ -27,6 +27,7 @@ type InteractiveChartCanvasProps = {
   toolbarTools?: InteractiveChartToolbarTool[];
   toolbarEnabled?: boolean;
   toolbarMultiSelect?: boolean;
+  toolbarVisibility?: 'always' | 'hover';
   selectionResetKey?: number;
   onToolbarToggle?: (
     tool: InteractiveChartToolbarTool,
@@ -44,6 +45,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   toolbarTools: toolbarToolsOverride,
   toolbarEnabled,
   toolbarMultiSelect,
+  toolbarVisibility,
   selectionResetKey,
   onToolbarToggle,
 }) => {
@@ -138,6 +140,9 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
 
   const resolvedToolbarMultiSelect =
     toolbarMultiSelect ?? toolbarConfig?.multiSelect ?? true;
+
+  const resolvedToolbarVisibility =
+    toolbarVisibility ?? toolbarConfig?.visibility ?? 'always';
 
   const handleToolbarToggle = useCallback(
     (tool: InteractiveChartToolbarTool, isActive: boolean, nextActive: string[]) => {
@@ -265,6 +270,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             onToggle={handleToolbarToggle}
             multiSelect={resolvedToolbarMultiSelect}
             position={toolbarConfig?.position}
+            visibility={resolvedToolbarVisibility}
           />
         ) : null}
       </ChartSurface>

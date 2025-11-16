@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
-import { ChartToolbar, type ChartToolbarTool } from '../components/Chart';
+import { ChartToolbar, ChartOverlayPortal, type ChartToolbarTool } from '../components/Chart';
 
 export const StreamingTemperatureChart: React.FC = () => {
   // Streaming temperature data state
@@ -193,15 +193,17 @@ export const StreamingTemperatureChart: React.FC = () => {
                   labelFontSize: 11,
                 }}
             >
-              <ChartToolbar
-                tools={[
-                  { id: 'pan', label: 'Pan' },
-                  { id: 'brush', label: 'Brush' },
-                  { id: 'annotate', label: 'Annotate' },
-                ]}
-                activeToolIds={activeTools}
-                onToggle={handleToolbarToggle}
-              />
+              <ChartOverlayPortal>
+                <ChartToolbar
+                  tools={[
+                    { id: 'pan', label: 'Pan' },
+                    { id: 'brush', label: 'Brush' },
+                    { id: 'annotate', label: 'Annotate' },
+                  ]}
+                  activeToolIds={activeTools}
+                  onToggle={handleToolbarToggle}
+                />
+              </ChartOverlayPortal>
             </LineChart>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">

@@ -12,7 +12,9 @@ import {
   ChartValueLabels,
   ChartTitleLayer,
   ChartToolbar,
+  ChartOverlayPortal,
   type ChartSelectionResult,
+  type ChartToolbarPosition,
 } from '../../components/Chart';
 import type {
   ChartRecord,
@@ -28,12 +30,14 @@ type InteractiveChartCanvasProps = {
   toolbarEnabled?: boolean;
   toolbarMultiSelect?: boolean;
   toolbarVisibility?: 'always' | 'hover';
+  toolbarMoveable?: boolean;
   selectionResetKey?: number;
   onToolbarToggle?: (
     tool: InteractiveChartToolbarTool,
     isActive: boolean,
     nextActiveIds: string[],
   ) => void;
+  onToolbarPositionChange?: (position: ChartToolbarPosition) => void;
 };
 
 const EMPTY_TOOL_IDS: string[] = [];
@@ -46,8 +50,10 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   toolbarEnabled,
   toolbarMultiSelect,
   toolbarVisibility,
+  toolbarMoveable,
   selectionResetKey,
   onToolbarToggle,
+  onToolbarPositionChange,
 }) => {
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
@@ -143,6 +149,16 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
 
   const resolvedToolbarVisibility =
     toolbarVisibility ?? toolbarConfig?.visibility ?? 'always';
+
+  const resolvedToolbarMoveable =
+    toolbarMoveable ?? toolbarConfig?.moveable ?? false;
+
+  const handleToolbarPositionChange = useCallback(
+    (position: ChartToolbarPosition) => {
+      onToolbarPositionChange?.(position);
+    },
+    [onToolbarPositionChange]
+  );
 
   const handleToolbarToggle = useCallback(
     (tool: InteractiveChartToolbarTool, isActive: boolean, nextActive: string[]) => {
@@ -263,15 +279,19 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         ) : null}
 
         {resolvedToolbarEnabled ? (
-          <ChartToolbar
-            tools={resolvedToolbarTools}
-            activeToolIds={EMPTY_TOOL_IDS}
-            defaultActiveToolIds={toolbarConfig?.defaultActiveIds}
-            onToggle={handleToolbarToggle}
-            multiSelect={resolvedToolbarMultiSelect}
-            position={toolbarConfig?.position}
-            visibility={resolvedToolbarVisibility}
-          />
+          <ChartOverlayPortal>
+            <ChartToolbar
+              tools={resolvedToolbarTools}
+              activeToolIds={EMPTY_TOOL_IDS}
+              defaultActiveToolIds={toolbarConfig?.defaultActiveIds}
+              onToggle={handleToolbarToggle}
+              multiSelect={resolvedToolbarMultiSelect}
+              position={toolbarConfig?.position}
+              visibility={resolvedToolbarVisibility}
+              moveable={resolvedToolbarMoveable}
+              onPositionChange={resolvedToolbarMoveable ? handleToolbarPositionChange : undefined}
+            />
+          </ChartOverlayPortal>
         ) : null}
       </ChartSurface>
     </div>

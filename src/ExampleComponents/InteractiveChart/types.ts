@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { ChartToolbarPosition } from '../../components/Chart';
 
 export interface DataPoint {
   id: string;
@@ -38,13 +39,9 @@ export interface InteractiveChartToolbarConfig {
   tools?: InteractiveChartToolbarTool[];
   multiSelect?: boolean;
   defaultActiveIds?: string[];
-  position?: {
-    top?: number | string;
-    right?: number | string;
-    bottom?: number | string;
-    left?: number | string;
-  };
+  position?: ChartToolbarPosition;
   visibility?: 'always' | 'hover';
+  moveable?: boolean;
 }
 
 export interface InteractiveChartConfig {

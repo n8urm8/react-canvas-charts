@@ -15,7 +15,11 @@ import {
 	InteractiveChartCodePreview,
 	InteractiveChartControlPanel,
 } from '../ExampleComponents/InteractiveChart';
-import type { ChartSelectionResult, ChartSelectionSeriesRange } from '../components/Chart';
+import type {
+	ChartSelectionResult,
+	ChartSelectionSeriesRange,
+	ChartToolbarPosition,
+} from '../components/Chart';
 
 const SERIES_COLOR_PALETTE = [
 	'#3b82f6',
@@ -71,6 +75,7 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 		defaultActiveIds: [],
 		position: { top: 16, left: 16 },
 		visibility: 'hover',
+		moveable: true,
 		tools: [
 			{ id: 'zoom-in', label: 'Zoom In' },
 			{ id: 'zoom-out', label: 'Zoom Out' },
@@ -79,6 +84,18 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 };
 
 type ZoomRange = { start: number; end: number };
+
+const positionsEqual = (
+	a?: ChartToolbarPosition,
+	b?: ChartToolbarPosition,
+): boolean => {
+	const keys: Array<keyof ChartToolbarPosition> = ['top', 'right', 'bottom', 'left'];
+	return keys.every((key) => {
+		const aValue = a?.[key];
+		const bValue = b?.[key];
+		return aValue === bValue;
+	});
+};
 
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -121,6 +138,23 @@ export const InteractiveChartDemoNew: FC = () => {
 	const [streamingMaxPoints, setStreamingMaxPoints] = useState(1200);
 	const [bulkAddCount, setBulkAddCount] = useState(10);
 	const intervalRef = useRef<number | null>(null);
+
+	const handleToolbarPositionChange = useCallback((nextPosition: ChartToolbarPosition) => {
+		setConfig((previous) => {
+			const previousToolbar = previous.toolbar ?? {};
+			if (positionsEqual(previousToolbar.position, nextPosition)) {
+				return previous;
+			}
+
+			return {
+				...previous,
+				toolbar: {
+					...previousToolbar,
+					position: nextPosition,
+				},
+			};
+		});
+	}, []);
 
 	const seriesIds = useMemo(
 		() => config.series.map((series) => series.id),
@@ -695,6 +729,7 @@ export const InteractiveChartDemoNew: FC = () => {
 							toolbarMultiSelect={false}
 							selectionResetKey={selectionResetKey}
 							onToolbarToggle={handleToolbarToggle}
+							onToolbarPositionChange={handleToolbarPositionChange}
 						/>
 
 						{selection ? (

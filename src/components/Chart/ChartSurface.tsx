@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { defaultChartCursorProps, findNearestDataPoint } from './components/ChartCursor';
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
@@ -171,6 +172,7 @@ export interface ChartLayerHandle {
 }
 
 const ChartSurfaceContext = createContext<ChartSurfaceContextValue | null>(null);
+const ChartOverlayContainerContext = createContext<HTMLDivElement | null>(null);
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useChartSurface = (): ChartSurfaceContextValue => {
@@ -179,6 +181,20 @@ export const useChartSurface = (): ChartSurfaceContextValue => {
     throw new Error('useChartSurface must be used within a ChartSurface');
   }
   return context;
+};
+
+const useChartOverlayContainer = (): HTMLDivElement | null =>
+  useContext(ChartOverlayContainerContext);
+
+export const ChartOverlayPortal: React.FC<{
+  children?: React.ReactNode;
+}> = ({ children }) => {
+  const container = useChartOverlayContainer();
+  if (!container || children == null) {
+    return null;
+  }
+
+  return createPortal(children, container);
 };
 
 export const LayerOrder = {
@@ -449,6 +465,10 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     width: typeof width === 'number' ? width : 0,
     height: typeof height === 'number' ? height : 0,
   });
+  const [overlayContainer, setOverlayContainer] = useState<HTMLDivElement | null>(null);
+  const overlayContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setOverlayContainer(node);
+  }, []);
   const cursorOptionsRef = useRef(cursorOptions);
   useEffect(() => {
     cursorOptionsRef.current = cursorOptions;
@@ -1489,31 +1509,34 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   return (
     <ChartSurfaceContext.Provider value={contextValue}>
-      <div className={cn('relative group', className)} style={style}>
-        <CanvasWrapper
-          width={width}
-          height={height}
-          className="relative z-0"
-          onDraw={drawBase}
-          debugLabel="chart-base"
-          canvasStyle={{ pointerEvents: 'none' }}
-        />
-        <CanvasWrapper
-          width={width}
-          height={height}
-          className="absolute inset-0 z-10"
-          onDraw={drawOverlay}
-          debugLabel="chart-overlay"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          redrawOnPointerEvents={false}
-          onRegisterRedraw={handleOverlayRedrawRegister}
-        />
-        {children}
-      </div>
+      <ChartOverlayContainerContext.Provider value={overlayContainer}>
+        <div className={cn('relative group', className)} style={style}>
+          <CanvasWrapper
+            width={width}
+            height={height}
+            className="relative z-0"
+            onDraw={drawBase}
+            debugLabel="chart-base"
+            canvasStyle={{ pointerEvents: 'none' }}
+          />
+          <CanvasWrapper
+            width={width}
+            height={height}
+            className="absolute inset-0 z-10"
+            onDraw={drawOverlay}
+            debugLabel="chart-overlay"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            redrawOnPointerEvents={false}
+            onRegisterRedraw={handleOverlayRedrawRegister}
+          />
+          <div ref={overlayContainerRef} className="pointer-events-none absolute inset-0 z-20" />
+          {children}
+        </div>
+      </ChartOverlayContainerContext.Provider>
     </ChartSurfaceContext.Provider>
   );
 };

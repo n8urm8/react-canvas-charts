@@ -1,14 +1,45 @@
 import type { DataPoint } from './types';
 
-export const formatTimeLabel = (date: Date): string => {
-  const timePart = date.toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+const pad2 = (value: number): string => (value < 10 ? `0${value}` : `${value}`);
+const pad3 = (value: number): string => {
+  if (value < 10) return `00${value}`;
+  if (value < 100) return `0${value}`;
+  return `${value}`;
+};
 
-  return `${timePart}.${date.getMilliseconds().toString().padStart(3, '0')}`;
+const parseTimeLabel = (label: string): number | null => {
+  const [timePart, milliPart] = label.split('.');
+  if (!timePart || milliPart === undefined) {
+    return null;
+  }
+
+  const timeComponents = timePart.split(':');
+  if (timeComponents.length !== 3) {
+    return null;
+  }
+
+  const [hoursStr, minutesStr, secondsStr] = timeComponents;
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+  const seconds = Number.parseInt(secondsStr, 10);
+  const milliseconds = Number.parseInt(milliPart, 10);
+
+  if ([hours, minutes, seconds, milliseconds].some((value) => Number.isNaN(value))) {
+    return null;
+  }
+
+  const parsedDate = new Date();
+  parsedDate.setHours(hours, minutes, seconds, milliseconds);
+  return parsedDate.getTime();
+};
+
+export const formatTimeLabel = (date: Date): string => {
+  const hours = pad2(date.getHours());
+  const minutes = pad2(date.getMinutes());
+  const seconds = pad2(date.getSeconds());
+  const milliseconds = pad3(date.getMilliseconds());
+
+  return `${hours}:${minutes}:${seconds}.${milliseconds}`;
 };
 
 export const createInitialTimeSeries = (
@@ -18,29 +49,40 @@ export const createInitialTimeSeries = (
   const now = Date.now();
   const lastValues = new Map<string, number>();
 
-  seriesIds.forEach((seriesId, index) => {
-    const base = 50 + index * 15;
+  for (let seriesIndex = 0; seriesIndex < seriesIds.length; seriesIndex += 1) {
+    const seriesId = seriesIds[seriesIndex];
+    const base = 50 + seriesIndex * 15;
     lastValues.set(seriesId, base);
-  });
+  }
 
-  return Array.from({ length: count }).map((_, index) => {
-    const timestamp = new Date(now - (count - 1 - index) * 1000);
+  const points: DataPoint[] = new Array(count);
+  const earliestTimestamp = now - (count - 1) * 1000;
+  const timestamp = new Date(earliestTimestamp);
+
+  for (let index = 0; index < count; index += 1) {
+    if (index > 0) {
+      timestamp.setTime(earliestTimestamp + index * 1000);
+    }
+
     const values: Record<string, number> = {};
 
-    seriesIds.forEach((seriesId) => {
+    for (let seriesIndex = 0; seriesIndex < seriesIds.length; seriesIndex += 1) {
+      const seriesId = seriesIds[seriesIndex];
       const previous = lastValues.get(seriesId) ?? 50;
       const variation = (Math.random() - 0.5) * 20;
       const nextValue = Math.max(0, Math.round((previous + variation) * 10) / 10);
       lastValues.set(seriesId, nextValue);
       values[seriesId] = nextValue;
-    });
+    }
 
-    return {
+    points[index] = {
       id: (index + 1).toString(),
       label: formatTimeLabel(timestamp),
       values,
     };
-  });
+  }
+
+  return points;
 };
 
 export const generateNewPoints = (
@@ -49,50 +91,60 @@ export const generateNewPoints = (
   seriesIds: string[]
 ): DataPoint[] => {
   const normalizedCount = Math.max(1, count);
-  const numericIds = prev
-    .map((point) => Number.parseInt(point.id, 10))
-    .filter((id) => Number.isFinite(id));
-  let nextIdBase = 1;
-  if (numericIds.length > 0) {
-    let maxId = numericIds[0];
-    for (let index = 1; index < numericIds.length; index += 1) {
-      const candidate = numericIds[index];
-      if (candidate > maxId) {
-        maxId = candidate;
-      }
-    }
-    nextIdBase = maxId + 1;
-  }
+  const incrementMs = 1000;
 
-  const points: DataPoint[] = [];
+  let maxId = 0;
+  for (let index = 0; index < prev.length; index += 1) {
+    const parsed = Number.parseInt(prev[index].id, 10);
+    if (Number.isFinite(parsed) && parsed > maxId) {
+      maxId = parsed;
+    }
+  }
+  let nextIdBase = maxId + 1;
+
+  const points: DataPoint[] = new Array(normalizedCount);
   const previousValues = new Map<string, number>();
   const lastPoint = prev[prev.length - 1];
-  seriesIds.forEach((seriesId, index) => {
+
+  for (let seriesIndex = 0; seriesIndex < seriesIds.length; seriesIndex += 1) {
+    const seriesId = seriesIds[seriesIndex];
     if (lastPoint?.values?.[seriesId] !== undefined) {
       previousValues.set(seriesId, lastPoint.values[seriesId]);
     } else {
-      previousValues.set(seriesId, 50 + index * 10);
+      previousValues.set(seriesId, 50 + seriesIndex * 10);
     }
-  });
-  const baseTime = Date.now();
+  }
+
+  let lastTimestamp = lastPoint ? parseTimeLabel(lastPoint.label) : null;
+  if (lastTimestamp !== null) {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    if (lastTimestamp > now + incrementMs) {
+      lastTimestamp -= dayMs;
+    }
+  }
+  const baseTime = (lastTimestamp ?? Date.now()) + incrementMs;
+  const timestamp = new Date(baseTime);
 
   for (let index = 0; index < normalizedCount; index += 1) {
-    const timestamp = new Date(baseTime + index);
+    timestamp.setTime(baseTime + index * incrementMs);
+
     const values: Record<string, number> = {};
 
-    seriesIds.forEach((seriesId) => {
+    for (let seriesIndex = 0; seriesIndex < seriesIds.length; seriesIndex += 1) {
+      const seriesId = seriesIds[seriesIndex];
       const previous = previousValues.get(seriesId) ?? 50;
       const variation = (Math.random() - 0.5) * 20;
       const nextValue = Math.max(0, Math.round((previous + variation) * 10) / 10);
       previousValues.set(seriesId, nextValue);
       values[seriesId] = nextValue;
-    });
+    }
 
-    points.push({
+    points[index] = {
       id: (nextIdBase++).toString(),
       label: formatTimeLabel(timestamp),
       values,
-    });
+    };
   }
 
   return points;

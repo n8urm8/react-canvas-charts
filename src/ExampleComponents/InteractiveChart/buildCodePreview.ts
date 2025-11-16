@@ -4,6 +4,34 @@ const serializeLayer = (lines: string[]): string => lines.filter(Boolean).join('
 
 const formatArray = (items: string[]): string => `[${items.join(', ')}]`;
 
+const formatPositionLiteral = (position?: {
+  top?: number | string;
+  right?: number | string;
+  bottom?: number | string;
+  left?: number | string;
+}): string | undefined => {
+  if (!position) {
+    return undefined;
+  }
+
+  const entries = (['top', 'right', 'bottom', 'left'] as const)
+    .map((key) => {
+      const value = position[key];
+      if (value === undefined) {
+        return null;
+      }
+      const formatted = typeof value === 'number' ? value : JSON.stringify(value);
+      return `${key}: ${formatted}`;
+    })
+    .filter((entry): entry is string => entry !== null);
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return `{ ${entries.join(', ')} }`;
+};
+
 export const buildInteractiveChartCodePreview = (
   config: InteractiveChartConfig,
   chartRecords: ChartRecord[],
@@ -119,6 +147,34 @@ export const buildInteractiveChartCodePreview = (
     ? `  <ChartTitleLayer title=${JSON.stringify(config.title)} />`
     : '';
 
+  const toolbarConfig = config.toolbar;
+  const toolbarEnabled = toolbarConfig?.enabled !== false;
+  const toolbarTools = toolbarConfig?.tools && toolbarConfig.tools.length > 0
+    ? toolbarConfig.tools
+    : [
+        { id: 'pan', label: 'Pan' },
+        { id: 'brush', label: 'Brush' },
+        { id: 'zoom-in', label: 'Zoom In' },
+        { id: 'zoom-out', label: 'Zoom Out' },
+      ];
+
+  const formattedToolbarTools = toolbarTools
+    .map((tool) => {
+      const tooltipPart = tool.tooltip ? `, tooltip: ${JSON.stringify(tool.tooltip)}` : '';
+      return `{ id: ${JSON.stringify(tool.id)}, label: ${JSON.stringify(tool.label)}${tooltipPart} }`;
+    })
+    .join(', ');
+
+  const toolbarPositionLiteral = formatPositionLiteral(toolbarConfig?.position);
+
+  const toolbarLayer = toolbarEnabled && formattedToolbarTools.length > 0
+    ? `  <ChartToolbar tools={[${formattedToolbarTools}]}${
+        toolbarConfig?.multiSelect !== undefined
+          ? ` multiSelect={${toolbarConfig.multiSelect}}`
+          : ''
+      }${toolbarPositionLiteral ? ` position=${toolbarPositionLiteral}` : ''} />`
+    : '';
+
   const layers = [
     titleLayer,
     gridLayer,
@@ -130,9 +186,10 @@ export const buildInteractiveChartCodePreview = (
     valueLabelLayers,
     cursorLayer,
     tooltipLayer,
+    toolbarLayer,
   ]
     .filter(Boolean)
     .join('\n');
 
-  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n  ChartTooltipLayer,\n  ChartTitleLayer,\n} from './components/Chart';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
+  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n  ChartTooltipLayer,\n  ChartTitleLayer,\n  ChartToolbar,\n} from './components/Chart';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
 };

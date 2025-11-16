@@ -215,6 +215,7 @@ export interface ChartSurfaceProps {
   onSelectionChange?: (selection: ChartSelectionResult | null) => void;
   valueScales?: ValueScaleDefinition[];
   children?: React.ReactNode;
+  selectionResetKey?: number;
 }
 
 const DEFAULT_COLORS = [
@@ -276,6 +277,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   onSelectionChange,
   valueScales,
   children,
+  selectionResetKey,
 }) => {
   const resolvedMargin = useMemo(() => mergeMargin(margin), [margin]);
 
@@ -828,6 +830,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   const selectionWindowListenerRef = useRef<((event: MouseEvent) => void) | null>(null);
   const skipClickRef = useRef(false);
   const selectionRangeRef = useRef<{ start: number; end: number } | null>(null);
+  const selectionResetRef = useRef(selectionResetKey);
 
   useEffect(() => () => {
     if (selectionWindowListenerRef.current) {
@@ -852,6 +855,16 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     setBaseRenderVersion((version) => version + 1);
     requestOverlayRender();
   }, [requestOverlayRender]);
+
+  useEffect(() => {
+    if (selectionResetRef.current !== selectionResetKey) {
+      selectionResetRef.current = selectionResetKey;
+      selectionActiveRef.current = false;
+      selectionStartRef.current = null;
+      selectionRangeRef.current = null;
+      requestOverlayRender();
+    }
+  }, [requestOverlayRender, selectionResetKey]);
 
   const updatePointer = useCallback(
     (next: ChartPointer | null) => {
@@ -1499,8 +1512,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           redrawOnPointerEvents={false}
           onRegisterRedraw={handleOverlayRedrawRegister}
         />
+        {children}
       </div>
-      {children}
     </ChartSurfaceContext.Provider>
   );
 };

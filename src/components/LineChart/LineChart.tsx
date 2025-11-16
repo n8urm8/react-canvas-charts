@@ -68,6 +68,7 @@ export interface LineChartProps {
   enableTooltip?: boolean;
   onHover?: (dataPoint: DataPoint | null) => void;
   onClick?: (dataPoint: DataPoint | null) => void;
+  children?: React.ReactNode;
 }
 
 interface SeriesConfig {
@@ -121,6 +122,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   enableTooltip = false,
   onHover,
   onClick,
+  children,
 }) => {
   void textColor;
   const baseLineColor = lineComponent.color;
@@ -343,6 +345,8 @@ export const LineChart: React.FC<LineChartProps> = ({
           seriesLabels={seriesLabelMap}
         />
       ) : null}
+
+      {children}
     </ChartSurface>
   );
 };

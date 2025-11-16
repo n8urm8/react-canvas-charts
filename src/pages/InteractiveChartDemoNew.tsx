@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import {
 	type DataPoint,
 	type ChartRecord,
 	type InteractiveChartAxisConfig,
 	type InteractiveChartConfig,
 	type InteractiveChartSeriesConfig,
+	type InteractiveChartToolbarTool,
 	createInitialTimeSeries,
 	generateNewPoints,
 	buildInteractiveChartCodePreview,
@@ -63,7 +65,20 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 		{ id: 'series-1', name: 'Series 1', color: '#3b82f6', axisId: 'axis-1' },
 		{ id: 'series-2', name: 'Series 2', color: '#ef4444', axisId: 'axis-1' },
 	],
+	toolbar: {
+		enabled: true,
+		multiSelect: false,
+		defaultActiveIds: [],
+		position: { top: 16, left: 16 },
+		tools: [
+			{ id: 'zoom-in', label: 'Zoom In' },
+			{ id: 'zoom-out', label: 'Zoom Out' },
+		],
+	},
 };
+
+type ZoomRange = { start: number; end: number };
+
 
 const clamp = (value: number, min: number, max: number): number =>
 	Math.min(max, Math.max(min, value));
@@ -76,13 +91,28 @@ const getNextSeriesIndex = (series: InteractiveChartSeriesConfig[]): number => {
 };
 
 export const InteractiveChartDemoNew: FC = () => {
-	const [config, setConfig] = useState<InteractiveChartConfig>(INITIAL_CONFIG);
-	const [dataPoints, setDataPoints] = useState<DataPoint[]>(() =>
-		createInitialTimeSeries(
+	const initialDataRef = useRef<DataPoint[] | null>(null);
+	if (!initialDataRef.current) {
+		initialDataRef.current = createInitialTimeSeries(
 			INITIAL_CONFIG.series.map((series) => series.id),
 			1200,
-		)
+		);
+	}
+
+	const [config, setConfig] = useState<InteractiveChartConfig>(INITIAL_CONFIG);
+	const [dataPoints, setDataPoints] = useState<DataPoint[]>(() =>
+		initialDataRef.current ? [...initialDataRef.current] : []
 	);
+	const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
+		const initialLength = initialDataRef.current?.length ?? 0;
+		return [
+			{
+				start: 0,
+				end: initialLength > 0 ? initialLength - 1 : 0,
+			},
+		];
+	});
+	const [selectionResetKey, setSelectionResetKey] = useState(0);
 	const [selection, setSelection] = useState<ChartSelectionResult | null>(null);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [streamingHz, setStreamingHz] = useState(1);
@@ -105,6 +135,48 @@ export const InteractiveChartDemoNew: FC = () => {
 		[config.axes, config.series]
 	);
 
+	const clampZoomRanges = useCallback(
+		(ranges: ZoomRange[], dropCount: number, nextLength: number): ZoomRange[] => {
+			if (nextLength <= 0) {
+				return [{ start: 0, end: -1 }];
+			}
+
+			if (ranges.length === 0) {
+				return [{ start: 0, end: nextLength - 1 }];
+			}
+
+			const maxIndex = nextLength - 1;
+
+			return ranges.map(({ start, end }) => {
+				let nextStart = start - dropCount;
+				let nextEnd = end - dropCount;
+
+				nextStart = Math.min(Math.max(0, nextStart), maxIndex);
+				nextEnd = Math.min(Math.max(nextStart, nextEnd), maxIndex);
+
+				return { start: nextStart, end: nextEnd };
+			});
+		},
+		[]
+	);
+
+	const adjustZoomStack = useCallback(
+		(dropCount: number, nextLength: number) => {
+			setZoomStack((previous) => clampZoomRanges(previous, dropCount, nextLength));
+		},
+		[clampZoomRanges]
+	);
+
+	const resetZoomToFull = useCallback(
+		(pointCount: number) => {
+			const safeLength = Math.max(0, pointCount);
+			setZoomStack([{ start: 0, end: safeLength > 0 ? safeLength - 1 : 0 }]);
+			setSelection(null);
+			setSelectionResetKey((key) => key + 1);
+		},
+		[]
+	);
+
 	const regenerateDataForSeries = useCallback(
 		(nextSeries: InteractiveChartSeriesConfig[], options?: { pointCount?: number }) => {
 			const nextSeriesIds = nextSeries.map((series) => series.id);
@@ -114,10 +186,12 @@ export const InteractiveChartDemoNew: FC = () => {
 					: previous.length > 0
 					? previous.length
 					: 12;
-				return createInitialTimeSeries(nextSeriesIds, targetCount);
+				const nextData = createInitialTimeSeries(nextSeriesIds, targetCount);
+				resetZoomToFull(nextData.length);
+				return nextData;
 			});
 		},
-		[setDataPoints]
+		[resetZoomToFull]
 	);
 
 	const randomizeData = useCallback(() => {
@@ -140,14 +214,17 @@ export const InteractiveChartDemoNew: FC = () => {
 				seriesIds,
 			);
 			let nextData = [...previous, ...additions];
+			let dropCount = 0;
 
 			if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
-				nextData = nextData.slice(nextData.length - streamingMaxPoints);
+				dropCount = nextData.length - streamingMaxPoints;
+				nextData = nextData.slice(dropCount);
 			}
 
+			adjustZoomStack(dropCount, nextData.length);
 			return nextData;
 		});
-	}, [seriesIds, streamingMaxPoints, streamingPointsPerTick]);
+	}, [adjustZoomStack, seriesIds, streamingMaxPoints, streamingPointsPerTick]);
 
 	const addBulkPoints = useCallback(() => {
 		if (bulkAddCount <= 0) {
@@ -159,14 +236,17 @@ export const InteractiveChartDemoNew: FC = () => {
 				...previous,
 				...generateNewPoints(previous, bulkAddCount, seriesIds),
 			];
+			let dropCount = 0;
 
 			if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
-				nextData = nextData.slice(nextData.length - streamingMaxPoints);
+				dropCount = nextData.length - streamingMaxPoints;
+				nextData = nextData.slice(dropCount);
 			}
 
+			adjustZoomStack(dropCount, nextData.length);
 			return nextData;
 		});
-	}, [bulkAddCount, seriesIds, streamingMaxPoints]);
+		}, [adjustZoomStack, bulkAddCount, seriesIds, streamingMaxPoints]);
 
 	useEffect(() => {
 		if (!isStreaming) {
@@ -201,31 +281,126 @@ export const InteractiveChartDemoNew: FC = () => {
 	);
 
 	useEffect(() => {
-		if (streamingMaxPoints <= 0) {
-			return;
-		}
-
 		setDataPoints((previous) => {
-			if (previous.length <= streamingMaxPoints) {
+			if (streamingMaxPoints <= 0 || previous.length <= streamingMaxPoints) {
+				adjustZoomStack(0, previous.length);
 				return previous;
 			}
-			return previous.slice(previous.length - streamingMaxPoints);
+
+			const dropCount = previous.length - streamingMaxPoints;
+			const nextData = previous.slice(dropCount);
+			adjustZoomStack(dropCount, nextData.length);
+			return nextData;
 		});
-	}, [streamingMaxPoints]);
+	}, [adjustZoomStack, streamingMaxPoints]);
 
 	const toggleStreaming = useCallback(() => {
 		setIsStreaming((previous) => !previous);
 	}, []);
 
+	const visibleRange = useMemo(() => {
+		if (dataPoints.length === 0) {
+			return { start: 0, end: -1 };
+		}
+
+		const maxIndex = dataPoints.length - 1;
+		const currentRange = zoomStack[zoomStack.length - 1] ?? { start: 0, end: maxIndex };
+		const start = Math.max(0, Math.min(currentRange.start, maxIndex));
+		const end = Math.max(start, Math.min(currentRange.end, maxIndex));
+
+		return { start, end };
+	}, [dataPoints.length, zoomStack]);
+
+	const visibleDataPoints = useMemo(() => {
+		if (dataPoints.length === 0) {
+			return [] as DataPoint[];
+		}
+
+		const { start, end } = visibleRange;
+		if (end < start) {
+			return [] as DataPoint[];
+		}
+
+		return dataPoints.slice(start, end + 1);
+	}, [dataPoints, visibleRange]);
+
 	const chartRecords = useMemo<ChartRecord[]>(() => {
-		return dataPoints.map(({ label, values }) => {
+		if (visibleDataPoints.length === 0) {
+			return [];
+		}
+
+		return visibleDataPoints.map(({ label, values }) => {
 			const record: ChartRecord = { label } as ChartRecord;
 			seriesIds.forEach((seriesId) => {
 				record[seriesId] = values[seriesId] ?? 0;
 			});
 			return record;
 		});
-	}, [dataPoints, seriesIds]);
+	}, [seriesIds, visibleDataPoints]);
+
+	const canZoomIn = Boolean(selection && selection.minIndex <= selection.maxIndex && visibleDataPoints.length > 0);
+	const canZoomOut = zoomStack.length > 1;
+	const visibleStartIndex = visibleRange.start;
+
+	const toolbarTools = useMemo<InteractiveChartToolbarTool[]>(
+		() => [
+			{
+				id: 'zoom-in',
+				label: 'Zoom In',
+				icon: <ZoomIn className="h-4 w-4" />, 
+				ariaLabel: 'Zoom in to selection',
+				showLabel: false,
+				disabled: !canZoomIn,
+				tooltip: canZoomIn ? 'Zoom to selection' : 'Select a range to enable zoom in',
+			},
+			{
+				id: 'zoom-out',
+				label: 'Zoom Out',
+				icon: <ZoomOut className="h-4 w-4" />, 
+				ariaLabel: 'Zoom out',
+				showLabel: false,
+				disabled: !canZoomOut,
+				tooltip: canZoomOut ? 'Return to previous zoom' : 'Already at full extent',
+			},
+		],
+		[canZoomIn, canZoomOut]
+	);
+
+	const handleToolbarToggle = useCallback(
+		(tool: InteractiveChartToolbarTool, _isActive: boolean, _nextActive: string[]) => {
+			void _isActive;
+			void _nextActive;
+			if (tool.id === 'zoom-in') {
+				if (!canZoomIn || !selection) {
+					return;
+				}
+
+				const nextStart = visibleStartIndex + selection.minIndex;
+				const nextEnd = visibleStartIndex + selection.maxIndex;
+
+				setZoomStack((previous) => {
+					const current = previous[previous.length - 1];
+					if (current && current.start === nextStart && current.end === nextEnd) {
+						return previous;
+					}
+					return [...previous, { start: nextStart, end: nextEnd }];
+				});
+				setSelection(null);
+				setSelectionResetKey((key) => key + 1);
+				return;
+			}
+
+			if (tool.id === 'zoom-out') {
+				if (!canZoomOut) {
+					return;
+				}
+				setZoomStack((previous) => (previous.length > 1 ? previous.slice(0, -1) : previous));
+				setSelection(null);
+				setSelectionResetKey((key) => key + 1);
+			}
+		},
+		[canZoomIn, canZoomOut, selection, setSelectionResetKey, visibleStartIndex]
+	);
 
 	const codePreview = useMemo(
 		() => buildInteractiveChartCodePreview(config, chartRecords),
@@ -514,6 +689,11 @@ export const InteractiveChartDemoNew: FC = () => {
 							data={chartRecords}
 							config={config}
 							onSelectionChange={handleSelectionChange}
+							toolbarTools={toolbarTools}
+							toolbarEnabled={config.toolbar?.enabled !== false}
+							toolbarMultiSelect={false}
+							selectionResetKey={selectionResetKey}
+							onToolbarToggle={handleToolbarToggle}
 						/>
 
 						{selection ? (

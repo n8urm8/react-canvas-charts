@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
+import { ChartToolbar, type ChartToolbarTool } from '../components/Chart';
 
 export const StreamingTemperatureChart: React.FC = () => {
   // Streaming temperature data state
   const [temperatureData, setTemperatureData] = useState<LineChartData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [activeTools, setActiveTools] = useState<string[]>([]);
   const intervalRef = useRef<number | null>(null);
   const dataCountRef = useRef(0);
   const baseTemperature = useRef(20); // Starting temperature in Celsius
@@ -66,6 +68,13 @@ export const StreamingTemperatureChart: React.FC = () => {
       }
     };
   }, []);
+
+  const handleToolbarToggle = useCallback(
+    (_tool: ChartToolbarTool, _isActive: boolean, nextActive: string[]) => {
+      setActiveTools(nextActive);
+    },
+    []
+  );
 
   return (
     <section>
@@ -183,7 +192,17 @@ export const StreamingTemperatureChart: React.FC = () => {
                   labelColor: '#6b7280',
                   labelFontSize: 11,
                 }}
-            />
+            >
+              <ChartToolbar
+                tools={[
+                  { id: 'pan', label: 'Pan' },
+                  { id: 'brush', label: 'Brush' },
+                  { id: 'annotate', label: 'Annotate' },
+                ]}
+                activeToolIds={activeTools}
+                onToggle={handleToolbarToggle}
+              />
+            </LineChart>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <div className="text-center">
@@ -206,6 +225,12 @@ export const StreamingTemperatureChart: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTools.length > 0 ? (
+          <div className="mt-4 text-sm text-gray-600">
+            <span className="font-medium text-gray-700">Active tools:</span> {activeTools.join(', ')}
+          </div>
+        ) : null}
       </div>
     </section>
   );

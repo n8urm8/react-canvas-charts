@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export interface DataPoint {
   id: string;
   label: string;
@@ -19,6 +21,29 @@ export interface InteractiveChartSeriesConfig {
   name: string;
   color: string;
   axisId: string;
+}
+
+export interface InteractiveChartToolbarTool {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  tooltip?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+  showLabel?: boolean;
+}
+
+export interface InteractiveChartToolbarConfig {
+  enabled?: boolean;
+  tools?: InteractiveChartToolbarTool[];
+  multiSelect?: boolean;
+  defaultActiveIds?: string[];
+  position?: {
+    top?: number | string;
+    right?: number | string;
+    bottom?: number | string;
+    left?: number | string;
+  };
 }
 
 export interface InteractiveChartConfig {
@@ -53,6 +78,7 @@ export interface InteractiveChartConfig {
   tooltipTemplate: string;
   axes: InteractiveChartAxisConfig[];
   series: InteractiveChartSeriesConfig[];
+  toolbar?: InteractiveChartToolbarConfig;
 }
 
 export type ChartRecord = {

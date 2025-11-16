@@ -150,7 +150,6 @@ export interface ChartSurfaceContextValue {
   defaultScaleId: string;
   normalizedData: NormalizedDatum[];
   dataPoints: CursorDataPoint[];
-  pointer: ChartPointer | null;
   axisTicks: AxisTickState;
   registerLayer: (
     draw: ChartLayerRenderer,
@@ -443,11 +442,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     []
   );
 
-  const [pointer, setPointer] = useState<ChartPointer | null>(null);
   const pointerRef = useRef<ChartPointer | null>(null);
-  useEffect(() => {
-    pointerRef.current = pointer;
-  }, [pointer]);
   const [canvasSize, setCanvasSize] = useState({
     width: typeof width === 'number' ? width : 0,
     height: typeof height === 'number' ? height : 0,
@@ -841,10 +836,34 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     }
   }, []);
 
-  const [renderVersion, setRenderVersion] = useState(0);
+  const [baseRenderVersion, setBaseRenderVersion] = useState(0);
+  const [overlayRenderVersion, setOverlayRenderVersion] = useState(0);
+
   const requestRender = useCallback(() => {
-    setRenderVersion((version) => version + 1);
+    setBaseRenderVersion((version) => version + 1);
+    setOverlayRenderVersion((version) => version + 1);
   }, []);
+
+  const requestOverlayRender = useCallback(() => {
+    setOverlayRenderVersion((version) => version + 1);
+  }, []);
+
+  const updatePointer = useCallback(
+    (next: ChartPointer | null) => {
+      const previous = pointerRef.current;
+      if (previous && next) {
+        if (Math.abs(previous.x - next.x) < 0.001 && Math.abs(previous.y - next.y) < 0.001) {
+          return;
+        }
+      } else if (!previous && !next) {
+        return;
+      }
+
+      pointerRef.current = next;
+      requestOverlayRender();
+    },
+    [requestOverlayRender]
+  );
 
   const pendingPointerRef = useRef<{ x: number; y: number; withinChart: boolean } | null>(null);
   const pointerFrameRef = useRef<number | null>(null);
@@ -859,19 +878,14 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     }
 
     if (!pending.withinChart) {
-      setPointer(null);
+      updatePointer(null);
       hoverHandlerRef.current?.(null);
       return;
     }
 
     const { x, y } = pending;
 
-    setPointer((prev) => {
-      if (prev && Math.abs(prev.x - x) < 0.001 && Math.abs(prev.y - y) < 0.001) {
-        return prev;
-      }
-      return { x, y };
-    });
+    updatePointer({ x, y });
 
     const cursorOpts = cursorOptionsRef.current;
     if (hoverHandlerRef.current) {
@@ -885,7 +899,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
       hoverHandlerRef.current(nearest?.point ?? null);
     }
-  }, []);
+  }, [updatePointer]);
 
   const schedulePointerUpdate = useCallback(
     (update: { x: number; y: number; withinChart: boolean }) => {
@@ -1111,9 +1125,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       const fallback = selectionRange ? selectionRange.end : selectionStartRef.current;
       finalizeSelection(fallback ?? null);
     }
-    setPointer(null);
+    updatePointer(null);
     hoverHandlerRef.current?.(null);
-  }, [finalizeSelection, selectionRange]);
+  }, [finalizeSelection, selectionRange, updatePointer]);
 
   const handleMouseDown = useCallback(
     (event: MouseEvent, canvas: HTMLCanvasElement) => {
@@ -1268,7 +1282,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         axisTicks: axisTickStateRef.current,
         valueDomain,
         valueDomainsByScale,
-        renderCycle: renderVersion,
+        renderCycle: baseRenderVersion,
         yAxisCounts,
       };
 
@@ -1293,7 +1307,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       labelPositions,
       labels,
       normalizedData,
-      renderVersion,
+      baseRenderVersion,
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
@@ -1347,12 +1361,12 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         getScaleIdForKey,
         defaultScaleId,
         colorForKey: getColorForKey,
-        pointer,
+        pointer: pointerRef.current,
         dataPoints,
         axisTicks: axisTickStateRef.current,
         valueDomain,
         valueDomainsByScale,
-        renderCycle: renderVersion,
+        renderCycle: overlayRenderVersion,
         yAxisCounts,
       };
 
@@ -1374,8 +1388,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       labels,
       normalizedData,
       overlayLayers,
-      pointer,
-      renderVersion,
+      overlayRenderVersion,
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
@@ -1403,7 +1416,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     getScaleIdForKey,
     normalizedData,
     dataPoints,
-    pointer,
     axisTicks,
     registerLayer,
     setAxisTicks,
@@ -1432,7 +1444,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     labelPositions,
     labels,
     normalizedData,
-    pointer,
     registerCursorOptions,
     registerLayer,
     registerYAxis,
@@ -1453,6 +1464,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           height={height}
           className="relative z-0"
           onDraw={drawBase}
+          debugLabel="chart-base"
           canvasStyle={{ pointerEvents: 'none' }}
         />
         <CanvasWrapper
@@ -1460,6 +1472,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           height={height}
           className="absolute inset-0 z-10"
           onDraw={drawOverlay}
+          debugLabel="chart-overlay"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}

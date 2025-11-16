@@ -6,6 +6,7 @@ export interface CanvasWrapperProps {
   height?: number | string;
   className?: string;
   onDraw: (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => void;
+  debugLabel?: string;
   style?: React.CSSProperties;
   onMouseMove?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onMouseLeave?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
@@ -23,6 +24,7 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   height = 400,
   className,
   onDraw,
+  debugLabel,
   style,
   onMouseMove,
   onMouseLeave,
@@ -81,10 +83,15 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     
     // Clear the canvas
     context.clearRect(0, 0, dimensions.width, dimensions.height);
+    if (debugLabel) {
+      console.log(`redrawing canvas: ${debugLabel}`);
+    } else {
+      console.log('redrawing canvas');
+    }
     
     // Call the drawing function
     onDraw(context, canvas);
-  }, [onDraw, dimensions]);
+  }, [debugLabel, dimensions, onDraw]);
 
   useEffect(() => {
     updateDimensions();

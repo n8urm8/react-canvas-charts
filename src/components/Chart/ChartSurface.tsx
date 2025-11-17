@@ -186,9 +186,11 @@ export const useChartSurface = (): ChartSurfaceContextValue => {
 const useChartOverlayContainer = (): HTMLDivElement | null =>
   useContext(ChartOverlayContainerContext);
 
-export const ChartOverlayPortal: React.FC<{
+export const ChartOverlayPortal = ({
+  children,
+}: {
   children?: React.ReactNode;
-}> = ({ children }) => {
+}): React.ReactPortal | null => {
   const container = useChartOverlayContainer();
   if (!container || children == null) {
     return null;
@@ -1510,6 +1512,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   return (
     <ChartSurfaceContext.Provider value={contextValue}>
       <ChartOverlayContainerContext.Provider value={overlayContainer}>
+        {/* @ts-expect-error internal cssstyle version mismatch */}
         <div className={cn('relative group', className)} style={style}>
           <CanvasWrapper
             width={width}

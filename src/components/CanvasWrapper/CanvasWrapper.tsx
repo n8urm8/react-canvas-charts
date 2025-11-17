@@ -85,6 +85,8 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     
     // Clear the canvas
     context.clearRect(0, 0, dimensions.width, dimensions.height);
+
+    // Debug logging
     if (debugLabel) {
       console.log(`redrawing canvas: ${debugLabel}`);
     } else {

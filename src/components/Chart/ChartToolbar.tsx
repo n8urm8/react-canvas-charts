@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { cn } from '../../utils/cn';
 
 export interface ChartToolbarTool {
   id: string;

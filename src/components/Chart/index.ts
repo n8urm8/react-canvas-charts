@@ -15,4 +15,5 @@ export * from './ChartCursorLayer';
 export * from './ChartTooltipLayer';
 export * from './ChartValueLabels';
 export * from './ChartTitleLayer';
-export * from './components';
+export * from './CanvasWrapper/CanvasWrapper';
+export * from './ChartToolbar';

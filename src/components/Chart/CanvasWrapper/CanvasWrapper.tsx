@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { cn } from '../../utils/cn';
+import { cn } from '../../../utils/cn';
 
 export interface CanvasWrapperProps {
   width?: number | string;

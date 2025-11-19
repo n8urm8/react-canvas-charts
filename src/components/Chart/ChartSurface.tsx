@@ -10,7 +10,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { defaultChartCursorProps, findNearestDataPoint } from './components/ChartCursor';
-import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
+import { CanvasWrapper } from './CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 
 export interface ValueDomain {

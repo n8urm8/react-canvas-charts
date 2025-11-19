@@ -331,7 +331,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         moveable && visibility === 'hover' ? 'cursor-default' : undefined,
         className
       )}
-  style={appliedPositionStyle}
+      style={appliedPositionStyle}
     >
       {moveable ? (
         <div

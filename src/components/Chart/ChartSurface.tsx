@@ -1512,7 +1512,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   return (
     <ChartSurfaceContext.Provider value={contextValue}>
       <ChartOverlayContainerContext.Provider value={overlayContainer}>
-        {/* @ts-expect-error internal cssstyle version mismatch */}
         <div className={cn('relative group', className)} style={style}>
           <CanvasWrapper
             width={width}

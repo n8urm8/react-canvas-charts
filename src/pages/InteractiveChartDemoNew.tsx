@@ -183,11 +183,25 @@ export const InteractiveChartDemoNew: FC = () => {
 			const maxIndex = nextLength - 1;
 
 			return ranges.map(({ start, end }) => {
+				const span = Math.max(0, end - start);
 				let nextStart = start - dropCount;
-				let nextEnd = end - dropCount;
+				let nextEnd = nextStart + span;
 
-				nextStart = Math.min(Math.max(0, nextStart), maxIndex);
-				nextEnd = Math.min(Math.max(nextStart, nextEnd), maxIndex);
+				if (nextStart < 0) {
+					const offset = -nextStart;
+					nextStart = 0;
+					nextEnd += offset;
+				}
+
+				if (nextEnd > maxIndex) {
+					const overflow = nextEnd - maxIndex;
+					nextEnd = maxIndex;
+					nextStart = Math.max(0, nextStart - overflow);
+				}
+
+				if (nextEnd < nextStart) {
+					nextEnd = nextStart;
+				}
 
 				return { start: nextStart, end: nextEnd };
 			});

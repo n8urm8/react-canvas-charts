@@ -57,5 +57,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/n8urm8/react-canvas-charts.git"
-  }
+  },
+  "keywords": [
+    "react",
+    "canvas",
+    "typescript",
+    "chart",
+    "timeseries",
+    "data-visualization"
+  ]
 }

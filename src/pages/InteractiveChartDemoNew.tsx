@@ -171,7 +171,12 @@ export const InteractiveChartDemoNew: FC = () => {
 	);
 
 	const clampZoomRanges = useCallback(
-		(ranges: ZoomRange[], dropCount: number, nextLength: number): ZoomRange[] => {
+		(
+			ranges: ZoomRange[],
+			dropCount: number,
+			previousLength: number,
+			nextLength: number,
+		): ZoomRange[] => {
 			if (nextLength <= 0) {
 				return [{ start: 0, end: -1 }];
 			}
@@ -181,16 +186,29 @@ export const InteractiveChartDemoNew: FC = () => {
 			}
 
 			const maxIndex = nextLength - 1;
+			const previousMaxIndex = previousLength > 0 ? previousLength - 1 : -1;
 
 			return ranges.map(({ start, end }) => {
 				const span = Math.max(0, end - start);
 				let nextStart = start - dropCount;
 				let nextEnd = nextStart + span;
+				const wasAnchoredToEnd = previousLength > 0 && end >= previousMaxIndex;
+				const anchoredAtStart = start <= 0;
 
 				if (nextStart < 0) {
 					const offset = -nextStart;
 					nextStart = 0;
 					nextEnd += offset;
+				}
+
+				if (dropCount === 0 && nextLength > previousLength) {
+					if (anchoredAtStart) {
+						nextStart = 0;
+						nextEnd = maxIndex;
+					} else if (wasAnchoredToEnd) {
+						nextEnd = maxIndex;
+						nextStart = Math.max(0, nextEnd - span);
+					}
 				}
 
 				if (nextEnd > maxIndex) {
@@ -210,8 +228,10 @@ export const InteractiveChartDemoNew: FC = () => {
 	);
 
 	const adjustZoomStack = useCallback(
-		(dropCount: number, nextLength: number) => {
-			setZoomStack((previous) => clampZoomRanges(previous, dropCount, nextLength));
+		(dropCount: number, previousLength: number, nextLength: number) => {
+			setZoomStack((previous) =>
+				clampZoomRanges(previous, dropCount, previousLength, nextLength)
+			);
 		},
 		[clampZoomRanges]
 	);
@@ -257,6 +277,7 @@ export const InteractiveChartDemoNew: FC = () => {
 
 	const appendStreamingPoint = useCallback(() => {
 		setDataPoints((previous) => {
+			const previousLength = previous.length;
 			const additions = generateNewPoints(
 				previous,
 				Math.max(1, streamingPointsPerTick),
@@ -270,7 +291,7 @@ export const InteractiveChartDemoNew: FC = () => {
 				nextData = nextData.slice(dropCount);
 			}
 
-			adjustZoomStack(dropCount, nextData.length);
+			adjustZoomStack(dropCount, previousLength, nextData.length);
 			return nextData;
 		});
 	}, [adjustZoomStack, seriesIds, streamingMaxPoints, streamingPointsPerTick]);
@@ -281,6 +302,7 @@ export const InteractiveChartDemoNew: FC = () => {
 		}
 
 		setDataPoints((previous) => {
+			const previousLength = previous.length;
 			let nextData = [
 				...previous,
 				...generateNewPoints(previous, bulkAddCount, seriesIds),
@@ -292,7 +314,7 @@ export const InteractiveChartDemoNew: FC = () => {
 				nextData = nextData.slice(dropCount);
 			}
 
-			adjustZoomStack(dropCount, nextData.length);
+			adjustZoomStack(dropCount, previousLength, nextData.length);
 			return nextData;
 		});
 		}, [adjustZoomStack, bulkAddCount, seriesIds, streamingMaxPoints]);
@@ -331,14 +353,15 @@ export const InteractiveChartDemoNew: FC = () => {
 
 	useEffect(() => {
 		setDataPoints((previous) => {
+			const previousLength = previous.length;
 			if (streamingMaxPoints <= 0 || previous.length <= streamingMaxPoints) {
-				adjustZoomStack(0, previous.length);
+				adjustZoomStack(0, previousLength, previousLength);
 				return previous;
 			}
 
 			const dropCount = previous.length - streamingMaxPoints;
 			const nextData = previous.slice(dropCount);
-			adjustZoomStack(dropCount, nextData.length);
+			adjustZoomStack(dropCount, previousLength, nextData.length);
 			return nextData;
 		});
 	}, [adjustZoomStack, streamingMaxPoints]);

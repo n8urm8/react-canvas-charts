@@ -35,6 +35,7 @@ When new data arrives we append it to our canonical array and drop any old sampl
 const clampZoomRanges = (
   ranges: ZoomRange[],
   dropCount: number,
+  previousLength: number,
   nextLength: number,
 ): ZoomRange[] => {
   if (nextLength <= 0) {
@@ -46,16 +47,29 @@ const clampZoomRanges = (
   }
 
   const maxIndex = nextLength - 1;
+  const previousMaxIndex = previousLength > 0 ? previousLength - 1 : -1;
 
   return ranges.map(({ start, end }) => {
     const span = Math.max(0, end - start);
     let nextStart = start - dropCount;
     let nextEnd = nextStart + span;
+    const anchoredAtStart = start <= 0;
+    const anchoredAtEnd = previousLength > 0 && end >= previousMaxIndex;
 
     if (nextStart < 0) {
       const offset = -nextStart;
       nextStart = 0;
       nextEnd += offset;
+    }
+
+    if (dropCount === 0 && nextLength > previousLength) {
+      if (anchoredAtStart) {
+        nextStart = 0;
+        nextEnd = maxIndex;
+      } else if (anchoredAtEnd) {
+        nextEnd = maxIndex;
+        nextStart = Math.max(0, nextEnd - span);
+      }
     }
 
     if (nextEnd > maxIndex) {
@@ -72,15 +86,24 @@ const clampZoomRanges = (
   });
 };
 
-const adjustZoomStack = (dropCount: number, nextLength: number) => {
-  setZoomStack((previous) => clampZoomRanges(previous, dropCount, nextLength));
+const adjustZoomStack = (
+  dropCount: number,
+  previousLength: number,
+  nextLength: number,
+) => {
+  setZoomStack((previous) =>
+    clampZoomRanges(previous, dropCount, previousLength, nextLength)
+  );
 };
 ```
+
+The additional `previousLength` argument lets the helper detect whether a window was anchored to the dataset start or end. When the data grows without dropping points (for example, after increasing the max buffer size), leading windows stretch to include the new samples, while windows that were following the tail continue to track the newest points.
 
 Call `adjustZoomStack` any time you append to the data array and possibly drop old points. For example:
 
 ```ts
 setDataPoints((previous) => {
+  const previousLength = previous.length;
   const additions = generateNewPoints(previous, streamingPointsPerTick, seriesIds);
   let nextData = [...previous, ...additions];
   let dropCount = 0;
@@ -90,7 +113,7 @@ setDataPoints((previous) => {
     nextData = nextData.slice(dropCount);
   }
 
-  adjustZoomStack(dropCount, nextData.length);
+  adjustZoomStack(dropCount, previousLength, nextData.length);
   return nextData;
 });
 ```

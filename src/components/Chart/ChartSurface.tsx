@@ -10,7 +10,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { defaultChartCursorProps, findNearestDataPoint } from './components/ChartCursor';
-import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
+import { CanvasWrapper } from './CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 
 export interface ValueDomain {
@@ -186,9 +186,11 @@ export const useChartSurface = (): ChartSurfaceContextValue => {
 const useChartOverlayContainer = (): HTMLDivElement | null =>
   useContext(ChartOverlayContainerContext);
 
-export const ChartOverlayPortal: React.FC<{
+export const ChartOverlayPortal = ({
+  children,
+}: {
   children?: React.ReactNode;
-}> = ({ children }) => {
+}): React.ReactPortal | null => {
   const container = useChartOverlayContainer();
   if (!container || children == null) {
     return null;

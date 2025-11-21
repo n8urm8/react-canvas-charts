@@ -7,7 +7,7 @@ export const StreamingTemperatureChart: React.FC = () => {
   const [temperatureData, setTemperatureData] = useState<LineChartData[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTools, setActiveTools] = useState<string[]>([]);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const dataCountRef = useRef(0);
   const baseTemperature = useRef(20); // Starting temperature in Celsius
 

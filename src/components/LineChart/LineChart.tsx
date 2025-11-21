@@ -1,6 +1,19 @@
 import React, { useMemo } from 'react';
 import { cn } from '../../utils/cn';
 import {
+  defaultChartCursorProps,
+  type ChartTitleProps,
+  type ChartAxisProps,
+  type ChartGridProps,
+  type ChartLineProps,
+  type ChartPointProps,
+  type ChartLabelProps,
+  type ChartCursorProps,
+  type ChartTooltipProps,
+  type DataPoint
+} from '../Chart/components'
+
+import {
   ChartSurface,
   ChartGridLayer,
   ChartXAxis,
@@ -12,16 +25,6 @@ import {
   ChartAreaSeries,
   ChartValueLabels,
   ChartTitleLayer,
-  defaultChartCursorProps,
-  type ChartTitleProps,
-  type ChartAxisProps,
-  type ChartGridProps,
-  type ChartLineProps,
-  type ChartPointProps,
-  type ChartLabelProps,
-  type ChartCursorProps,
-  type ChartTooltipProps,
-  type DataPoint,
 } from '../Chart';
 
 export interface LineChartData {

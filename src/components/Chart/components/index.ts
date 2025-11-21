@@ -5,7 +5,6 @@ export * from './ChartGrid';
 export * from './ChartLabel';
 export * from './ChartCursor';
 export * from './ChartTooltip';
-export * from './ChartToolbar';
 export { ChartOverlayPortal } from '../ChartSurface';
 
 // Bar chart specific

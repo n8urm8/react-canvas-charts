@@ -1,36 +1,61 @@
 {
-  "name": "charting-libary",
-  "private": true,
-  "version": "0.0.0",
+  "name": "react-canvas-charts",
+  "private": false,
+  "version": "0.0.1",
   "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/react-canvas-charts.umd.cjs",
+  "module": "./dist/react-canvas-charts.js",
+  "exports": {
+    ".": {
+      "import": "./dist/react-canvas-charts.js",
+      "require": "./dist/react-canvas-charts.umd.cjs"
+    }
+  },
   "scripts": {
     "dev": "vite --port 5174",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.10",
-    "babel-plugin-react-compiler": "19.1.0-rc.2",
+    "@tailwindcss/vite": "^4.1.17",
+    "babel-plugin-react-compiler": "1.0.0",
     "lucide-react": "^0.553.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router": "^7.9.5",
-    "tailwindcss": "^4.1.10"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.6",
+    "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
-    "eslint": "^9.29.0",
-    "eslint-config-prettier": "^10.1.5",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "6.0.0-rc1",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.2.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
     "prettier": "3.6.1",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.34.1",
-    "vite": "^7.0.0"
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.2",
+    "vite-bundle-analyzer": "^1.2.3",
+    "vite-plugin-dts": "^4.5.4"
+  },
+  "author": { "name": "n8urm8"},
+  "license": "MIT",
+  "homepage": "https://github.com/n8urm8/react-canvas-charts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/n8urm8/react-canvas-charts.git"
   }
 }

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { cn } from '../../utils/cn';
 
 export interface ChartToolbarTool {
   id: string;
@@ -331,7 +331,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         moveable && visibility === 'hover' ? 'cursor-default' : undefined,
         className
       )}
-  style={appliedPositionStyle}
+      style={appliedPositionStyle}
     >
       {moveable ? (
         <div

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper';
+import { CanvasWrapper } from '../Chart/CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 import {
   type ChartTitleProps,

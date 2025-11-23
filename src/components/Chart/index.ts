@@ -15,5 +15,6 @@ export * from './ChartCursorLayer';
 export * from './ChartTooltipLayer';
 export * from './ChartValueLabels';
 export * from './ChartTitleLayer';
+export * from './ChartLegend';
 export * from './CanvasWrapper/CanvasWrapper';
 export * from './ChartToolbar';

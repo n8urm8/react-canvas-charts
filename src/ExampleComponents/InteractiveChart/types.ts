@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
-import type { ChartToolbarPosition } from '../../components/Chart';
+import type {
+  ChartLegendLayout,
+  ChartLegendPlacement,
+  ChartToolbarPosition,
+} from '../../components/Chart';
 
 export interface DataPoint {
   id: string;
@@ -44,6 +48,13 @@ export interface InteractiveChartToolbarConfig {
   moveable?: boolean;
 }
 
+export interface InteractiveChartLegendConfig {
+  enabled?: boolean;
+  placement?: ChartLegendPlacement;
+  layout?: ChartLegendLayout;
+  title?: string;
+}
+
 export interface InteractiveChartConfig {
   title: string;
   width: number;
@@ -77,6 +88,7 @@ export interface InteractiveChartConfig {
   axes: InteractiveChartAxisConfig[];
   series: InteractiveChartSeriesConfig[];
   toolbar?: InteractiveChartToolbarConfig;
+  legend?: InteractiveChartLegendConfig;
 }
 
 export type ChartRecord = {

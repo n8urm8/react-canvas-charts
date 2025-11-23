@@ -171,7 +171,7 @@ export const buildInteractiveChartCodePreview = (
     : '';
   const toolbarMoveableLiteral = toolbarConfig?.moveable ? ' moveable' : '';
 
-    const toolbarLayer = toolbarEnabled && formattedToolbarTools.length > 0
+  const toolbarLayer = toolbarEnabled && formattedToolbarTools.length > 0
       ? `  <ChartOverlayPortal>
       <ChartToolbar tools={[${formattedToolbarTools}]}${
           toolbarConfig?.multiSelect !== undefined
@@ -179,6 +179,43 @@ export const buildInteractiveChartCodePreview = (
             : ''
         }${toolbarPositionLiteral ? ` position=${toolbarPositionLiteral}` : ''}${toolbarVisibilityLiteral}${toolbarMoveableLiteral} />
     </ChartOverlayPortal>`
+    : '';
+
+  const legendEnabled = config.legend?.enabled !== false && config.series.length > 0;
+  const legendItemsLiteral = config.series
+    .map(
+      (series) =>
+        `{ dataKey: ${JSON.stringify(series.id)}, label: ${JSON.stringify(series.name || series.id)}, color: ${JSON.stringify(series.color)} }`,
+    )
+    .join(',\n      ');
+  const legendPlacementLiteral = (() => {
+    const placement = config.legend?.placement;
+    if (!placement) {
+      return '';
+    }
+
+    if (placement.mode === 'coordinate') {
+      return `\n    placement={{ mode: 'coordinate', x: ${JSON.stringify(placement.x)}, y: ${JSON.stringify(placement.y)} }}`;
+    }
+
+    const anchorPosition = placement.position ?? 'top-right';
+    if (anchorPosition === 'top-right' && (placement.mode === undefined || placement.mode === 'anchor')) {
+      return '';
+    }
+
+    return `\n    placement={{ mode: 'anchor', position: ${JSON.stringify(anchorPosition)} }}`;
+  })();
+  const legendLayoutLiteral = config.legend?.layout
+    ? `\n    layout=${JSON.stringify(config.legend.layout)}`
+    : '';
+  const legendTitleLiteral = config.legend?.title
+    ? `\n    title=${JSON.stringify(config.legend.title)}`
+    : '';
+
+  const legendLayer = legendEnabled
+    ? `  <ChartLegend
+    items={[\n      ${legendItemsLiteral}\n    ]}${legendPlacementLiteral}${legendLayoutLiteral}${legendTitleLiteral}
+  />`
     : '';
 
   const layers = [
@@ -192,10 +229,11 @@ export const buildInteractiveChartCodePreview = (
     valueLabelLayers,
     cursorLayer,
     tooltipLayer,
+    legendLayer,
     toolbarLayer,
   ]
     .filter(Boolean)
     .join('\n');
 
-  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n  ChartTooltipLayer,\n  ChartTitleLayer,\n  ChartToolbar,\n} from './components/Chart';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
+  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n  ChartTooltipLayer,\n  ChartTitleLayer,\n  ChartToolbar,\n  ChartLegend,\n} from './components/Chart';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
 };

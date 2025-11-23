@@ -81,6 +81,12 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
 			{ id: 'zoom-out', label: 'Zoom Out' },
 		],
 	},
+	legend: {
+		enabled: true,
+		placement: { mode: 'anchor', position: 'top-right' },
+		layout: 'horizontal',
+		title: 'Series',
+	},
 };
 
 type ZoomRange = { start: number; end: number };

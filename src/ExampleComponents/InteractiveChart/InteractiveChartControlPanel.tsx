@@ -10,6 +10,19 @@ type AxisSeriesSummary = {
   seriesCount: number;
 };
 
+const LEGEND_POSITIONS = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+] as const;
+
+const LEGEND_MODES = ['anchor', 'coordinate'] as const;
+
+const LEGEND_LAYOUTS = ['horizontal', 'vertical'] as const;
+
 type InteractiveChartControlPanelProps = {
   dataPointsCount: number;
   config: InteractiveChartConfig;
@@ -38,8 +51,30 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
   onRemoveAxis,
   onUpdateAxis,
   setConfig,
-}) => (
-  <div className="bg-white rounded-lg shadow-lg p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+}) => {
+  const legendPlacement = config.legend?.placement ?? { mode: 'anchor', position: 'top-right' as const };
+  const isCoordinatePlacement = legendPlacement.mode === 'coordinate';
+  const legendModeValue = isCoordinatePlacement ? 'coordinate' : 'anchor';
+  const anchorPosition = !isCoordinatePlacement
+    ? legendPlacement.position ?? 'top-right'
+    : 'top-right';
+  const coordinateX = isCoordinatePlacement ? String(legendPlacement.x) : '0';
+  const coordinateY = isCoordinatePlacement ? String(legendPlacement.y) : '0';
+
+  const parsePlacementInput = (raw: string): string | number => {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return 0;
+    }
+    const numericPattern = /^-?\d+(?:\.\d+)?$/;
+    if (numericPattern.test(trimmed)) {
+      return Number.parseFloat(trimmed);
+    }
+    return trimmed;
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
     <h2 className="text-xl font-bold text-gray-800 mb-4">Control Panel</h2>
 
     {/* Data Points Section */}
@@ -168,6 +203,228 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
             className="w-full"
           />
         </div>
+      </div>
+    </section>
+
+    {/* Legend Settings */}
+    <section className="mb-6">
+      <h3 className="font-semibold text-gray-700 mb-3">Legend</h3>
+      <div className="space-y-3">
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={config.legend?.enabled !== false}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                legend: {
+                  ...prev.legend,
+                  enabled: event.target.checked,
+                },
+              }))
+            }
+            className="mr-2"
+          />
+          <span className="text-sm text-gray-600">Show Legend</span>
+        </label>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Legend Title</label>
+          <input
+            type="text"
+            value={config.legend?.title ?? ''}
+            onChange={(event) =>
+              setConfig((prev) => ({
+                ...prev,
+                legend: {
+                  ...prev.legend,
+                  title: event.target.value,
+                },
+              }))
+            }
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+            placeholder="e.g. Series"
+            disabled={config.legend?.enabled === false}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Placement Mode</label>
+            <select
+              value={legendModeValue}
+              onChange={(event) => {
+                const nextMode = event.target.value as typeof LEGEND_MODES[number];
+                setConfig((prev) => {
+                  const previousPlacement = prev.legend?.placement;
+                  if (nextMode === 'coordinate') {
+                    const previousX =
+                      previousPlacement && previousPlacement.mode === 'coordinate'
+                        ? previousPlacement.x
+                        : 0;
+                    const previousY =
+                      previousPlacement && previousPlacement.mode === 'coordinate'
+                        ? previousPlacement.y
+                        : 0;
+                    return {
+                      ...prev,
+                      legend: {
+                        ...prev.legend,
+                        placement: {
+                          mode: 'coordinate',
+                          x: previousX,
+                          y: previousY,
+                        },
+                      },
+                    };
+                  }
+
+                  const previousPosition =
+                    previousPlacement && previousPlacement.mode !== 'coordinate'
+                      ? previousPlacement.position ?? 'top-right'
+                      : 'top-right';
+
+                  return {
+                    ...prev,
+                    legend: {
+                      ...prev.legend,
+                      placement: {
+                        mode: 'anchor',
+                        position: previousPosition,
+                      },
+                    },
+                  };
+                });
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              disabled={config.legend?.enabled === false}
+            >
+              {LEGEND_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {mode === 'anchor' ? 'Anchor (Preset)' : 'Coordinate'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Layout</label>
+            <select
+              value={config.legend?.layout ?? 'horizontal'}
+              onChange={(event) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  legend: {
+                    ...prev.legend,
+                    layout: event.target.value as typeof LEGEND_LAYOUTS[number],
+                  },
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              disabled={config.legend?.enabled === false}
+            >
+              {LEGEND_LAYOUTS.map((option) => (
+                <option key={option} value={option}>
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {isCoordinatePlacement ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Coordinate X</label>
+              <input
+                type="text"
+                value={coordinateX}
+                onChange={(event) => {
+                  const nextRawX = event.target.value;
+                  setConfig((prev) => {
+                    const previousPlacement = prev.legend?.placement;
+                    const previousY =
+                      previousPlacement && previousPlacement.mode === 'coordinate'
+                        ? previousPlacement.y
+                        : 0;
+                    return {
+                      ...prev,
+                      legend: {
+                        ...prev.legend,
+                        placement: {
+                          mode: 'coordinate',
+                          x: parsePlacementInput(nextRawX),
+                          y: previousY,
+                        },
+                      },
+                    };
+                  });
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                placeholder="e.g. 24 or 1.5rem"
+                disabled={config.legend?.enabled === false}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Coordinate Y</label>
+              <input
+                type="text"
+                value={coordinateY}
+                onChange={(event) => {
+                  const nextRawY = event.target.value;
+                  setConfig((prev) => {
+                    const previousPlacement = prev.legend?.placement;
+                    const previousX =
+                      previousPlacement && previousPlacement.mode === 'coordinate'
+                        ? previousPlacement.x
+                        : 0;
+                    return {
+                      ...prev,
+                      legend: {
+                        ...prev.legend,
+                        placement: {
+                          mode: 'coordinate',
+                          x: previousX,
+                          y: parsePlacementInput(nextRawY),
+                        },
+                      },
+                    };
+                  });
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                placeholder="e.g. 16 or 2rem"
+                disabled={config.legend?.enabled === false}
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Anchor Position</label>
+            <select
+              value={anchorPosition}
+              onChange={(event) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  legend: {
+                    ...prev.legend,
+                    placement: {
+                      mode: 'anchor',
+                      position: event.target.value as typeof LEGEND_POSITIONS[number],
+                    },
+                  },
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              disabled={config.legend?.enabled === false}
+            >
+              {LEGEND_POSITIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option.replace('-', ' ')}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </section>
 
@@ -611,5 +868,6 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
         ) : null}
       </div>
     </section>
-  </div>
-);
+    </div>
+  );
+};

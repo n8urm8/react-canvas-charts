@@ -12,6 +12,7 @@ import {
   ChartValueLabels,
   ChartTitleLayer,
   ChartToolbar,
+  ChartLegend,
   ChartOverlayPortal,
   type ChartSelectionResult,
   type ChartToolbarPosition,
@@ -153,6 +154,19 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   const resolvedToolbarMoveable =
     toolbarMoveable ?? toolbarConfig?.moveable ?? false;
 
+  const legendConfig = config.legend ?? {};
+  const legendItems = useMemo(
+    () =>
+      resolvedSeries.map((series) => ({
+        dataKey: series.id,
+        label: series.name || series.id,
+        color: series.color,
+      })),
+    [resolvedSeries],
+  );
+
+  const legendEnabled = legendConfig.enabled !== false && legendItems.length > 0;
+
   const handleToolbarPositionChange = useCallback(
     (position: ChartToolbarPosition) => {
       onToolbarPositionChange?.(position);
@@ -185,7 +199,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         defaultColors={defaultColors}
         valueScales={valueScales}
         onSelectionChange={onSelectionChange}
-  selectionResetKey={selectionResetKey}
+        selectionResetKey={selectionResetKey}
       >
         {config.title ? <ChartTitleLayer title={config.title} /> : null}
 
@@ -275,6 +289,15 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             template={config.tooltipTemplate}
             snapAlongYAxis={config.cursorSnapAlongYAxis}
             seriesLabels={seriesLabelMap}
+          />
+        ) : null}
+
+        {legendEnabled ? (
+          <ChartLegend
+            items={legendItems}
+            placement={legendConfig.placement}
+            layout={legendConfig.layout}
+            title={legendConfig.title}
           />
         ) : null}
 

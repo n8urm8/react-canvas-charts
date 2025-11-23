@@ -1,0 +1,40 @@
+{
+  "name": "react-canvas-charts-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.17",
+    "babel-plugin-react-compiler": "1.0.0",
+    "lucide-react": "^0.553.0",
+    "react": "^19.2.0",
+    "react-canvas-charts": "workspace:*",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.6",
+    "tailwindcss": "^4.1.17"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "6.0.0-rc1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "prettier": "3.6.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.2",
+    "vite-bundle-analyzer": "^1.2.3",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}

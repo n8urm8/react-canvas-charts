@@ -3,7 +3,7 @@ import type {
   ChartLegendLayout,
   ChartLegendPlacement,
   ChartToolbarPosition,
-} from '../../components/Chart';
+} from 'react-canvas-charts';
 
 export interface DataPoint {
   id: string;

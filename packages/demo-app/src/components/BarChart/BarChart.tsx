@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { CanvasWrapper } from '../Chart/CanvasWrapper/CanvasWrapper';
 import { cn } from '../../utils/cn';
 import {
   type ChartTitleProps,
@@ -26,7 +25,8 @@ import {
   defaultChartLabelProps,
   defaultChartCursorProps,
   defaultChartTooltipProps,
-} from '../Chart/components';
+} from 'react-canvas-charts/components';
+import { CanvasWrapper } from 'react-canvas-charts';
 
 export interface BarChartData {
   label: string;

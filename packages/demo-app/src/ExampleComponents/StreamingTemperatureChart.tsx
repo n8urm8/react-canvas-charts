@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, type LineChartData } from '../components/LineChart/LineChart';
-import { ChartToolbar, ChartOverlayPortal, type ChartToolbarTool } from '../components/Chart';
+import { ChartToolbar, ChartOverlayPortal, type ChartToolbarTool } from 'react-canvas-charts';
 
 export const StreamingTemperatureChart: React.FC = () => {
   // Streaming temperature data state

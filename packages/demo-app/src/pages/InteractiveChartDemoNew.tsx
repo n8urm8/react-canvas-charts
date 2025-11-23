@@ -19,7 +19,7 @@ import type {
 	ChartSelectionResult,
 	ChartSelectionSeriesRange,
 	ChartToolbarPosition,
-} from '../components/Chart';
+} from 'react-canvas-charts';
 
 const SERIES_COLOR_PALETTE = [
 	'#3b82f6',

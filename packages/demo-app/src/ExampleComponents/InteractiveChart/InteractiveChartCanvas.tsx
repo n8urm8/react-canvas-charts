@@ -16,7 +16,7 @@ import {
   ChartOverlayPortal,
   type ChartSelectionResult,
   type ChartToolbarPosition,
-} from '../../components/Chart';
+} from 'react-canvas-charts';
 import type {
   ChartRecord,
   InteractiveChartConfig,

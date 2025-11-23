@@ -10,8 +10,8 @@ import {
   type ChartLabelProps,
   type ChartCursorProps,
   type ChartTooltipProps,
-  type DataPoint
-} from '../Chart/components'
+  type DataPoint,
+} from 'react-canvas-charts/components';
 
 import {
   ChartSurface,
@@ -25,7 +25,7 @@ import {
   ChartAreaSeries,
   ChartValueLabels,
   ChartTitleLayer,
-} from '../Chart';
+} from 'react-canvas-charts';
 
 export interface LineChartData {
   label: string;

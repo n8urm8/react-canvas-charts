@@ -12,6 +12,11 @@ export interface ChartCursorProps {
   snapToDataPoints?: boolean;
   snapRadius?: number; // Radius in pixels for snapping
   snapAlongYAxis?: boolean;
+  showHoverPoints?: boolean;
+  hoverPointRadius?: number;
+  hoverPointFill?: string | null;
+  hoverPointStroke?: string | null;
+  hoverPointStrokeWidth?: number;
 }
 
 export interface ChartCursorRenderProps extends ChartCursorProps {
@@ -24,6 +29,16 @@ export interface ChartCursorRenderProps extends ChartCursorProps {
   cursorY: number;
   snappedX?: number;
   snappedY?: number;
+  hoverPoints?: ChartCursorHoverPoint[];
+}
+
+export interface ChartCursorHoverPoint {
+  x: number;
+  y: number;
+  radius?: number;
+  fillColor?: string | null;
+  strokeColor?: string | null;
+  strokeWidth?: number;
 }
 
 export const defaultChartCursorProps: Required<ChartCursorProps> = {
@@ -40,6 +55,11 @@ export const defaultChartCursorProps: Required<ChartCursorProps> = {
   snapToDataPoints: true,
   snapRadius: 20,
   snapAlongYAxis: false,
+  showHoverPoints: false,
+  hoverPointRadius: 4,
+  hoverPointFill: '#ffffff',
+  hoverPointStroke: '#111827',
+  hoverPointStrokeWidth: 2,
 };
 
 export const renderChartCursor = (props: ChartCursorRenderProps): void => {
@@ -64,6 +84,12 @@ export const renderChartCursor = (props: ChartCursorRenderProps): void => {
     verticalLineDash = defaultChartCursorProps.verticalLineDash,
     opacity = defaultChartCursorProps.opacity,
     snapToDataPoints = defaultChartCursorProps.snapToDataPoints,
+    hoverPoints = [],
+    showHoverPoints = defaultChartCursorProps.showHoverPoints,
+    hoverPointRadius = defaultChartCursorProps.hoverPointRadius,
+    hoverPointFill = defaultChartCursorProps.hoverPointFill,
+    hoverPointStroke = defaultChartCursorProps.hoverPointStroke,
+    hoverPointStrokeWidth = defaultChartCursorProps.hoverPointStrokeWidth,
   } = props;
 
   if (!show) return;
@@ -108,6 +134,37 @@ export const renderChartCursor = (props: ChartCursorRenderProps): void => {
 
   // Restore context state
   context.restore();
+
+  if (showHoverPoints && hoverPoints.length > 0) {
+    context.save();
+
+    hoverPoints.forEach((point) => {
+      const radius = point.radius ?? hoverPointRadius;
+      const fillColor = point.fillColor ?? hoverPointFill;
+      const strokeColor = point.strokeColor ?? hoverPointStroke;
+      const strokeWidth = point.strokeWidth ?? hoverPointStrokeWidth;
+
+      if (!(radius > 0)) {
+        return;
+      }
+
+      context.beginPath();
+      context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+
+      if (fillColor && fillColor !== 'transparent') {
+        context.fillStyle = fillColor;
+        context.fill();
+      }
+
+      if (strokeColor && strokeColor !== 'transparent' && strokeWidth > 0) {
+        context.lineWidth = strokeWidth;
+        context.strokeStyle = strokeColor;
+        context.stroke();
+      }
+    });
+
+    context.restore();
+  }
 };
 
 // Helper function to find the nearest data point

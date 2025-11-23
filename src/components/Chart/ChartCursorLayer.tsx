@@ -2,7 +2,10 @@ import React, { useMemo, useCallback, useEffect } from 'react';
 import {
   renderChartCursor,
   defaultChartCursorProps,
+  findNearestDataPoint,
+  type ChartCursorHoverPoint,
   type ChartCursorProps,
+  type DataPoint,
 } from './components/ChartCursor';
 import {
   LayerOrder,
@@ -10,7 +13,6 @@ import {
   useChartSurface,
   type ChartLayerRenderer,
 } from './ChartSurface';
-import { findNearestDataPoint } from './components/ChartCursor';
 
 export type ChartCursorLayerProps = ChartCursorProps;
 
@@ -50,6 +52,65 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         )
       : null;
 
+    const showHoverPoints =
+      cursorProps.showHoverPoints ?? defaultChartCursorProps.showHoverPoints;
+
+    let hoverPoints: ChartCursorHoverPoint[] = [];
+
+    if (showHoverPoints && snapToDataPoints && nearest) {
+      // Highlight either the snapped point or every series sharing the snapped index (tooltip behavior).
+      const mapHoverPoint = (point: DataPoint): ChartCursorHoverPoint => {
+        const dataKey =
+          typeof point.originalData?.dataKey === 'string'
+            ? (point.originalData.dataKey as string)
+            : undefined;
+
+        return {
+          x: point.x,
+          y: point.y,
+          strokeColor: dataKey ? helpers.colorForKey(dataKey) : undefined,
+        };
+      };
+
+      const getSeriesKey = (point: DataPoint): string => {
+        if (typeof point.originalData?.dataKey === 'string') {
+          return point.originalData.dataKey as string;
+        }
+        if (typeof point.seriesIndex === 'number') {
+          return `series-${point.seriesIndex}`;
+        }
+        return 'series';
+      };
+
+      if (snapAlongYAxis) {
+        hoverPoints = [mapHoverPoint(nearest.point)];
+      } else {
+        const targetDataIndex = nearest.point.dataIndex;
+        const targetX = nearest.point.x;
+
+        const candidatePoints = helpers.dataPoints
+          .filter((point) => {
+            if (typeof targetDataIndex === 'number' && typeof point.dataIndex === 'number') {
+              return point.dataIndex === targetDataIndex;
+            }
+            return Math.abs(point.x - targetX) <= 0.5;
+          })
+          .sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0));
+
+        const seenSeries = new Set<string>();
+        hoverPoints = candidatePoints.reduce<ChartCursorHoverPoint[]>((accumulator, point) => {
+          const seriesKey = getSeriesKey(point);
+          if (seenSeries.has(seriesKey)) {
+            return accumulator;
+          }
+
+          seenSeries.add(seriesKey);
+          accumulator.push(mapHoverPoint(point));
+          return accumulator;
+        }, []);
+      }
+    }
+
     renderChartCursor({
       context,
       chartX: helpers.chartArea.x,
@@ -62,6 +123,7 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
       snappedY: nearest?.point.y,
       snapToDataPoints,
       snapRadius,
+      hoverPoints,
       ...cursorProps,
       showHorizontalLine: snapAlongYAxis
         ? cursorProps.showHorizontalLine ?? defaultChartCursorProps.showHorizontalLine

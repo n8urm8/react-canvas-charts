@@ -136,7 +136,7 @@ export const buildInteractiveChartCodePreview = (
     : '';
 
   const cursorLayer = config.enableCursor
-    ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} snapAlongYAxis={${config.cursorSnapAlongYAxis}} />`
+    ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} snapAlongYAxis={${config.cursorSnapAlongYAxis}} showHoverPoints={${config.cursorShowHoverPoints}} />`
     : '';
 
   const tooltipLayer = config.enableTooltip

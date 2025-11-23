@@ -280,6 +280,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           <ChartCursorLayer
             snapToDataPoints={config.cursorSnapToPoints}
             snapAlongYAxis={config.cursorSnapAlongYAxis}
+            showHoverPoints={config.cursorShowHoverPoints}
           />
         ) : null}
 

@@ -827,6 +827,29 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
               />
               <span className="text-sm text-gray-600">Include Y-Axis Snapping</span>
             </label>
+            <label
+              className={`flex items-center ml-4 ${
+                config.cursorSnapToPoints ? '' : 'opacity-60'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={config.cursorShowHoverPoints}
+                onChange={(event) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    cursorShowHoverPoints: event.target.checked,
+                  }))}
+                className="mr-2"
+                disabled={!config.cursorSnapToPoints}
+              />
+              <span className="text-sm text-gray-600">Highlight Hovered Points</span>
+            </label>
+            {!config.cursorSnapToPoints ? (
+              <p className="ml-4 text-xs text-gray-500">
+                Enable snapping to data points to show hover markers.
+              </p>
+            ) : null}
           </>
         ) : null}
 

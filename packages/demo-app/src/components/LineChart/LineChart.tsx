@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '../../utils/cn';
 import {
-  defaultChartCursorProps,
   type ChartTitleProps,
   type ChartAxisProps,
   type ChartGridProps,
@@ -11,7 +10,7 @@ import {
   type ChartCursorProps,
   type ChartTooltipProps,
   type DataPoint,
-} from 'react-canvas-charts/components';
+} from 'react-canvas-charts';
 
 import {
   ChartSurface,
@@ -95,6 +94,8 @@ const FALLBACK_COLORS = [
 ];
 
 const DEFAULT_SERIES_NAME = 'Series 1';
+const DEFAULT_CURSOR_SNAP_RADIUS = 20;
+const DEFAULT_CURSOR_SNAP_TO_POINTS = true;
 
 export const LineChart: React.FC<LineChartProps> = ({
   data,
@@ -241,9 +242,9 @@ export const LineChart: React.FC<LineChartProps> = ({
     return map;
   }, [seriesConfigs]);
 
-  const snapRadius = cursorComponent.snapRadius ?? defaultChartCursorProps.snapRadius;
+  const snapRadius = cursorComponent.snapRadius ?? DEFAULT_CURSOR_SNAP_RADIUS;
   const snapToDataPoints =
-    cursorComponent.snapToDataPoints ?? defaultChartCursorProps.snapToDataPoints;
+    cursorComponent.snapToDataPoints ?? DEFAULT_CURSOR_SNAP_TO_POINTS;
 
   const surfaceClassName = cn(
     'bg-white rounded-lg shadow-sm border border-gray-200',

@@ -23,9 +23,8 @@ import {
   defaultChartGridProps,
   defaultChartBarProps,
   defaultChartLabelProps,
-  defaultChartCursorProps,
   defaultChartTooltipProps,
-} from 'react-canvas-charts/components';
+} from 'react-canvas-charts';
 import { CanvasWrapper } from 'react-canvas-charts';
 
 export interface BarChartData {
@@ -186,7 +185,7 @@ export const BarChart: React.FC<BarChartProps> = ({
       }
 
       // Find nearest data point
-      const snapRadius = cursorComponent.snapRadius || defaultChartCursorProps.snapRadius;
+      const snapRadius = cursorComponent.snapRadius || 20;
       const nearest = findNearestDataPoint(x, y, dataPoints, snapRadius);
       
       const newHoveredPoint = nearest?.point || null;
@@ -377,7 +376,6 @@ export const BarChart: React.FC<BarChartProps> = ({
         const snappedY = hoveredDataPoint?.y;
 
         customCursorRenderer({
-          ...defaultChartCursorProps,
           ...cursorComponent,
           context,
           chartX,

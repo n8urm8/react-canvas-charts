@@ -22,6 +22,7 @@
   "scripts": {
     "dev": "vite --port 5174",
     "build": "tsc -b && vite build",
+    "build:analyze": "set ANALYZE_VISUALIZE=true && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm --filter demo-app dev",
+    "build:charts": "pnpm --filter react-canvas-charts build",
+    "build:demo": "pnpm --filter charts-demo build",
+    "dev": "pnpm --filter charts-demo dev",
     "lint": "pnpm -r lint",
-    "preview": "pnpm --filter demo-app preview"
+    "preview": "pnpm --filter charts-demo preview"
   }
 }

@@ -1,5 +1,7 @@
 # React Canvas Charts
 
+### Note - This package is still in early development
+
 React Canvas Charts is a streaming-friendly charting library built on React, TypeScript, and the HTML5 canvas element. The package ships reusable chart primitives (surface, layers, overlays). 
 
 The repository contains two primary targets:
@@ -14,6 +16,7 @@ The repository contains two primary targets:
 - Line chart convenience component that accepts either a single series or multiple series configuration.
 - Toolbar helpers for zoom, pan, annotation, and custom actions.
 - Built-in cursor and tooltip behaviors with data snapping and customizable templates.
+- Overlay legend component with configurable positioning and layout.
 - Streaming-friendly patterns, including guidance on keeping zoom state in sync with live feeds (`docs/zooming-and-streaming.md`).
 
 ## Quick Start
@@ -50,6 +53,7 @@ import {
   ChartTitleLayer,
   ChartToolbar,
   ChartOverlayPortal,
+  ChartLegend,
 } from "react-canvas-charts";
 
 const DATA = [
@@ -107,6 +111,14 @@ export function CanvasChartExample() {
         position="follow"
         template="{label}: {value}"
         seriesLabels={{ series1: "Sensor A", series2: "Sensor B" }}
+      />
+      <ChartLegend
+        title="Sensors"
+        items={[
+          { dataKey: "series1", label: "Sensor A" },
+          { dataKey: "series2", label: "Sensor B" },
+        ]}
+        placement={{ mode: "anchor", position: "top-right" }}
       />
       <ChartOverlayPortal>
         <ChartToolbar

@@ -1,0 +1,113 @@
+.chart-toolbar {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
+  transition: opacity 150ms ease-out;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chart-toolbar-hover {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chart-toolbar-hover:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chart-toolbar-drag-handle {
+  margin-right: 0.5rem;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  border-right: 1px solid #e5e7eb;
+  padding-right: 0.5rem;
+  color: #9ca3af;
+  transition: color 150ms;
+  cursor: grab;
+  touch-action: none;
+}
+
+.chart-toolbar-drag-handle:hover {
+  color: #6b7280;
+}
+
+.chart-toolbar-drag-handle.dragging {
+  cursor: grabbing;
+  color: #6b7280;
+}
+
+.chart-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  transition: colors 150ms;
+  background-color: rgba(255, 255, 255, 0.7);
+  color: #374151;
+  cursor: pointer;
+}
+
+.chart-toolbar-button:focus {
+  outline: none;
+}
+
+.chart-toolbar-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.chart-toolbar-button:hover {
+  background-color: #f3f4f6;
+}
+
+.chart-toolbar-button.active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.chart-toolbar-button.active:hover {
+  background-color: #2563eb;
+}
+
+.chart-toolbar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chart-toolbar-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-toolbar-button-icon.with-label {
+  margin-right: 0.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

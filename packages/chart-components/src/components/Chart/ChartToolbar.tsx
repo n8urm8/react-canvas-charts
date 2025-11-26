@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GripVertical } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import './ChartToolbar.css';
 
 export interface ChartToolbarTool {
   id: string;
@@ -323,29 +323,18 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   return (
     <div
       ref={toolbarRef}
-      className={cn(
-        'absolute z-20 flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/90 p-2 shadow-sm backdrop-blur-sm transition-opacity duration-150 ease-out',
-        visibility === 'hover'
-          ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
-          : 'opacity-100 pointer-events-auto',
-        moveable && visibility === 'hover' ? 'cursor-default' : undefined,
-        className
-      )}
+      className={`chart-toolbar ${visibility === 'hover' ? 'chart-toolbar-hover' : ''} ${className || ''}`}
       style={appliedPositionStyle}
     >
       {moveable ? (
         <div
-          className={cn(
-            'mr-2 flex h-full items-center border-r border-gray-200 pr-2 text-gray-400 transition-colors',
-            isDragging ? 'cursor-grabbing text-gray-500' : 'cursor-grab hover:text-gray-500'
-          )}
+          className={`chart-toolbar-drag-handle ${isDragging ? 'dragging' : ''}`}
           onPointerDown={handlePointerDown}
           role="presentation"
           aria-hidden="true"
           title="Drag to reposition"
-          style={{ touchAction: 'none' }}
         >
-          <GripVertical className="h-4 w-4" aria-hidden />
+          <GripVertical style={{ width: '1rem', height: '1rem' }} aria-hidden />
           <span className="sr-only">Move toolbar</span>
         </div>
       ) : null}
@@ -358,14 +347,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
           <button
             key={tool.id}
             type="button"
-            className={cn(
-              'inline-flex items-center justify-center rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
-              isActive
-                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                : 'bg-white/70 text-gray-700 hover:bg-gray-100',
-              tool.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-              buttonClassName
-            )}
+            className={`chart-toolbar-button ${isActive ? 'active' : ''} ${buttonClassName || ''}`}
             onClick={() => handleToggle(tool)}
             title={tool.tooltip}
             disabled={tool.disabled}
@@ -374,10 +356,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
           >
             {hasIcon ? (
               <span
-                className={cn(
-                  'inline-flex items-center justify-center',
-                  showLabel ? 'mr-2' : ''
-                )}
+                className={`chart-toolbar-button-icon ${showLabel ? 'with-label' : ''}`}
                 aria-hidden
               >
                 {tool.icon}

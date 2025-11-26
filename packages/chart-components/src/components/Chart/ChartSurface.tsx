@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import type { DataPoint as CursorDataPoint } from './components/ChartCursor';
 import { defaultChartCursorProps, findNearestDataPoint } from './components/ChartCursor';
 import { CanvasWrapper } from './CanvasWrapper/CanvasWrapper';
-import { cn } from '../../utils/cn';
+import './ChartSurface.css';
 
 export interface ValueDomain {
   min: number;
@@ -1512,11 +1512,11 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   return (
     <ChartSurfaceContext.Provider value={contextValue}>
       <ChartOverlayContainerContext.Provider value={overlayContainer}>
-        <div className={cn('relative group', className)} style={style}>
+        <div className={`chart-surface-container ${className || ''}`} style={style}>
           <CanvasWrapper
             width={width}
             height={height}
-            className="relative z-0"
+            className="chart-base-layer"
             onDraw={drawBase}
             debugLabel="chart-base"
             canvasStyle={{ pointerEvents: 'none' }}
@@ -1524,7 +1524,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           <CanvasWrapper
             width={width}
             height={height}
-            className="absolute inset-0 z-10"
+            className="chart-overlay-layer"
             onDraw={drawOverlay}
             debugLabel="chart-overlay"
             onMouseMove={handleMouseMove}
@@ -1535,7 +1535,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
             redrawOnPointerEvents={false}
             onRegisterRedraw={handleOverlayRedrawRegister}
           />
-          <div ref={overlayContainerRef} className="pointer-events-none absolute inset-0 z-20" />
+          <div ref={overlayContainerRef} className="chart-portal-container" />
           {children}
         </div>
       </ChartOverlayContainerContext.Provider>

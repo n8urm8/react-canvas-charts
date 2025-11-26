@@ -1,5 +1,4 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { cn } from '../../../utils/cn';
 
 export interface CanvasWrapperProps {
   width?: number | string;
@@ -232,13 +231,15 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   return (
     <div
       ref={containerRef}
-      className={cn('block', className)}
-      style={containerStyle}
+      className={className}
+      style={{ display: 'block', ...containerStyle }}
     >
       <canvas
         ref={canvasRef}
-        className={cn('w-full h-full', canvasClassName)}
+        className={canvasClassName}
         style={{
+          width: '100%',
+          height: '100%',
           ...canvasStyle,
         }}
       />

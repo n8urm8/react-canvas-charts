@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { cn } from '../../utils/cn';
 import { ChartOverlayPortal, useChartSurface } from './ChartSurface';
+import './ChartLegend.css';
 
 export type ChartLegendPosition =
   | 'top-left'
@@ -44,13 +44,13 @@ export interface ChartLegendProps {
   markerSize?: number;
 }
 
-const POSITION_CLASS_MAP: Record<ChartLegendPosition, string> = {
-  'top-left': 'top-4 left-4',
-  'top-center': 'top-4 left-1/2 -translate-x-1/2',
-  'top-right': 'top-4 right-4',
-  'bottom-left': 'bottom-4 left-4',
-  'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2',
-  'bottom-right': 'bottom-4 right-4',
+const POSITION_STYLE_MAP: Record<ChartLegendPosition, React.CSSProperties> = {
+  'top-left': { top: '1rem', left: '1rem' },
+  'top-center': { top: '1rem', left: '50%', transform: 'translateX(-50%)' },
+  'top-right': { top: '1rem', right: '1rem' },
+  'bottom-left': { bottom: '1rem', left: '1rem' },
+  'bottom-center': { bottom: '1rem', left: '50%', transform: 'translateX(-50%)' },
+  'bottom-right': { bottom: '1rem', right: '1rem' },
 };
 
 const DEFAULT_MARKER_SIZE = 12;
@@ -117,45 +117,42 @@ export const ChartLegend: React.FC<ChartLegendProps> = ({
     position: 'top-right',
   };
 
-  const { positionClasses, coordinateStyle } =
+  const { positionStyle, coordinateStyle } =
     resolvedPlacement.mode === 'coordinate'
       ? {
-          positionClasses: undefined,
+          positionStyle: undefined,
           coordinateStyle: {
             top: formatCoordinate(resolvedPlacement.y),
             left: formatCoordinate(resolvedPlacement.x),
           } as React.CSSProperties,
         }
       : {
-          positionClasses: POSITION_CLASS_MAP[resolvedPlacement.position ?? 'top-right'],
+          positionStyle: POSITION_STYLE_MAP[resolvedPlacement.position ?? 'top-right'],
           coordinateStyle: undefined,
         };
   const isVertical = layout === 'vertical';
 
+  const containerClasses = `chart-legend ${isVertical ? 'chart-legend-vertical' : 'chart-legend-horizontal'} ${className || ''}`;
+  const finalStyle = { ...positionStyle, ...coordinateStyle };
+
   return (
     <ChartOverlayPortal>
       <div
-        className={cn(
-          'absolute pointer-events-auto  px-3 py-2 text-sm text-gray-700',
-          'flex',
-          isVertical ? 'flex-col gap-2' : 'flex-row flex-wrap items-center gap-4',
-          positionClasses,
-          className,
-        )}
-        style={coordinateStyle}
+        className={containerClasses}
+        style={finalStyle}
       >
         {title ? (
-          <div className="w-full text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="chart-legend-title">
             {title}
           </div>
         ) : null}
         {resolvedItems.map((entry) => (
           <div
             key={entry.key}
-            className={cn('flex items-center gap-2', itemClassName)}
+            className={`chart-legend-item ${itemClassName || ''}`}
           >
             <span
-              className={cn('inline-flex rounded-sm', markerClassName)}
+              className={`chart-legend-marker ${markerClassName || ''}`}
               style={{
                 backgroundColor: entry.color,
                 width: markerSize,

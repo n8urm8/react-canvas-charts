@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import { analyzer } from 'vite-bundle-analyzer';
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
 import { env } from "process";
@@ -16,7 +15,7 @@ export default defineConfig({
     babel: {
       plugins: [['babel-plugin-react-compiler']],
     },
-  }), tailwindcss(), dts({ include: [chartLibPath], tsconfigPath: resolve(__dirname, 'tsconfig.app.json') }), analyzer({ enabled: analyze })],
+  }), dts({ include: [chartLibPath], tsconfigPath: resolve(__dirname, 'tsconfig.app.json') }), analyzer({ enabled: analyze })],
   build: {
     lib: {
       entry: resolve(__dirname, `${chartLibPath}/index.ts`),

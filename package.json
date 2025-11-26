@@ -8,6 +8,7 @@
     "build:charts": "pnpm --filter react-canvas-charts build",
     "build:demo": "pnpm --filter charts-demo build",
     "dev": "pnpm --filter charts-demo dev",
+    "build:dev": "pnpm --filter react-canvas-charts build:dev",
     "lint": "pnpm -r lint",
     "preview": "pnpm --filter charts-demo preview"
   }

@@ -958,15 +958,39 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     }
   }, []);
 
-  const getRelativePointerPosition = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+  const getRelativePosition = useCallback((clientX: number, clientY: number, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();
     const devicePixelRatio = window.devicePixelRatio || 1;
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    const x = ((event.clientX - rect.left) * scaleX) / devicePixelRatio;
-    const y = ((event.clientY - rect.top) * scaleY) / devicePixelRatio;
+    const x = ((clientX - rect.left) * scaleX) / devicePixelRatio;
+    const y = ((clientY - rect.top) * scaleY) / devicePixelRatio;
     return { x, y };
   }, []);
+
+  const getRelativePointerPosition = useCallback((event: MouseEvent, canvas: HTMLCanvasElement) => {
+    return getRelativePosition(event.clientX, event.clientY, canvas);
+  }, [getRelativePosition]);
+
+  const getRelativeTouchPosition = useCallback((event: TouchEvent, canvas: HTMLCanvasElement) => {
+    if (event.touches.length === 0) {
+      return null;
+    }
+    const touch = event.touches[0];
+    return getRelativePosition(touch.clientX, touch.clientY, canvas);
+  }, [getRelativePosition]);
+
+  const isWithinChart = useCallback(
+    (x: number, y: number) => {
+      return (
+        x >= chartArea.x &&
+        x <= chartArea.x + chartArea.width &&
+        y >= chartArea.y &&
+        y <= chartArea.y + chartArea.height
+      );
+    },
+    [chartArea.height, chartArea.width, chartArea.x, chartArea.y]
+  );
 
   const clampXToChart = useCallback(
     (value: number) => {
@@ -1134,16 +1158,26 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     [clampXToChart, computeSelectionResult, requestOverlayRender]
   );
 
-  const handleMouseMove = useCallback(
-    (event: MouseEvent, canvas: HTMLCanvasElement) => {
-      const { x, y } = getRelativePointerPosition(event, canvas);
+  const startSelection = useCallback(
+    (x: number, y: number) => {
+      if (!isWithinChart(x, y)) {
+        return false;
+      }
 
-      const withinChart =
-        x >= chartArea.x &&
-        x <= chartArea.x + chartArea.width &&
-        y >= chartArea.y &&
-        y <= chartArea.y + chartArea.height;
+      const clampedX = clampXToChart(x);
+      selectionActiveRef.current = true;
+      selectionStartRef.current = clampedX;
+      skipClickRef.current = false;
+      selectionRangeRef.current = { start: clampedX, end: clampedX };
+      requestOverlayRender();
+      return true;
+    },
+    [clampXToChart, isWithinChart, requestOverlayRender]
+  );
 
+  const handlePointerMove = useCallback(
+    (x: number, y: number) => {
+      const withinChart = isWithinChart(x, y);
       schedulePointerUpdate({ x, y, withinChart });
 
       if (selectionActiveRef.current) {
@@ -1152,19 +1186,21 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           skipClickRef.current = true;
         }
         updateSelectionDuringDrag(clampedX);
+        return true;
+      }
+      return false;
+    },
+    [clampXToChart, isWithinChart, schedulePointerUpdate, updateSelectionDuringDrag]
+  );
+
+  const handleMouseMove = useCallback(
+    (event: MouseEvent, canvas: HTMLCanvasElement) => {
+      const { x, y } = getRelativePointerPosition(event, canvas);
+      if (handlePointerMove(x, y)) {
         event.preventDefault();
       }
     },
-    [
-      clampXToChart,
-      chartArea.height,
-      chartArea.width,
-      chartArea.x,
-      chartArea.y,
-      getRelativePointerPosition,
-      schedulePointerUpdate,
-      updateSelectionDuringDrag,
-    ]
+    [getRelativePointerPosition, handlePointerMove]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -1189,22 +1225,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
       const { x, y } = getRelativePointerPosition(event, canvas);
 
-      const withinChart =
-        x >= chartArea.x &&
-        x <= chartArea.x + chartArea.width &&
-        y >= chartArea.y &&
-        y <= chartArea.y + chartArea.height;
-
-      if (!withinChart) {
+      if (!startSelection(x, y)) {
         return;
       }
-
-  const clampedX = clampXToChart(x);
-  selectionActiveRef.current = true;
-  selectionStartRef.current = clampedX;
-  skipClickRef.current = false;
-  selectionRangeRef.current = { start: clampedX, end: clampedX };
-  requestOverlayRender();
 
       if (selectionWindowListenerRef.current) {
         window.removeEventListener('mouseup', selectionWindowListenerRef.current);
@@ -1221,16 +1244,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
       event.preventDefault();
     },
-    [
-      chartArea.height,
-      chartArea.width,
-      chartArea.x,
-      chartArea.y,
-      clampXToChart,
-      finalizeSelection,
-      getRelativePointerPosition,
-      requestOverlayRender,
-    ]
+    [finalizeSelection, getRelativePointerPosition, startSelection]
   );
 
   const handleMouseUp = useCallback(
@@ -1263,13 +1277,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
       const { x, y } = getRelativePointerPosition(event, canvas);
 
-      const withinChart =
-        x >= chartArea.x &&
-        x <= chartArea.x + chartArea.width &&
-        y >= chartArea.y &&
-        y <= chartArea.y + chartArea.height;
-
-      if (!withinChart) {
+      if (!isWithinChart(x, y)) {
         clickHandlerRef.current(null);
         return;
       }
@@ -1285,14 +1293,84 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
       clickHandlerRef.current(nearest?.point ?? null);
     },
-    [
-      chartArea.height,
-      chartArea.width,
-      chartArea.x,
-      chartArea.y,
-      getRelativePointerPosition,
-    ]
+    [getRelativePointerPosition, isWithinChart]
   );
+
+  const touchWindowListenerRef = useRef<((event: TouchEvent) => void) | null>(null);
+
+  const handleTouchStart = useCallback(
+    (event: TouchEvent, canvas: HTMLCanvasElement) => {
+      const position = getRelativeTouchPosition(event, canvas);
+      if (!position) return;
+
+      const { x, y } = position;
+
+      if (!startSelection(x, y)) {
+        return;
+      }
+
+      if (touchWindowListenerRef.current) {
+        window.removeEventListener('touchend', touchWindowListenerRef.current);
+        touchWindowListenerRef.current = null;
+      }
+
+      const handleWindowTouchEnd = (windowEvent: TouchEvent) => {
+        if (windowEvent.changedTouches.length > 0) {
+          const touch = windowEvent.changedTouches[0];
+          const { x: touchX } = getRelativePosition(touch.clientX, touch.clientY, canvas);
+          finalizeSelection(touchX);
+        }
+      };
+
+      touchWindowListenerRef.current = handleWindowTouchEnd;
+      window.addEventListener('touchend', handleWindowTouchEnd);
+
+      event.preventDefault();
+    },
+    [finalizeSelection, getRelativePosition, getRelativeTouchPosition, startSelection]
+  );
+
+  const handleTouchMove = useCallback(
+    (event: TouchEvent, canvas: HTMLCanvasElement) => {
+      const position = getRelativeTouchPosition(event, canvas);
+      if (!position) return;
+
+      const { x, y } = position;
+      if (handlePointerMove(x, y)) {
+        event.preventDefault();
+      }
+    },
+    [getRelativeTouchPosition, handlePointerMove]
+  );
+
+  const handleTouchEnd = useCallback(
+    (event: TouchEvent, canvas: HTMLCanvasElement) => {
+      if (!selectionActiveRef.current || selectionStartRef.current === null) {
+        return;
+      }
+
+      if (event.changedTouches.length > 0) {
+        const touch = event.changedTouches[0];
+        const { x } = getRelativePosition(touch.clientX, touch.clientY, canvas);
+        const start = selectionStartRef.current;
+
+        if (Math.abs(x - start) >= MIN_SELECTION_WIDTH) {
+          skipClickRef.current = true;
+        }
+
+        finalizeSelection(x);
+        event.preventDefault();
+      }
+    },
+    [finalizeSelection, getRelativePosition]
+  );
+
+  useEffect(() => () => {
+    if (touchWindowListenerRef.current) {
+      window.removeEventListener('touchend', touchWindowListenerRef.current);
+      touchWindowListenerRef.current = null;
+    }
+  }, []);
 
   const drawBase = useCallback(
     (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
@@ -1532,6 +1610,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
             onClick={handleClick}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             redrawOnPointerEvents={false}
             onRegisterRedraw={handleOverlayRedrawRegister}
           />

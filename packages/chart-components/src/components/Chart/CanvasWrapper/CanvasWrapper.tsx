@@ -13,6 +13,9 @@ export interface CanvasWrapperProps {
   onMouseEnter?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onMouseDown?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
   onMouseUp?: (event: MouseEvent, canvas: HTMLCanvasElement) => void;
+  onTouchStart?: (event: TouchEvent, canvas: HTMLCanvasElement) => void;
+  onTouchMove?: (event: TouchEvent, canvas: HTMLCanvasElement) => void;
+  onTouchEnd?: (event: TouchEvent, canvas: HTMLCanvasElement) => void;
   canvasClassName?: string;
   canvasStyle?: React.CSSProperties;
   redrawOnPointerEvents?: boolean;
@@ -32,6 +35,9 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
   onMouseEnter,
   onMouseDown,
   onMouseUp,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
   canvasClassName,
   canvasStyle,
   redrawOnPointerEvents = true,
@@ -146,41 +152,27 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const handleMouseMove = (event: MouseEvent) => {
-      onMouseMove?.(event, canvas);
-      if (redrawOnPointerEvents) {
+    // Helper to call handler and optionally redraw
+    const handleEventWithRedraw = <T extends Event>(
+      handler: ((event: T, canvas: HTMLCanvasElement) => void) | undefined,
+      event: T,
+      shouldRedraw: boolean = true
+    ) => {
+      handler?.(event, canvas);
+      if (shouldRedraw && redrawOnPointerEvents) {
         draw();
       }
     };
 
-    const handleMouseLeave = (event: MouseEvent) => {
-      onMouseLeave?.(event, canvas);
-      if (redrawOnPointerEvents) {
-        draw();
-      }
-    };
-
-    const handleClick = (event: MouseEvent) => {
-      onClick?.(event, canvas);
-    };
-
-    const handleMouseEnter = (event: MouseEvent) => {
-      onMouseEnter?.(event, canvas);
-    };
-
-    const handleMouseDown = (event: MouseEvent) => {
-      onMouseDown?.(event, canvas);
-      if (redrawOnPointerEvents) {
-        draw();
-      }
-    };
-
-    const handleMouseUp = (event: MouseEvent) => {
-      onMouseUp?.(event, canvas);
-      if (redrawOnPointerEvents) {
-        draw();
-      }
-    };
+    const handleMouseMove = (event: MouseEvent) => handleEventWithRedraw(onMouseMove, event);
+    const handleMouseLeave = (event: MouseEvent) => handleEventWithRedraw(onMouseLeave, event);
+    const handleClick = (event: MouseEvent) => handleEventWithRedraw(onClick, event, false);
+    const handleMouseEnter = (event: MouseEvent) => handleEventWithRedraw(onMouseEnter, event, false);
+    const handleMouseDown = (event: MouseEvent) => handleEventWithRedraw(onMouseDown, event);
+    const handleMouseUp = (event: MouseEvent) => handleEventWithRedraw(onMouseUp, event);
+    const handleTouchStart = (event: TouchEvent) => handleEventWithRedraw(onTouchStart, event);
+    const handleTouchMove = (event: TouchEvent) => handleEventWithRedraw(onTouchMove, event);
+    const handleTouchEnd = (event: TouchEvent) => handleEventWithRedraw(onTouchEnd, event);
 
     if (onMouseMove) {
       canvas.addEventListener('mousemove', handleMouseMove);
@@ -200,6 +192,15 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     if (onMouseUp) {
       canvas.addEventListener('mouseup', handleMouseUp);
     }
+    if (onTouchStart) {
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    }
+    if (onTouchMove) {
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    }
+    if (onTouchEnd) {
+      canvas.addEventListener('touchend', handleTouchEnd);
+    }
 
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
@@ -208,8 +209,11 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
       canvas.removeEventListener('mouseenter', handleMouseEnter);
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, onMouseDown, onMouseUp, draw, redrawOnPointerEvents]);
+  }, [onMouseMove, onMouseLeave, onClick, onMouseEnter, onMouseDown, onMouseUp, onTouchStart, onTouchMove, onTouchEnd, draw, redrawOnPointerEvents]);
 
   // Determine container styles based on width/height types
   const containerStyle: React.CSSProperties = {

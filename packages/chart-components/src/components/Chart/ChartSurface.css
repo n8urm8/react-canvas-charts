@@ -17,6 +17,7 @@
   position: absolute;
   inset: 0;
   z-index: 10;
+  touch-action: none;
 }
 
 .chart-portal-container {

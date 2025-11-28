@@ -10,9 +10,6 @@ importers:
 
   packages/chart-components:
     dependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.1.17
-        version: 4.1.17(vite@7.2.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2))
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
@@ -28,9 +25,6 @@ importers:
       react-router:
         specifier: ^7.9.6
         version: 7.9.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      tailwindcss:
-        specifier: ^4.1.17
-        version: 4.1.17
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1

@@ -1,7 +1,8 @@
 ## shit to do
 [x] Legend component
 [x] better readme 
-[] improve touchscreen usage (selection on charts)
+[x] improve touchscreen usage (selection on charts)
+[] investigate package build requirements for peer/external dependencies
 [] toolbar option to pan after zooming
 [] assign hotkeys to toolbar
     [] hotkeys have a default key, but are customizable. Such as ctrl for zoom selection
@@ -18,3 +19,6 @@
 - [x] Line
 - [] Area
 - [] Bar
+- [] 3D charts (line)?
+- [] Bubble
+- [] scatter

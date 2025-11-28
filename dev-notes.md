@@ -2,7 +2,9 @@
 [x] Legend component
 [x] better readme 
 [x] improve touchscreen usage (selection on charts)
+[] SEO improvements
 [] investigate package build requirements for peer/external dependencies
+[] Text annotations
 [] toolbar option to pan after zooming
 [] assign hotkeys to toolbar
     [] hotkeys have a default key, but are customizable. Such as ctrl for zoom selection

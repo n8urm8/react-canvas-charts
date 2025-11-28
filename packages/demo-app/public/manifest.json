@@ -1,0 +1,17 @@
+{
+  "short_name": "React Canvas Charts",
+  "name": "React Canvas Charts - High-Performance Data Visualization",
+  "description": "A high-performance, canvas-based charting library for React applications",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#3b82f6",
+  "background_color": "#ffffff",
+  "categories": ["development", "utilities", "productivity"]
+}

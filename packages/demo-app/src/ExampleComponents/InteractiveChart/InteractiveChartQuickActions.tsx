@@ -1,75 +1,36 @@
-import React from 'react';
-import type { InteractiveChartConfig } from './types';
+import React from 'react'
 
 type InteractiveChartQuickActionsProps = {
-  config: InteractiveChartConfig;
-  dataPointsCount: number;
-  isStreaming: boolean;
-  streamingHz: number;
-  streamingPointsPerTick: number;
-  streamingMaxPoints: number;
-  bulkAddCount: number;
-  onRandomizeData: () => void;
-  onToggleSmooth: () => void;
-  onToggleFillArea: () => void;
-  onToggleShowValues: () => void;
-  onToggleStreaming: () => void;
-  onStreamingHzChange: (value: number) => void;
-  onStreamingPointsPerTickChange: (value: number) => void;
-  onStreamingMaxPointsChange: (value: number) => void;
-  onBulkAddCountChange: (value: number) => void;
-  onBulkAddPoints: () => void;
-};
+  dataPointsCount: number
+  isStreaming: boolean
+  streamingHz: number
+  streamingPointsPerTick: number
+  streamingMaxPoints: number
+  bulkAddCount: number
+  onToggleStreaming: () => void
+  onStreamingHzChange: (value: number) => void
+  onStreamingPointsPerTickChange: (value: number) => void
+  onStreamingMaxPointsChange: (value: number) => void
+  onBulkAddCountChange: (value: number) => void
+  onBulkAddPoints: () => void
+}
 
 export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActionsProps> = ({
-  config,
   dataPointsCount,
   isStreaming,
   streamingHz,
   streamingPointsPerTick,
   streamingMaxPoints,
   bulkAddCount,
-  onRandomizeData,
-  onToggleSmooth,
-  onToggleFillArea,
-  onToggleShowValues,
   onToggleStreaming,
   onStreamingHzChange,
   onStreamingPointsPerTickChange,
   onStreamingMaxPointsChange,
   onBulkAddCountChange,
-  onBulkAddPoints,
+  onBulkAddPoints
 }) => (
   <div className="mt-4 bg-white rounded-lg shadow p-4">
-    <h3 className="font-semibold text-gray-700 mb-3">Quick Actions</h3>
-    <div className="flex flex-wrap gap-2">
-      <button
-        onClick={onRandomizeData}
-        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition text-sm"
-      >
-        🎲 Randomize Values
-      </button>
-      <button
-        onClick={onToggleSmooth}
-        className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition text-sm"
-      >
-        {config.lineSmooth ? '📐 Straight Lines' : '〰️ Smooth Curves'}
-      </button>
-      <button
-        onClick={onToggleFillArea}
-        className="px-4 py-2 bg-cyan-500 text-white rounded hover:bg-cyan-600 transition text-sm"
-      >
-        {config.fillArea ? '🚫 Remove Fill' : '🎨 Fill Area'}
-      </button>
-      <button
-        onClick={onToggleShowValues}
-        className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 transition text-sm"
-      >
-        {config.showValues ? '🔢 Hide Values' : '🔢 Show Values'}
-      </button>
-    </div>
-
-    <div className="mt-4 border-t border-gray-200 pt-4">
+    <div className="">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="font-semibold text-gray-700">Live Data Stream</h4>
@@ -83,9 +44,7 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
         <button
           onClick={onToggleStreaming}
           className={`px-4 py-2 text-sm font-medium rounded transition ${
-            isStreaming
-              ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-green-500 text-white hover:bg-green-600'
+            isStreaming ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600'
           }`}
         >
           {isStreaming ? '⏹️ Stop Stream' : '▶️ Start Stream'}
@@ -93,9 +52,7 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
       </div>
 
       <div className="mt-3">
-        <label className="block text-sm text-gray-600 mb-1">
-          Update Rate: {streamingHz.toFixed(1)} Hz
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Update Rate: {streamingHz.toFixed(1)} Hz</label>
         <input
           type="range"
           min="0.1"
@@ -103,9 +60,9 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
           step="0.1"
           value={streamingHz}
           onChange={(event) => {
-            const parsed = Number.parseFloat(event.target.value);
+            const parsed = Number.parseFloat(event.target.value)
             if (!Number.isNaN(parsed)) {
-              onStreamingHzChange(parsed);
+              onStreamingHzChange(parsed)
             }
           }}
           className="w-full"
@@ -118,9 +75,9 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
             step="0.1"
             value={streamingHz}
             onChange={(event) => {
-              const parsed = Number.parseFloat(event.target.value);
+              const parsed = Number.parseFloat(event.target.value)
               if (!Number.isNaN(parsed)) {
-                onStreamingHzChange(parsed);
+                onStreamingHzChange(parsed)
               }
             }}
             className="w-24 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
@@ -131,9 +88,7 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
       </div>
 
       <div className="mt-3">
-        <label className="block text-sm text-gray-600 mb-1">
-          Points Added Per Update: {streamingPointsPerTick}
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Points Added Per Update: {streamingPointsPerTick}</label>
         <input
           type="range"
           min="1"
@@ -141,9 +96,9 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
           step="1"
           value={streamingPointsPerTick}
           onChange={(event) => {
-            const parsed = Number.parseInt(event.target.value, 10);
+            const parsed = Number.parseInt(event.target.value, 10)
             if (!Number.isNaN(parsed)) {
-              onStreamingPointsPerTickChange(parsed);
+              onStreamingPointsPerTickChange(parsed)
             }
           }}
           className="w-full"
@@ -155,9 +110,9 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
             max="100"
             value={streamingPointsPerTick}
             onChange={(event) => {
-              const parsed = Number.parseInt(event.target.value, 10);
+              const parsed = Number.parseInt(event.target.value, 10)
               if (!Number.isNaN(parsed)) {
-                onStreamingPointsPerTickChange(parsed);
+                onStreamingPointsPerTickChange(parsed)
               }
             }}
             className="w-24 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
@@ -168,17 +123,15 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
       </div>
 
       <div className="mt-3">
-        <label className="block text-sm text-gray-600 mb-1">
-          Max Points (0 = unlimited)
-        </label>
+        <label className="block text-sm text-gray-600 mb-1">Max Points (0 = unlimited)</label>
         <input
           type="number"
           min="0"
           value={streamingMaxPoints}
           onChange={(event) => {
-            const parsed = Number.parseInt(event.target.value, 10);
+            const parsed = Number.parseInt(event.target.value, 10)
             if (!Number.isNaN(parsed)) {
-              onStreamingMaxPointsChange(parsed);
+              onStreamingMaxPointsChange(parsed)
             }
           }}
           className="w-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
@@ -194,9 +147,9 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
             min="1"
             value={bulkAddCount}
             onChange={(event) => {
-              const parsed = Number.parseInt(event.target.value, 10);
+              const parsed = Number.parseInt(event.target.value, 10)
               if (!Number.isNaN(parsed)) {
-                onBulkAddCountChange(parsed);
+                onBulkAddCountChange(parsed)
               }
             }}
             className="w-28 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
@@ -212,4 +165,4 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
       </div>
     </div>
   </div>
-);
+)

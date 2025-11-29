@@ -485,9 +485,7 @@ export const InteractiveChartDemoNew: FC = () => {
 
   const handleChartClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeAnnotationTool) {
-        return
-      }
+      if (!activeAnnotationTool) return
 
       // Get click position relative to the chart
       const rect = event.currentTarget.getBoundingClientRect()
@@ -800,9 +798,13 @@ export const InteractiveChartDemoNew: FC = () => {
           Try out the chart and change all the options. Add lines, axes, stream data, and more. A code preview below the
           chart updates with every change to provide an example of how to use the chart.
         </p>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          <div className="flex-1 lg:pr-6 space-y-8">
-            <div onClick={handleChartClick} style={{ cursor: activeAnnotationTool ? 'crosshair' : 'default' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+          <div className="flex-1 lg:col-span-2 space-y-8">
+            <div
+              onClick={handleChartClick}
+              className="relative"
+              style={{ cursor: activeAnnotationTool ? 'crosshair' : 'default' }}
+            >
               <InteractiveChartCanvas
                 data={chartRecords}
                 config={{ ...config, annotations }}
@@ -813,6 +815,7 @@ export const InteractiveChartDemoNew: FC = () => {
                 selectionResetKey={selectionResetKey}
                 onToolbarToggle={handleToolbarToggle}
                 onToolbarPositionChange={handleToolbarPositionChange}
+                onAnnotationsChange={setAnnotations}
               />
             </div>
 
@@ -829,12 +832,16 @@ export const InteractiveChartDemoNew: FC = () => {
                           <span className="text-xs text-gray-600">"{annotation.text}"</span>
                         )}
                       </div>
-                      <button
-                        onClick={() => setAnnotations((prev) => prev.filter((a) => a.id !== annotation.id))}
-                        className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setAnnotations((prev) => prev.filter((a) => a.id !== annotation.id))
+                          }}
+                          className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

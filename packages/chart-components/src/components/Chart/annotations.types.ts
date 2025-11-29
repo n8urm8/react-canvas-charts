@@ -35,6 +35,8 @@ export interface TextAnnotation extends BaseAnnotation {
   text: string
   /** Font size in pixels */
   fontSize?: number
+  /** Font weight */
+  fontWeight?: 'normal' | 'bold'
   /** Text alignment */
   textAlign?: 'left' | 'center' | 'right'
   /** Background color (optional) */

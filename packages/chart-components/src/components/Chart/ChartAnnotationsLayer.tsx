@@ -1,4 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { GripVertical, Bold, Palette } from 'lucide-react'
 import { LayerOrder, useChartLayer, type ChartLayerRenderer } from './ChartSurface'
 import type {
   ChartAnnotation,
@@ -9,12 +11,13 @@ import type {
   CircleAnnotation,
   FreehandAnnotation
 } from './annotations.types'
+import './ChartToolbar.css'
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */
   annotations: ChartAnnotation[]
-  /** Callback when an annotation is clicked */
-  onAnnotationClick?: (annotation: ChartAnnotation, event: MouseEvent) => void
+  /** Callback when annotations are updated */
+  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void
   /** Current annotation being created (controlled by parent) */
   creatingType?: AnnotationType
   /** Callback when annotation creation is in progress */
@@ -45,15 +48,17 @@ const renderTextAnnotation = (
   context: CanvasRenderingContext2D,
   annotation: TextAnnotation,
   getXPosition: (index: number) => number,
-  getYPosition: (value: number) => number
+  getYPosition: (value: number) => number,
+  isHovered?: boolean
 ) => {
   const pos = toPixelSpace(annotation.position, getXPosition, getYPosition)
   const fontSize = annotation.fontSize ?? 14
+  const fontWeight = annotation.fontWeight ?? 'normal'
   const padding = annotation.padding ?? 8
   const textAlign = annotation.textAlign ?? 'center'
 
   context.save()
-  context.font = `${fontSize}px sans-serif`
+  context.font = `${fontWeight} ${fontSize}px sans-serif`
   context.textAlign = textAlign
   context.textBaseline = 'middle'
 
@@ -82,6 +87,20 @@ const renderTextAnnotation = (
   if (annotation.selected) {
     context.strokeStyle = '#3b82f6'
     context.lineWidth = 2
+    let bgX = pos.x - padding
+    if (textAlign === 'center') {
+      bgX = pos.x - textWidth / 2 - padding
+    } else if (textAlign === 'right') {
+      bgX = pos.x - textWidth - padding
+    }
+    context.strokeRect(bgX, pos.y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2)
+  }
+
+  // Draw hover indicator
+  if (isHovered && !annotation.selected) {
+    context.strokeStyle = '#9ca3af'
+    context.lineWidth = 1
+    context.setLineDash([4, 4])
     let bgX = pos.x - padding
     if (textAlign === 'center') {
       bgX = pos.x - textWidth / 2 - padding
@@ -240,10 +259,234 @@ const renderFreehandAnnotation = (
   context.restore()
 }
 
-export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({ annotations, creatingType }) => {
+// Internal annotation editor component
+interface AnnotationEditorProps {
+  annotation: TextAnnotation
+  onUpdate: (updates: Partial<TextAnnotation>) => void
+  onClose: () => void
+  chartContainerRef: HTMLElement | null
+}
+
+const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdate, onClose, chartContainerRef }) => {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const textInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [isEditingText, setIsEditingText] = useState(false)
+
+  const fontSize = annotation.fontSize ?? 14
+  const fontWeight = annotation.fontWeight ?? 'normal'
+  const padding = annotation.padding ?? 8
+
+  const textWidth = Math.max(100, annotation.text.length * fontSize * 0.6)
+  const textHeight = fontSize + padding * 2
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (editorRef.current && !editorRef.current.contains(target) && !isDragging) {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [onClose, isDragging])
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragging(true)
+
+      if (chartContainerRef) {
+        const chartRect = chartContainerRef.getBoundingClientRect()
+        setDragOffset({
+          x: e.clientX - chartRect.left - annotation.position.x,
+          y: e.clientY - chartRect.top - annotation.position.y
+        })
+      }
+    },
+    [annotation.position.x, annotation.position.y, chartContainerRef]
+  )
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!chartContainerRef) return
+      const rect = chartContainerRef.getBoundingClientRect()
+      const newX = e.clientX - rect.left - dragOffset.x
+      const newY = e.clientY - rect.top - dragOffset.y
+      onUpdate({ position: { x: newX, y: newY } })
+    }
+
+    const handleMouseUp = () => setIsDragging(false)
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragOffset, onUpdate, chartContainerRef])
+
+  useEffect(() => {
+    if (isEditingText && textInputRef.current) {
+      textInputRef.current.focus()
+      textInputRef.current.select()
+    }
+  }, [isEditingText])
+
+  const handleTextClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditingText(true)
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdate({ text: e.target.value })
+  }
+
+  const handleTextBlur = () => setIsEditingText(false)
+
+  const handleTextKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      setIsEditingText(false)
+    }
+  }
+
+  const toggleBold = () => {
+    onUpdate({ fontWeight: fontWeight === 'bold' ? 'normal' : 'bold' })
+  }
+
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onUpdate({ fontSize: Number(e.target.value) })
+  }
+
+  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdate({ color: e.target.value })
+  }
+
+  // Position editor so text box bottom-left aligns with annotation position
+  // Calculate total height: toolbar + margin + text box
+  const toolbarHeight = 36 // Height of toolbar
+  const marginBetween = 8 // 0.5rem margin
+  const totalHeight = toolbarHeight + marginBetween + textHeight
+  const editorTop = annotation.position.y - totalHeight
+
+  return (
+    <div
+      ref={editorRef}
+      data-annotation-editor
+      className="absolute pointer-events-auto"
+      style={{ left: annotation.position.x, top: editorTop, zIndex: 1000 }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div ref={toolbarRef} className="chart-toolbar" style={{ position: 'relative', marginBottom: '0.5rem' }}>
+        <div
+          onMouseDown={handleMouseDown}
+          className={`chart-toolbar-drag-handle ${isDragging ? 'dragging' : ''}`}
+          title="Drag to move"
+        >
+          <GripVertical size={16} />
+        </div>
+
+        <select
+          value={fontSize}
+          onChange={handleFontSizeChange}
+          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+          onClick={(e) => e.stopPropagation()}
+          style={{ height: '28px' }}
+        >
+          {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map((size) => (
+            <option key={size} value={size}>
+              {size}px
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={toggleBold}
+          className={`chart-toolbar-button ${fontWeight === 'bold' ? 'active' : ''}`}
+          title="Bold"
+        >
+          <span className="chart-toolbar-button-icon">
+            <Bold size={16} />
+          </span>
+        </button>
+
+        <div className="relative">
+          <input
+            type="color"
+            value={annotation.color}
+            onChange={handleColorChange}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button className="chart-toolbar-button" title="Color">
+            <span className="chart-toolbar-button-icon">
+              <Palette size={16} style={{ color: annotation.color }} />
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="border-2 border-dashed border-blue-400 bg-white bg-opacity-90 rounded"
+        style={{ minWidth: textWidth, minHeight: textHeight, padding: `${padding}px` }}
+      >
+        {isEditingText ? (
+          <input
+            ref={textInputRef}
+            type="text"
+            value={annotation.text}
+            onChange={handleTextChange}
+            onBlur={handleTextBlur}
+            onKeyDown={handleTextKeyDown}
+            className="w-full border-none outline-none bg-transparent"
+            style={{ fontSize: `${fontSize}px`, fontWeight, color: annotation.color }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <div
+            onClick={handleTextClick}
+            className="cursor-text"
+            style={{ fontSize: `${fontSize}px`, fontWeight, color: annotation.color, minHeight: `${fontSize}px` }}
+          >
+            {annotation.text || 'Click to edit'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
+  annotations,
+  onAnnotationsChange,
+  creatingType
+}) => {
   const layerOptions = useMemo(() => ({ order: LayerOrder.overlays + 5 }), [])
   const [isDrawing] = useState(false)
   const drawingPointsRef = useRef<AnnotationCoordinate[]>([])
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
+  const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null)
+  const chartContainerRef = useRef<HTMLDivElement | null>(null)
+
+  // Get chart container element
+  useEffect(() => {
+    const findChartContainer = () => {
+      // Find the chart surface container
+      const chartElement = document.querySelector('.chart-surface-container')
+      if (chartElement) {
+        chartContainerRef.current = chartElement as HTMLDivElement
+      }
+    }
+    findChartContainer()
+  }, [])
 
   const draw = useCallback<ChartLayerRenderer>(
     (context, helpers) => {
@@ -251,7 +494,13 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({ an
       annotations.forEach((annotation) => {
         switch (annotation.type) {
           case 'text':
-            renderTextAnnotation(context, annotation, helpers.getXPosition, helpers.getYPosition)
+            renderTextAnnotation(
+              context,
+              annotation,
+              helpers.getXPosition,
+              helpers.getYPosition,
+              annotation.id === hoveredAnnotationId
+            )
             break
           case 'line':
             renderLineAnnotation(context, annotation, helpers.getXPosition, helpers.getYPosition)
@@ -300,10 +549,177 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({ an
         context.restore()
       }
     },
-    [annotations, creatingType, isDrawing]
+    [annotations, creatingType, isDrawing, hoveredAnnotationId]
   )
 
   useChartLayer(draw, layerOptions)
 
-  return null
+  const selectedAnnotation = selectedAnnotationId
+    ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
+    : undefined
+
+  const handleUpdateAnnotation = useCallback(
+    (updates: Partial<TextAnnotation>) => {
+      if (!selectedAnnotationId || !onAnnotationsChange) return
+
+      const updatedAnnotations = annotations.map((a) =>
+        a.id === selectedAnnotationId && a.type === 'text' ? ({ ...a, ...updates } as TextAnnotation) : a
+      )
+      onAnnotationsChange(updatedAnnotations)
+    },
+    [selectedAnnotationId, annotations, onAnnotationsChange]
+  )
+
+  const handleCloseEditor = useCallback(() => {
+    setSelectedAnnotationId(null)
+  }, [])
+
+  // Handle hover over annotations for cursor and hover effect
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!chartContainerRef.current) return
+
+      const rect = chartContainerRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      let foundHover = false
+
+      // Check if hovering over a text annotation
+      for (const annotation of annotations) {
+        if (annotation.type === 'text') {
+          const textAnnotation = annotation as TextAnnotation
+          const pos = textAnnotation.position
+          const fontSize = textAnnotation.fontSize ?? 14
+          const padding = textAnnotation.padding ?? 8
+          const textAlign = textAnnotation.textAlign ?? 'center'
+          
+          const tempCanvas = document.createElement('canvas')
+          const tempCtx = tempCanvas.getContext('2d')
+          if (!tempCtx) continue
+          
+          const fontWeight = textAnnotation.fontWeight ?? 'normal'
+          tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
+          const metrics = tempCtx.measureText(textAnnotation.text)
+          const textWidth = metrics.width
+          const textHeight = fontSize
+          
+          let bgX = pos.x - padding
+          if (textAlign === 'center') {
+            bgX = pos.x - textWidth / 2 - padding
+          } else if (textAlign === 'right') {
+            bgX = pos.x - textWidth - padding
+          }
+          
+          const bgY = pos.y - textHeight / 2 - padding
+          const bgWidth = textWidth + padding * 2
+          const bgHeight = textHeight + padding * 2
+
+          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
+            setHoveredAnnotationId(annotation.id)
+            chartContainerRef.current.style.cursor = 'text'
+            foundHover = true
+            break
+          }
+        }
+      }
+
+      if (!foundHover) {
+        setHoveredAnnotationId(null)
+        chartContainerRef.current.style.cursor = 'default'
+      }
+    }
+
+    const container = chartContainerRef.current
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove)
+      return () => {
+        container.removeEventListener('mousemove', handleMouseMove)
+        container.style.cursor = 'default'
+      }
+    }
+  }, [annotations])
+
+  // Handle clicks on annotations to select them
+  useEffect(() => {
+    const handleChartClick = (e: MouseEvent) => {
+      if (!chartContainerRef.current) return
+
+      // Don't process clicks that came from the editor
+      const target = e.target as HTMLElement
+      if (target.closest('[data-annotation-editor]')) {
+        return
+      }
+
+      const rect = chartContainerRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      // Check if clicking on a text annotation
+      for (const annotation of annotations) {
+        if (annotation.type === 'text') {
+          const textAnnotation = annotation as TextAnnotation
+          const pos = textAnnotation.position
+          const fontSize = textAnnotation.fontSize ?? 14
+          const padding = textAnnotation.padding ?? 8
+          const textAlign = textAnnotation.textAlign ?? 'center'
+          
+          // Create a temporary canvas to measure text accurately
+          const tempCanvas = document.createElement('canvas')
+          const tempCtx = tempCanvas.getContext('2d')
+          if (!tempCtx) continue
+          
+          const fontWeight = textAnnotation.fontWeight ?? 'normal'
+          tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
+          const metrics = tempCtx.measureText(textAnnotation.text)
+          const textWidth = metrics.width
+          const textHeight = fontSize
+          
+          // Calculate bounds based on text alignment (matching render logic)
+          let bgX = pos.x - padding
+          if (textAlign === 'center') {
+            bgX = pos.x - textWidth / 2 - padding
+          } else if (textAlign === 'right') {
+            bgX = pos.x - textWidth - padding
+          }
+          
+          const bgY = pos.y - textHeight / 2 - padding
+          const bgWidth = textWidth + padding * 2
+          const bgHeight = textHeight + padding * 2
+
+          if (
+            x >= bgX &&
+            x <= bgX + bgWidth &&
+            y >= bgY &&
+            y <= bgY + bgHeight
+          ) {
+            setSelectedAnnotationId(annotation.id)
+            e.stopPropagation()
+            return
+          }
+        }
+      }
+
+      // Clicked on empty space
+      setSelectedAnnotationId(null)
+    }
+
+    const container = chartContainerRef.current
+    if (container) {
+      container.addEventListener('click', handleChartClick)
+      return () => container.removeEventListener('click', handleChartClick)
+    }
+  }, [annotations])
+
+  return selectedAnnotation && chartContainerRef.current
+    ? createPortal(
+        <AnnotationEditor
+          annotation={selectedAnnotation}
+          onUpdate={handleUpdateAnnotation}
+          onClose={handleCloseEditor}
+          chartContainerRef={chartContainerRef.current}
+        />,
+        chartContainerRef.current
+      )
+    : null
 }

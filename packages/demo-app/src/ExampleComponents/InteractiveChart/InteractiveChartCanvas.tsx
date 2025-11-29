@@ -16,7 +16,8 @@ import {
   ChartOverlayPortal,
   ChartAnnotationsLayer,
   type ChartSelectionResult,
-  type ChartToolbarPosition
+  type ChartToolbarPosition,
+  type ChartAnnotation
 } from 'react-canvas-charts'
 import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
@@ -32,6 +33,7 @@ type InteractiveChartCanvasProps = {
   selectionResetKey?: number
   onToolbarToggle?: (tool: InteractiveChartToolbarTool, isActive: boolean, nextActiveIds: string[]) => void
   onToolbarPositionChange?: (position: ChartToolbarPosition) => void
+  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void
 }
 
 const EMPTY_TOOL_IDS: string[] = []
@@ -47,7 +49,8 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   toolbarMoveable,
   selectionResetKey,
   onToolbarToggle,
-  onToolbarPositionChange
+  onToolbarPositionChange,
+  onAnnotationsChange
 }) => {
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
@@ -273,7 +276,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         ) : null}
 
         {config.annotations && config.annotations.length > 0 ? (
-          <ChartAnnotationsLayer annotations={config.annotations} />
+          <ChartAnnotationsLayer annotations={config.annotations} onAnnotationsChange={onAnnotationsChange} />
         ) : null}
 
         {legendEnabled ? (

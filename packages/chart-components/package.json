@@ -58,7 +58,9 @@
     "vite-bundle-analyzer": "^1.2.3",
     "vite-plugin-dts": "^4.5.4"
   },
-  "author": { "name": "n8urm8"},
+  "author": {
+    "name": "n8urm8"
+  },
   "license": "MIT",
   "homepage": "https://github.com/n8urm8/react-canvas-charts",
   "repository": {

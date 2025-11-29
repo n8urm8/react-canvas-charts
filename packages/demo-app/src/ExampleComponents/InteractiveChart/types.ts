@@ -3,6 +3,8 @@ import type {
   ChartLegendLayout,
   ChartLegendPlacement,
   ChartToolbarPosition,
+  ChartAnnotation,
+  AnnotationType,
 } from 'react-canvas-charts';
 
 export interface DataPoint {
@@ -90,6 +92,8 @@ export interface InteractiveChartConfig {
   series: InteractiveChartSeriesConfig[];
   toolbar?: InteractiveChartToolbarConfig;
   legend?: InteractiveChartLegendConfig;
+  annotations?: ChartAnnotation[];
+  annotationMode?: AnnotationType | null;
 }
 
 export type ChartRecord = {

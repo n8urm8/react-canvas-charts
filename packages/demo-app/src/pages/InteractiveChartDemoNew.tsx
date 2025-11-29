@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react'
-import { ZoomIn, ZoomOut } from 'lucide-react'
+import { ZoomIn, ZoomOut, Type, Minus, Circle, Pen } from 'lucide-react'
 import {
   type DataPoint,
   type ChartRecord,
@@ -15,7 +15,13 @@ import {
   InteractiveChartCodePreview,
   InteractiveChartControlPanel
 } from '../ExampleComponents/InteractiveChart'
-import type { ChartSelectionResult, ChartSelectionSeriesRange, ChartToolbarPosition } from 'react-canvas-charts'
+import type {
+  ChartSelectionResult,
+  ChartSelectionSeriesRange,
+  ChartToolbarPosition,
+  ChartAnnotation,
+  AnnotationType
+} from 'react-canvas-charts'
 
 const SERIES_COLOR_PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316']
 
@@ -64,7 +70,11 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
     moveable: true,
     tools: [
       { id: 'zoom-in', label: 'Zoom In' },
-      { id: 'zoom-out', label: 'Zoom Out' }
+      { id: 'zoom-out', label: 'Zoom Out' },
+      { id: 'text', label: 'Text' },
+      { id: 'line', label: 'Line' },
+      { id: 'circle', label: 'Circle' },
+      { id: 'freehand', label: 'Draw' }
     ]
   },
   legend: {
@@ -108,6 +118,8 @@ export const InteractiveChartDemoNew: FC = () => {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>(() =>
     initialDataRef.current ? [...initialDataRef.current] : []
   )
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([])
+  const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
   const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
     const initialLength = initialDataRef.current?.length ?? 0
     return [
@@ -389,14 +401,49 @@ export const InteractiveChartDemoNew: FC = () => {
         showLabel: false,
         disabled: !canZoomOut,
         tooltip: canZoomOut ? 'Return to previous zoom' : 'Already at full extent'
+      },
+      {
+        id: 'text',
+        label: 'Text',
+        icon: <Type className="h-4 w-4" />,
+        ariaLabel: 'Add text annotation',
+        showLabel: false,
+        disabled: false,
+        tooltip: 'Add text annotation'
+      },
+      {
+        id: 'line',
+        label: 'Line',
+        icon: <Minus className="h-4 w-4" />,
+        ariaLabel: 'Add line annotation',
+        showLabel: false,
+        disabled: false,
+        tooltip: 'Add line annotation'
+      },
+      {
+        id: 'circle',
+        label: 'Circle',
+        icon: <Circle className="h-4 w-4" />,
+        ariaLabel: 'Add circle annotation',
+        showLabel: false,
+        disabled: false,
+        tooltip: 'Add circle annotation'
+      },
+      {
+        id: 'freehand',
+        label: 'Draw',
+        icon: <Pen className="h-4 w-4" />,
+        ariaLabel: 'Draw freehand annotation',
+        showLabel: false,
+        disabled: false,
+        tooltip: 'Draw freehand annotation'
       }
     ],
     [canZoomIn, canZoomOut]
   )
 
   const handleToolbarToggle = useCallback(
-    (tool: InteractiveChartToolbarTool, _isActive: boolean, _nextActive: string[]) => {
-      void _isActive
+    (tool: InteractiveChartToolbarTool, isActive: boolean, _nextActive: string[]) => {
       void _nextActive
       if (tool.id === 'zoom-in') {
         if (!canZoomIn || !selection) {
@@ -425,9 +472,73 @@ export const InteractiveChartDemoNew: FC = () => {
         setZoomStack((previous) => (previous.length > 1 ? previous.slice(0, -1) : previous))
         setSelection(null)
         setSelectionResetKey((key) => key + 1)
+        return
+      }
+
+      // Annotation tools
+      if (tool.id === 'text' || tool.id === 'line' || tool.id === 'circle' || tool.id === 'freehand') {
+        setActiveAnnotationTool(isActive ? (tool.id as AnnotationType) : null)
       }
     },
     [canZoomIn, canZoomOut, selection, setSelectionResetKey, visibleStartIndex]
+  )
+
+  const handleChartClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!activeAnnotationTool) {
+        return
+      }
+
+      // Get click position relative to the chart
+      const rect = event.currentTarget.getBoundingClientRect()
+      const x = event.clientX - rect.left
+      const y = event.clientY - rect.top
+
+      // Create annotation based on active tool
+      const newAnnotation: ChartAnnotation = (() => {
+        const baseId = `annotation-${Date.now()}`
+        const baseProps = {
+          id: baseId,
+          color: '#ff6b6b',
+          strokeWidth: 2
+        }
+
+        switch (activeAnnotationTool) {
+          case 'text':
+            return {
+              ...baseProps,
+              type: 'text' as const,
+              position: { x, y },
+              text: 'New Text',
+              fontSize: 14
+            }
+          case 'line':
+            return {
+              ...baseProps,
+              type: 'line' as const,
+              start: { x, y },
+              end: { x: x + 100, y }
+            }
+          case 'circle':
+            return {
+              ...baseProps,
+              type: 'circle' as const,
+              center: { x, y },
+              radius: 30
+            }
+          case 'freehand':
+            return {
+              ...baseProps,
+              type: 'freehand' as const,
+              points: [{ x, y }]
+            }
+        }
+      })()
+
+      setAnnotations((prev) => [...prev, newAnnotation])
+      setActiveAnnotationTool(null)
+    },
+    [activeAnnotationTool]
   )
 
   const codePreview = useMemo(() => buildInteractiveChartCodePreview(config, chartRecords), [chartRecords, config])
@@ -689,19 +800,46 @@ export const InteractiveChartDemoNew: FC = () => {
           Try out the chart and change all the options. Add lines, axes, stream data, and more. A code preview below the
           chart updates with every change to provide an example of how to use the chart.
         </p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-          <div className="lg:col-span-2">
-            <InteractiveChartCanvas
-              data={chartRecords}
-              config={config}
-              onSelectionChange={handleSelectionChange}
-              toolbarTools={toolbarTools}
-              toolbarEnabled={config.toolbar?.enabled !== false}
-              toolbarMultiSelect={false}
-              selectionResetKey={selectionResetKey}
-              onToolbarToggle={handleToolbarToggle}
-              onToolbarPositionChange={handleToolbarPositionChange}
-            />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+          <div className="flex-1 lg:pr-6 space-y-8">
+            <div onClick={handleChartClick} style={{ cursor: activeAnnotationTool ? 'crosshair' : 'default' }}>
+              <InteractiveChartCanvas
+                data={chartRecords}
+                config={{ ...config, annotations }}
+                onSelectionChange={handleSelectionChange}
+                toolbarTools={toolbarTools}
+                toolbarEnabled={config.toolbar?.enabled !== false}
+                toolbarMultiSelect={false}
+                selectionResetKey={selectionResetKey}
+                onToolbarToggle={handleToolbarToggle}
+                onToolbarPositionChange={handleToolbarPositionChange}
+              />
+            </div>
+
+            {annotations.length > 0 ? (
+              <div className="mt-4 p-4 bg-purple-50 rounded-lg text-sm text-gray-900">
+                <div className="font-semibold mb-2">Annotations ({annotations.length})</div>
+                <ul className="space-y-2">
+                  {annotations.map((annotation) => (
+                    <li key={annotation.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded" style={{ backgroundColor: annotation.color }} />
+                        <span className="font-medium capitalize">{annotation.type}</span>
+                        {annotation.type === 'text' && (
+                          <span className="text-xs text-gray-600">"{annotation.text}"</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setAnnotations((prev) => prev.filter((a) => a.id !== annotation.id))}
+                        className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {selection ? (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm text-gray-900">

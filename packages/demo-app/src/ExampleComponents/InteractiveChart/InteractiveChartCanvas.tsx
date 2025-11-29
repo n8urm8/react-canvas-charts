@@ -14,6 +14,7 @@ import {
   ChartToolbar,
   ChartLegend,
   ChartOverlayPortal,
+  ChartAnnotationsLayer,
   type ChartSelectionResult,
   type ChartToolbarPosition,
 } from 'react-canvas-charts';
@@ -291,6 +292,10 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             snapAlongYAxis={config.cursorSnapAlongYAxis}
             seriesLabels={seriesLabelMap}
           />
+        ) : null}
+
+        {config.annotations && config.annotations.length > 0 ? (
+          <ChartAnnotationsLayer annotations={config.annotations} />
         ) : null}
 
         {legendEnabled ? (

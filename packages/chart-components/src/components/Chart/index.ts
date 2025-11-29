@@ -18,3 +18,5 @@ export * from './ChartTitleLayer';
 export * from './ChartLegend';
 export * from './CanvasWrapper/CanvasWrapper';
 export * from './ChartToolbar';
+export * from './ChartAnnotationsLayer';
+export * from './annotations.types';

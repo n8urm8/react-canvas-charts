@@ -1,6 +1,6 @@
 export const MainDemo = () => {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full">
       {/* Side Navigation */}
       <nav className="w-64 bg-gray-50 border-r border-gray-200 p-6 sticky top-0 h-screen overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">Navigation</h2>
@@ -45,7 +45,7 @@ export const MainDemo = () => {
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 max-w-5xl p-8">
+      <div className="flex-1 w-full p-8">
         <header className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">React Canvas Charts API Documentation</h1>
           <p className="text-lg text-gray-600">

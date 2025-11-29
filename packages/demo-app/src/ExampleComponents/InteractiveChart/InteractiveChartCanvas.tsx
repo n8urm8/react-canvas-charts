@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react'
 import {
   ChartSurface,
   ChartGridLayer,
@@ -16,33 +16,25 @@ import {
   ChartOverlayPortal,
   ChartAnnotationsLayer,
   type ChartSelectionResult,
-  type ChartToolbarPosition,
-} from 'react-canvas-charts';
-import type {
-  ChartRecord,
-  InteractiveChartConfig,
-  InteractiveChartToolbarTool,
-} from './types';
+  type ChartToolbarPosition
+} from 'react-canvas-charts'
+import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
 type InteractiveChartCanvasProps = {
-  data: ChartRecord[];
-  config: InteractiveChartConfig;
-  onSelectionChange?: (selection: ChartSelectionResult | null) => void;
-  toolbarTools?: InteractiveChartToolbarTool[];
-  toolbarEnabled?: boolean;
-  toolbarMultiSelect?: boolean;
-  toolbarVisibility?: 'always' | 'hover';
-  toolbarMoveable?: boolean;
-  selectionResetKey?: number;
-  onToolbarToggle?: (
-    tool: InteractiveChartToolbarTool,
-    isActive: boolean,
-    nextActiveIds: string[],
-  ) => void;
-  onToolbarPositionChange?: (position: ChartToolbarPosition) => void;
-};
+  data: ChartRecord[]
+  config: InteractiveChartConfig
+  onSelectionChange?: (selection: ChartSelectionResult | null) => void
+  toolbarTools?: InteractiveChartToolbarTool[]
+  toolbarEnabled?: boolean
+  toolbarMultiSelect?: boolean
+  toolbarVisibility?: 'always' | 'hover'
+  toolbarMoveable?: boolean
+  selectionResetKey?: number
+  onToolbarToggle?: (tool: InteractiveChartToolbarTool, isActive: boolean, nextActiveIds: string[]) => void
+  onToolbarPositionChange?: (position: ChartToolbarPosition) => void
+}
 
-const EMPTY_TOOL_IDS: string[] = [];
+const EMPTY_TOOL_IDS: string[] = []
 
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   data,
@@ -55,24 +47,24 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   toolbarMoveable,
   selectionResetKey,
   onToolbarToggle,
-  onToolbarPositionChange,
+  onToolbarPositionChange
 }) => {
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
-      return config.axes;
+      return config.axes
     }
 
     return [
       {
         id: 'axis-default',
         title: 'Value',
-        position: 'left' as const,
-      },
-    ];
-  }, [config.axes]);
+        position: 'left' as const
+      }
+    ]
+  }, [config.axes])
 
-  const axisIds = useMemo(() => resolvedAxes.map((axis) => axis.id), [resolvedAxes]);
-  const fallbackAxisId = axisIds[0] ?? 'axis-default';
+  const axisIds = useMemo(() => resolvedAxes.map((axis) => axis.id), [resolvedAxes])
+  const fallbackAxisId = axisIds[0] ?? 'axis-default'
 
   const resolvedSeries = useMemo(
     () =>
@@ -83,104 +75,92 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
               id: 'series-default',
               name: 'Series 1',
               color: '#3b82f6',
-              axisId: fallbackAxisId,
-            },
+              axisId: fallbackAxisId
+            }
           ]
       ).map((series, index) => ({
         ...series,
         axisId: axisIds.includes(series.axisId) ? series.axisId : fallbackAxisId,
-        color: series.color || `hsl(${(index * 137.5) % 360}deg 70% 50%)`,
+        color: series.color || `hsl(${(index * 137.5) % 360}deg 70% 50%)`
       })),
     [axisIds, config.series, fallbackAxisId]
-  );
+  )
 
-  const yKeys = useMemo(() => resolvedSeries.map((series) => series.id), [resolvedSeries]);
-  const defaultColors = useMemo(
-    () => resolvedSeries.map((series) => series.color),
-    [resolvedSeries]
-  );
+  const yKeys = useMemo(() => resolvedSeries.map((series) => series.id), [resolvedSeries])
+  const defaultColors = useMemo(() => resolvedSeries.map((series) => series.color), [resolvedSeries])
 
   const seriesLabelMap = useMemo(() => {
-    const map: Record<string, string> = {};
+    const map: Record<string, string> = {}
     resolvedSeries.forEach((series) => {
-      map[series.id] = series.name || series.id;
-    });
-    return map;
-  }, [resolvedSeries]);
+      map[series.id] = series.name || series.id
+    })
+    return map
+  }, [resolvedSeries])
 
   const valueScales = useMemo(
     () =>
       resolvedAxes.map((axis) => ({
         id: axis.id,
-        dataKeys: resolvedSeries
-          .filter((series) => series.axisId === axis.id)
-          .map((series) => series.id),
+        dataKeys: resolvedSeries.filter((series) => series.axisId === axis.id).map((series) => series.id)
       })),
     [resolvedAxes, resolvedSeries]
-  );
+  )
 
   const defaultToolbarTools = useMemo<InteractiveChartToolbarTool[]>(
     () => [
       { id: 'pan', label: 'Pan' },
       { id: 'brush', label: 'Brush' },
       { id: 'zoom-in', label: 'Zoom In' },
-      { id: 'zoom-out', label: 'Zoom Out' },
+      { id: 'zoom-out', label: 'Zoom Out' }
     ],
     []
-  );
+  )
 
-  const toolbarConfig = config.toolbar;
-  const resolvedToolbarTools = useMemo(
-    () => {
-      if (toolbarToolsOverride && toolbarToolsOverride.length > 0) {
-        return toolbarToolsOverride;
-      }
-      if (toolbarConfig?.tools && toolbarConfig.tools.length > 0) {
-        return toolbarConfig.tools;
-      }
-      return defaultToolbarTools;
-    },
-    [defaultToolbarTools, toolbarConfig?.tools, toolbarToolsOverride]
-  );
+  const toolbarConfig = config.toolbar
+  const resolvedToolbarTools = useMemo(() => {
+    if (toolbarToolsOverride && toolbarToolsOverride.length > 0) {
+      return toolbarToolsOverride
+    }
+    if (toolbarConfig?.tools && toolbarConfig.tools.length > 0) {
+      return toolbarConfig.tools
+    }
+    return defaultToolbarTools
+  }, [defaultToolbarTools, toolbarConfig?.tools, toolbarToolsOverride])
 
-  const resolvedToolbarEnabled =
-    (toolbarEnabled ?? (toolbarConfig?.enabled !== false)) && resolvedToolbarTools.length > 0;
+  const resolvedToolbarEnabled = (toolbarEnabled ?? toolbarConfig?.enabled !== false) && resolvedToolbarTools.length > 0
 
-  const resolvedToolbarMultiSelect =
-    toolbarMultiSelect ?? toolbarConfig?.multiSelect ?? true;
+  const resolvedToolbarMultiSelect = toolbarMultiSelect ?? toolbarConfig?.multiSelect ?? true
 
-  const resolvedToolbarVisibility =
-    toolbarVisibility ?? toolbarConfig?.visibility ?? 'always';
+  const resolvedToolbarVisibility = toolbarVisibility ?? toolbarConfig?.visibility ?? 'always'
 
-  const resolvedToolbarMoveable =
-    toolbarMoveable ?? toolbarConfig?.moveable ?? false;
+  const resolvedToolbarMoveable = toolbarMoveable ?? toolbarConfig?.moveable ?? false
 
-  const legendConfig = config.legend ?? {};
+  const legendConfig = config.legend ?? {}
   const legendItems = useMemo(
     () =>
       resolvedSeries.map((series) => ({
         dataKey: series.id,
         label: series.name || series.id,
-        color: series.color,
+        color: series.color
       })),
-    [resolvedSeries],
-  );
+    [resolvedSeries]
+  )
 
-  const legendEnabled = legendConfig.enabled !== false && legendItems.length > 0;
+  const legendEnabled = legendConfig.enabled !== false && legendItems.length > 0
 
   const handleToolbarPositionChange = useCallback(
     (position: ChartToolbarPosition) => {
-      onToolbarPositionChange?.(position);
+      onToolbarPositionChange?.(position)
     },
     [onToolbarPositionChange]
-  );
+  )
 
   const handleToolbarToggle = useCallback(
     (tool: InteractiveChartToolbarTool, isActive: boolean, nextActive: string[]) => {
-      onToolbarToggle?.(tool, isActive, nextActive);
+      onToolbarToggle?.(tool, isActive, nextActive)
     },
     [onToolbarToggle]
-  );
+  )
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -194,7 +174,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           top: config.padding,
           right: config.padding,
           bottom: config.padding,
-          left: config.padding,
+          left: config.padding
         }}
         backgroundColor="#ffffff"
         defaultColors={defaultColors}
@@ -272,9 +252,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           : null}
 
         {config.showValues
-          ? resolvedSeries.map((series) => (
-              <ChartValueLabels key={`label-${series.id}`} dataKey={series.id} />
-            ))
+          ? resolvedSeries.map((series) => <ChartValueLabels key={`label-${series.id}`} dataKey={series.id} />)
           : null}
 
         {config.enableCursor ? (
@@ -324,5 +302,5 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         ) : null}
       </ChartSurface>
     </div>
-  );
-};
+  )
+}

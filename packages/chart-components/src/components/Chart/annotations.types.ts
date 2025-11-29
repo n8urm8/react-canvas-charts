@@ -1,91 +1,91 @@
 // Annotation type definitions for chart annotations
 // These types are managed by the consuming application
 
-export type AnnotationType = 'text' | 'line' | 'circle' | 'freehand';
+export type AnnotationType = 'text' | 'line' | 'circle' | 'freehand'
 
 export interface AnnotationCoordinate {
   /** Data index (for data-aligned annotations) or pixel X coordinate (for absolute positioning) */
-  x: number;
+  x: number
   /** Y value in data space or pixel Y coordinate (for absolute positioning) */
-  y: number;
+  y: number
   /** Whether coordinates are in data space (true) or pixel space (false) */
-  dataSpace?: boolean;
+  dataSpace?: boolean
 }
 
 export interface BaseAnnotation {
   /** Unique identifier for the annotation */
-  id: string;
+  id: string
   /** Type of annotation */
-  type: AnnotationType;
+  type: AnnotationType
   /** Color of the annotation */
-  color?: string;
+  color?: string
   /** Stroke width for lines and shapes */
-  strokeWidth?: number;
+  strokeWidth?: number
   /** Whether the annotation is currently selected/active for editing */
-  selected?: boolean;
+  selected?: boolean
   /** Optional metadata for app-specific use */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>
 }
 
 export interface TextAnnotation extends BaseAnnotation {
-  type: 'text';
+  type: 'text'
   /** Position of the text */
-  position: AnnotationCoordinate;
+  position: AnnotationCoordinate
   /** Text content */
-  text: string;
+  text: string
   /** Font size in pixels */
-  fontSize?: number;
+  fontSize?: number
   /** Text alignment */
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right'
   /** Background color (optional) */
-  backgroundColor?: string;
+  backgroundColor?: string
   /** Padding around text */
-  padding?: number;
+  padding?: number
 }
 
 export interface LineAnnotation extends BaseAnnotation {
-  type: 'line';
+  type: 'line'
   /** Start point of the line */
-  start: AnnotationCoordinate;
+  start: AnnotationCoordinate
   /** End point of the line */
-  end: AnnotationCoordinate;
+  end: AnnotationCoordinate
   /** Line dash pattern */
-  dash?: number[];
+  dash?: number[]
   /** Arrow at start */
-  arrowStart?: boolean;
+  arrowStart?: boolean
   /** Arrow at end */
-  arrowEnd?: boolean;
+  arrowEnd?: boolean
 }
 
 export interface CircleAnnotation extends BaseAnnotation {
-  type: 'circle';
+  type: 'circle'
   /** Center position */
-  center: AnnotationCoordinate;
+  center: AnnotationCoordinate
   /** Radius in pixels */
-  radius: number;
+  radius: number
   /** Fill color (optional) */
-  fillColor?: string;
+  fillColor?: string
   /** Fill opacity */
-  fillOpacity?: number;
+  fillOpacity?: number
 }
 
 export interface FreehandAnnotation extends BaseAnnotation {
-  type: 'freehand';
+  type: 'freehand'
   /** Array of points making up the freehand drawing */
-  points: AnnotationCoordinate[];
+  points: AnnotationCoordinate[]
   /** Whether to close the path */
-  closed?: boolean;
+  closed?: boolean
   /** Smoothing factor (0 = no smoothing, 1 = maximum smoothing) */
-  smoothing?: number;
+  smoothing?: number
 }
 
-export type ChartAnnotation = TextAnnotation | LineAnnotation | CircleAnnotation | FreehandAnnotation;
+export type ChartAnnotation = TextAnnotation | LineAnnotation | CircleAnnotation | FreehandAnnotation
 
 export interface AnnotationInteractionState {
   /** Current annotation being drawn/edited */
-  activeAnnotationId?: string;
+  activeAnnotationId?: string
   /** Type of annotation being created */
-  creatingType?: AnnotationType;
+  creatingType?: AnnotationType
   /** Temporary points during creation */
-  tempPoints?: AnnotationCoordinate[];
+  tempPoints?: AnnotationCoordinate[]
 }

@@ -55,45 +55,71 @@ const renderTextAnnotation = (
   const fontSize = annotation.fontSize ?? 14
   const fontWeight = annotation.fontWeight ?? 'normal'
   const padding = annotation.padding ?? 8
-  const textAlign = annotation.textAlign ?? 'center'
+  const textAlign = 'left'
+
+  // Get dimensions from metadata or calculate from text
+  const storedWidth = annotation.metadata?.width
+  const storedHeight = annotation.metadata?.height
 
   context.save()
   context.font = `${fontWeight} ${fontSize}px sans-serif`
   context.textAlign = textAlign
-  context.textBaseline = 'middle'
+  context.textBaseline = 'top'
 
-  // Measure text
-  const metrics = context.measureText(annotation.text)
-  const textWidth = metrics.width
-  const textHeight = fontSize
+  let boxWidth: number
+  let boxHeight: number
+  let lines: string[]
+
+  if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
+    // Use stored dimensions and wrap text
+    const maxWidth = storedWidth - padding * 2
+    lines = []
+    const words = annotation.text.split(' ')
+    let currentLine = ''
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const metrics = context.measureText(testLine)
+
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine)
+        currentLine = word
+      } else {
+        currentLine = testLine
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+
+    // Use the stored dimensions directly for the box
+    boxWidth = storedWidth
+    boxHeight = storedHeight
+  } else {
+    // Single line, no wrapping - calculate from text
+    lines = [annotation.text]
+    const metrics = context.measureText(annotation.text)
+    boxWidth = metrics.width + padding * 2
+    boxHeight = fontSize + padding * 2
+  }
 
   // Draw background if specified
   if (annotation.backgroundColor) {
     context.fillStyle = annotation.backgroundColor
-    let bgX = pos.x - padding
-    if (textAlign === 'center') {
-      bgX = pos.x - textWidth / 2 - padding
-    } else if (textAlign === 'right') {
-      bgX = pos.x - textWidth - padding
-    }
-    context.fillRect(bgX, pos.y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2)
+    context.fillRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
   }
 
-  // Draw text
+  // Draw text (potentially multiple lines)
   context.fillStyle = annotation.color ?? '#000000'
-  context.fillText(annotation.text, pos.x, pos.y)
+  lines.forEach((line, index) => {
+    context.fillText(line, pos.x, pos.y + index * fontSize * 1.2)
+  })
 
   // Draw selection indicator if selected
   if (annotation.selected) {
     context.strokeStyle = '#3b82f6'
     context.lineWidth = 2
-    let bgX = pos.x - padding
-    if (textAlign === 'center') {
-      bgX = pos.x - textWidth / 2 - padding
-    } else if (textAlign === 'right') {
-      bgX = pos.x - textWidth - padding
-    }
-    context.strokeRect(bgX, pos.y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2)
+    context.strokeRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
   }
 
   // Draw hover indicator
@@ -101,13 +127,7 @@ const renderTextAnnotation = (
     context.strokeStyle = '#9ca3af'
     context.lineWidth = 1
     context.setLineDash([4, 4])
-    let bgX = pos.x - padding
-    if (textAlign === 'center') {
-      bgX = pos.x - textWidth / 2 - padding
-    } else if (textAlign === 'right') {
-      bgX = pos.x - textWidth - padding
-    }
-    context.strokeRect(bgX, pos.y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2)
+    context.strokeRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
   }
 
   context.restore()
@@ -270,17 +290,33 @@ interface AnnotationEditorProps {
 const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdate, onClose, chartContainerRef }) => {
   const editorRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const textInputRef = useRef<HTMLInputElement>(null)
+  const textInputRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [isEditingText, setIsEditingText] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
 
   const fontSize = annotation.fontSize ?? 14
   const fontWeight = annotation.fontWeight ?? 'normal'
   const padding = annotation.padding ?? 8
 
-  const textWidth = Math.max(100, annotation.text.length * fontSize * 0.6)
+  // Measure text width accurately using canvas
+  const textWidth = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return Math.max(100, annotation.text.length * fontSize * 0.6)
+    ctx.font = `${fontWeight} ${fontSize}px sans-serif`
+    const metrics = ctx.measureText(annotation.text)
+    return Math.max(100, metrics.width)
+  }, [annotation.text, fontSize, fontWeight])
+
   const textHeight = fontSize + padding * 2
+
+  const [boxWidth, setBoxWidth] = useState(annotation.metadata?.width || Math.max(200, textWidth))
+  const [boxHeight, setBoxHeight] = useState(annotation.metadata?.height || Math.max(50, textHeight))
+
+  // Constants for positioning
+  const toolbarHeight = 36
+  const marginBetween = 8
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -334,28 +370,96 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
   }, [isDragging, dragOffset, onUpdate, chartContainerRef])
 
   useEffect(() => {
-    if (isEditingText && textInputRef.current) {
+    if (textInputRef.current) {
       textInputRef.current.focus()
-      textInputRef.current.select()
+      // Select all text
+      const range = document.createRange()
+      range.selectNodeContents(textInputRef.current)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
     }
-  }, [isEditingText])
+  }, [])
 
-  const handleTextClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsEditingText(true)
+  const handleTextBlur = () => {
+    // Optionally close editor on blur, or keep it open
+    // onClose()
   }
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ text: e.target.value })
-  }
-
-  const handleTextBlur = () => setIsEditingText(false)
 
   const handleTextKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Escape') {
-      setIsEditingText(false)
+    if (e.key === 'Escape') {
+      ;(e.currentTarget as HTMLElement).blur()
+      onClose()
     }
+    // Allow Enter for newlines in contentEditable
   }
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsResizing(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!chartContainerRef || !editorRef.current) return
+      const editorRect = editorRef.current.getBoundingClientRect()
+
+      // Calculate relative to the editor's position
+      const mouseX = e.clientX - editorRect.left
+      const mouseY = e.clientY - editorRect.top
+
+      const newWidth = Math.max(100, mouseX)
+      const newHeight = Math.max(30, mouseY - (toolbarHeight + marginBetween))
+
+      setBoxWidth(newWidth)
+      setBoxHeight(newHeight)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [
+    isResizing,
+    annotation.position.x,
+    annotation.position.y,
+    annotation.metadata,
+    boxWidth,
+    boxHeight,
+    chartContainerRef,
+    onUpdate,
+    padding,
+    toolbarHeight,
+    marginBetween
+  ])
+
+  // Save dimensions to annotation when they change and we're not actively resizing
+  useEffect(() => {
+    if (!isResizing) {
+      const currentWidth = annotation.metadata?.width
+      const currentHeight = annotation.metadata?.height
+
+      if (currentWidth !== boxWidth || currentHeight !== boxHeight) {
+        onUpdate({
+          metadata: {
+            ...annotation.metadata,
+            width: boxWidth,
+            height: boxHeight
+          }
+        })
+      }
+    }
+  }, [boxWidth, boxHeight, isResizing, annotation.metadata, onUpdate])
 
   const toggleBold = () => {
     onUpdate({ fontWeight: fontWeight === 'bold' ? 'normal' : 'bold' })
@@ -369,19 +473,17 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
     onUpdate({ color: e.target.value })
   }
 
-  // Position editor so text box bottom-left aligns with annotation position
-  // Calculate total height: toolbar + margin + text box
-  const toolbarHeight = 36 // Height of toolbar
-  const marginBetween = 8 // 0.5rem margin
+  // Position editor so text box aligns with annotation position
   const totalHeight = toolbarHeight + marginBetween + textHeight
   const editorTop = annotation.position.y - totalHeight
+  const editorLeft = annotation.position.x - padding
 
   return (
     <div
       ref={editorRef}
       data-annotation-editor
       className="absolute pointer-events-auto"
-      style={{ left: annotation.position.x, top: editorTop, zIndex: 1000 }}
+      style={{ left: editorLeft, top: editorTop, zIndex: 1000 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -434,31 +536,50 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
         </div>
       </div>
 
-      <div
-        className="border-2 border-dashed border-blue-400 bg-white bg-opacity-90 rounded"
-        style={{ minWidth: textWidth, minHeight: textHeight, padding: `${padding}px` }}
-      >
-        {isEditingText ? (
-          <input
-            ref={textInputRef}
-            type="text"
-            value={annotation.text}
-            onChange={handleTextChange}
-            onBlur={handleTextBlur}
-            onKeyDown={handleTextKeyDown}
-            className="w-full border-none outline-none bg-transparent"
-            style={{ fontSize: `${fontSize}px`, fontWeight, color: annotation.color }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <div
-            onClick={handleTextClick}
-            className="cursor-text"
-            style={{ fontSize: `${fontSize}px`, fontWeight, color: annotation.color, minHeight: `${fontSize}px` }}
-          >
-            {annotation.text || 'Click to edit'}
-          </div>
-        )}
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={textInputRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={(e) => {
+            const newText = e.currentTarget.textContent || ''
+            onUpdate({ text: newText })
+          }}
+          onBlur={handleTextBlur}
+          onKeyDown={handleTextKeyDown}
+          className="border-2 border-dashed border-blue-400 bg-white bg-opacity-90 rounded outline-none px-2 py-1"
+          style={{
+            fontSize: `${fontSize}px`,
+            fontWeight,
+            color: annotation.color,
+            width: `${boxWidth}px`,
+            height: `${boxHeight}px`,
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            resize: 'none'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {annotation.text || 'Click to edit'}
+        </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '16px',
+            height: '16px',
+            cursor: 'nwse-resize',
+            background: 'linear-gradient(135deg, transparent 50%, #3b82f6 50%)',
+            borderBottomRightRadius: '4px',
+            zIndex: 10
+          }}
+          title="Drag to resize"
+        />
       </div>
     </div>
   )
@@ -592,28 +713,33 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           const pos = textAnnotation.position
           const fontSize = textAnnotation.fontSize ?? 14
           const padding = textAnnotation.padding ?? 8
-          const textAlign = textAnnotation.textAlign ?? 'center'
-          
-          const tempCanvas = document.createElement('canvas')
-          const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) continue
-          
-          const fontWeight = textAnnotation.fontWeight ?? 'normal'
-          tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-          const metrics = tempCtx.measureText(textAnnotation.text)
-          const textWidth = metrics.width
-          const textHeight = fontSize
-          
-          let bgX = pos.x - padding
-          if (textAlign === 'center') {
-            bgX = pos.x - textWidth / 2 - padding
-          } else if (textAlign === 'right') {
-            bgX = pos.x - textWidth - padding
+
+          // Use stored dimensions if available, otherwise calculate from text
+          const storedWidth = textAnnotation.metadata?.width
+          const storedHeight = textAnnotation.metadata?.height
+
+          let bgWidth: number
+          let bgHeight: number
+
+          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
+            // Use stored dimensions
+            bgWidth = storedWidth
+            bgHeight = storedHeight
+          } else {
+            // Calculate from text
+            const tempCanvas = document.createElement('canvas')
+            const tempCtx = tempCanvas.getContext('2d')
+            if (!tempCtx) continue
+
+            const fontWeight = textAnnotation.fontWeight ?? 'normal'
+            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
+            const metrics = tempCtx.measureText(textAnnotation.text)
+            bgWidth = metrics.width + padding * 2
+            bgHeight = fontSize + padding * 2
           }
-          
-          const bgY = pos.y - textHeight / 2 - padding
-          const bgWidth = textWidth + padding * 2
-          const bgHeight = textHeight + padding * 2
+
+          const bgX = pos.x - padding
+          const bgY = pos.y - padding
 
           if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
             setHoveredAnnotationId(annotation.id)
@@ -623,7 +749,6 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           }
         }
       }
-
       if (!foundHover) {
         setHoveredAnnotationId(null)
         chartContainerRef.current.style.cursor = 'default'
@@ -662,37 +787,35 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           const pos = textAnnotation.position
           const fontSize = textAnnotation.fontSize ?? 14
           const padding = textAnnotation.padding ?? 8
-          const textAlign = textAnnotation.textAlign ?? 'center'
-          
-          // Create a temporary canvas to measure text accurately
-          const tempCanvas = document.createElement('canvas')
-          const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) continue
-          
-          const fontWeight = textAnnotation.fontWeight ?? 'normal'
-          tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-          const metrics = tempCtx.measureText(textAnnotation.text)
-          const textWidth = metrics.width
-          const textHeight = fontSize
-          
-          // Calculate bounds based on text alignment (matching render logic)
-          let bgX = pos.x - padding
-          if (textAlign === 'center') {
-            bgX = pos.x - textWidth / 2 - padding
-          } else if (textAlign === 'right') {
-            bgX = pos.x - textWidth - padding
-          }
-          
-          const bgY = pos.y - textHeight / 2 - padding
-          const bgWidth = textWidth + padding * 2
-          const bgHeight = textHeight + padding * 2
 
-          if (
-            x >= bgX &&
-            x <= bgX + bgWidth &&
-            y >= bgY &&
-            y <= bgY + bgHeight
-          ) {
+          // Use stored dimensions if available, otherwise calculate from text
+          const storedWidth = textAnnotation.metadata?.width
+          const storedHeight = textAnnotation.metadata?.height
+
+          let bgWidth: number
+          let bgHeight: number
+
+          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
+            // Use stored dimensions
+            bgWidth = storedWidth
+            bgHeight = storedHeight
+          } else {
+            // Calculate from text
+            const tempCanvas = document.createElement('canvas')
+            const tempCtx = tempCanvas.getContext('2d')
+            if (!tempCtx) continue
+
+            const fontWeight = textAnnotation.fontWeight ?? 'normal'
+            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
+            const metrics = tempCtx.measureText(textAnnotation.text)
+            bgWidth = metrics.width + padding * 2
+            bgHeight = fontSize + padding * 2
+          }
+
+          const bgX = pos.x - padding
+          const bgY = pos.y - padding
+
+          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
             setSelectedAnnotationId(annotation.id)
             e.stopPropagation()
             return

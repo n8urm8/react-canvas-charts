@@ -1,0 +1,10 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://react-canvas-charts.netlify.app/sitemap.xml
+
+# Block access to source maps and build artifacts
+Disallow: /assets/*.map
+Disallow: /*.map

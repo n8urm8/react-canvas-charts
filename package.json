@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "build:charts": "pnpm --filter react-canvas-charts build",
+    "build:charts:watch": "pnpm --filter react-canvas-charts build:dev",
     "build:demo": "pnpm --filter charts-demo build",
     "dev": "pnpm --filter charts-demo dev",
     "build:dev": "pnpm --filter react-canvas-charts build:dev",

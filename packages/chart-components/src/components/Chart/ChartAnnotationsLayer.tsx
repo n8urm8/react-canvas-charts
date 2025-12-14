@@ -318,6 +318,23 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
   const toolbarHeight = 36
   const marginBetween = 8
 
+  // Set initial content of contentEditable (only once)
+  useEffect(() => {
+    if (textInputRef.current) {
+      textInputRef.current.textContent = annotation.text
+      // Focus at the end of text
+      const range = document.createRange()
+      const sel = window.getSelection()
+      if (textInputRef.current.childNodes.length > 0) {
+        range.setStart(textInputRef.current.childNodes[0], annotation.text.length)
+        range.collapse(true)
+        sel?.removeAllRanges()
+        sel?.addRange(range)
+      }
+      textInputRef.current.focus()
+    }
+  }, []) // Only on mount
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
@@ -368,18 +385,6 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
       document.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isDragging, dragOffset, onUpdate, chartContainerRef])
-
-  useEffect(() => {
-    if (textInputRef.current) {
-      textInputRef.current.focus()
-      // Select all text
-      const range = document.createRange()
-      range.selectNodeContents(textInputRef.current)
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(range)
-    }
-  }, [])
 
   const handleTextBlur = () => {
     // Optionally close editor on blur, or keep it open
@@ -482,8 +487,8 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
     <div
       ref={editorRef}
       data-annotation-editor
-      className="absolute pointer-events-auto"
-      style={{ left: editorLeft, top: editorTop, zIndex: 1000 }}
+      className="pointer-events-auto"
+      style={{ left: editorLeft, top: editorTop, zIndex: 1000, position: 'absolute' }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -499,9 +504,15 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
         <select
           value={fontSize}
           onChange={handleFontSizeChange}
-          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
           onClick={(e) => e.stopPropagation()}
-          style={{ height: '28px' }}
+          style={{
+            fontSize: '12px',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            backgroundColor: 'white',
+            height: '28px'
+          }}
         >
           {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map((size) => (
             <option key={size} value={size}>
@@ -520,12 +531,19 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
           </span>
         </button>
 
-        <div className="relative">
+        <div style={{ position: 'relative' }}>
           <input
             type="color"
             value={annotation.color}
             onChange={handleColorChange}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              opacity: 0,
+              cursor: 'pointer'
+            }}
             onClick={(e) => e.stopPropagation()}
           />
           <button className="chart-toolbar-button" title="Color">
@@ -545,10 +563,18 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
             const newText = e.currentTarget.textContent || ''
             onUpdate({ text: newText })
           }}
-          onBlur={handleTextBlur}
+          onBlur={(e) => {
+            const newText = e.currentTarget.textContent || ''
+            onUpdate({ text: newText })
+            handleTextBlur()
+          }}
           onKeyDown={handleTextKeyDown}
-          className="border-2 border-dashed border-blue-400 bg-white bg-opacity-90 rounded outline-none px-2 py-1"
           style={{
+            border: '2px dashed #60a5fa',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '4px',
+            outline: 'none',
+            padding: '8px',
             fontSize: `${fontSize}px`,
             fontWeight,
             color: annotation.color,
@@ -560,9 +586,7 @@ const AnnotationEditor: React.FC<AnnotationEditorProps> = ({ annotation, onUpdat
             resize: 'none'
           }}
           onClick={(e) => e.stopPropagation()}
-        >
-          {annotation.text || 'Click to edit'}
-        </div>
+        />
 
         {/* Resize handle */}
         <div

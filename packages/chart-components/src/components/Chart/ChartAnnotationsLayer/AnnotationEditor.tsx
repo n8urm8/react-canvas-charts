@@ -10,6 +10,8 @@ interface AnnotationEditorProps {
   chartContainerRef: HTMLElement | null
 }
 
+const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72]
+
 export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
   annotation,
   onUpdate,
@@ -207,8 +209,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
   }
 
   // Position editor so text box aligns with annotation position
-  const totalHeight = toolbarHeight + marginBetween + textHeight
-  const editorTop = annotation.position.y - totalHeight
+  const editorTop = annotation.position.y - padding
   const editorLeft = annotation.position.x - padding
 
   return (
@@ -220,7 +221,17 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div ref={toolbarRef} className="chart-toolbar" style={{ position: 'relative', marginBottom: '0.5rem' }}>
+      <div
+        ref={toolbarRef}
+        className="chart-toolbar"
+        style={{
+          position: 'absolute',
+          top: `-${toolbarHeight + 16}px`,
+          left: 0,
+          zIndex: 10,
+          flexWrap: 'nowrap'
+        }}
+      >
         <div
           onMouseDown={handleMouseDown}
           className={`chart-toolbar-drag-handle ${isDragging ? 'dragging' : ''}`}
@@ -242,7 +253,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
             height: '28px'
           }}
         >
-          {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map((size) => (
+          {FONT_SIZES.map((size) => (
             <option key={size} value={size}>
               {size}px
             </option>
@@ -302,7 +313,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             borderRadius: '4px',
             outline: 'none',
-            padding: '8px',
+            padding: '0px 8px 8px 8px',
             fontSize: `${fontSize}px`,
             fontWeight,
             color: annotation.color,

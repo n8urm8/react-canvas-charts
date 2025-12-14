@@ -1,18 +1,20 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { LayerOrder, useChartLayer, type ChartLayerRenderer } from '../ChartSurface'
-import type {
-  ChartAnnotation,
-  AnnotationCoordinate,
-  AnnotationType,
-  TextAnnotation
-} from '../annotations.types'
+import type { ChartAnnotation, AnnotationCoordinate, AnnotationType, TextAnnotation } from '../annotations.types'
 import { toPixelSpace } from './utils'
 import { renderTextAnnotation } from './renderTextAnnotation'
 import { renderLineAnnotation } from './renderLineAnnotation'
 import { renderCircleAnnotation } from './renderCircleAnnotation'
 import { renderFreehandAnnotation } from './renderFreehandAnnotation'
 import { AnnotationEditor } from './AnnotationEditor'
+
+const DEFAULT_ANNOTATION_COLOR = '#ff6b6b'
+const DEFAULT_STROKE_WIDTH = 2
+const DEFAULT_TEXT = 'New Text'
+const DEFAULT_FONT_SIZE = 14
+const DEFAULT_LINE_LENGTH = 100
+const DEFAULT_CIRCLE_RADIUS = 30
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */
@@ -32,7 +34,10 @@ export interface ChartAnnotationsLayerProps {
 export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   annotations,
   onAnnotationsChange,
-  creatingType
+  creatingType,
+  onAnnotationCreate,
+  onAnnotationComplete,
+  enableCreation = true
 }) => {
   const layerOptions = useMemo(() => ({ order: LayerOrder.overlays + 5 }), [])
   const [isDrawing] = useState(false)
@@ -123,6 +128,46 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
     : undefined
 
+  const buildNewAnnotation = useCallback((type: AnnotationType, x: number, y: number): ChartAnnotation => {
+    const baseId = `annotation-${Date.now()}`
+    const baseProps = {
+      id: baseId,
+      color: DEFAULT_ANNOTATION_COLOR,
+      strokeWidth: DEFAULT_STROKE_WIDTH
+    }
+
+    switch (type) {
+      case 'text':
+        return {
+          ...baseProps,
+          type: 'text',
+          position: { x, y },
+          text: DEFAULT_TEXT,
+          fontSize: DEFAULT_FONT_SIZE
+        }
+      case 'line':
+        return {
+          ...baseProps,
+          type: 'line',
+          start: { x, y },
+          end: { x: x + DEFAULT_LINE_LENGTH, y }
+        }
+      case 'circle':
+        return {
+          ...baseProps,
+          type: 'circle',
+          center: { x, y },
+          radius: DEFAULT_CIRCLE_RADIUS
+        }
+      case 'freehand':
+        return {
+          ...baseProps,
+          type: 'freehand',
+          points: [{ x, y }]
+        }
+    }
+  }, [])
+
   const handleUpdateAnnotation = useCallback(
     (updates: Partial<TextAnnotation>) => {
       if (!selectedAnnotationId || !onAnnotationsChange) return
@@ -143,6 +188,12 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!chartContainerRef.current) return
+
+      if (creatingType) {
+        chartContainerRef.current.style.cursor = creatingType === 'text' ? 'text' : 'crosshair'
+        setHoveredAnnotationId(null)
+        return
+      }
 
       const rect = chartContainerRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -207,7 +258,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         container.style.cursor = 'default'
       }
     }
-  }, [annotations])
+  }, [annotations, creatingType])
 
   // Handle clicks on annotations to select them
   useEffect(() => {
@@ -217,6 +268,26 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       // Don't process clicks that came from the editor
       const target = e.target as HTMLElement
       if (target.closest('[data-annotation-editor]')) {
+        return
+      }
+
+      // Ignore toolbar clicks so we only create on a chart click
+      if ((e.target as HTMLElement).closest('.chart-toolbar')) {
+        return
+      }
+
+      // Creation mode: create annotation and exit
+      if (creatingType && enableCreation) {
+        const rect = chartContainerRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+
+        const newAnnotation = buildNewAnnotation(creatingType, x, y)
+        onAnnotationCreate?.(newAnnotation)
+        onAnnotationComplete?.(newAnnotation)
+        if (onAnnotationsChange) {
+          onAnnotationsChange([...annotations, newAnnotation])
+        }
         return
       }
 
@@ -276,7 +347,15 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       container.addEventListener('click', handleChartClick)
       return () => container.removeEventListener('click', handleChartClick)
     }
-  }, [annotations])
+  }, [
+    annotations,
+    buildNewAnnotation,
+    creatingType,
+    enableCreation,
+    onAnnotationComplete,
+    onAnnotationCreate,
+    onAnnotationsChange
+  ])
 
   return selectedAnnotation && chartContainerRef.current
     ? createPortal(

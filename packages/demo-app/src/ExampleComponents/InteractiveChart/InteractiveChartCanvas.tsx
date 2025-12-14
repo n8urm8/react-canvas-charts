@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   ChartSurface,
   ChartGridLayer,
@@ -17,7 +17,8 @@ import {
   ChartAnnotationsLayer,
   type ChartSelectionResult,
   type ChartToolbarPosition,
-  type ChartAnnotation
+  type ChartAnnotation,
+  type AnnotationType
 } from 'react-canvas-charts'
 import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
@@ -52,6 +53,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   onToolbarPositionChange,
   onAnnotationsChange
 }) => {
+  const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
       return config.axes
@@ -160,10 +162,17 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
 
   const handleToolbarToggle = useCallback(
     (tool: InteractiveChartToolbarTool, isActive: boolean, nextActive: string[]) => {
+      if (tool.id === 'text' || tool.id === 'line' || tool.id === 'circle' || tool.id === 'freehand') {
+        setActiveAnnotationTool(isActive ? (tool.id as AnnotationType) : null)
+      }
       onToolbarToggle?.(tool, isActive, nextActive)
     },
     [onToolbarToggle]
   )
+
+  const handleAnnotationComplete = useCallback(() => {
+    setActiveAnnotationTool(null)
+  }, [])
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -275,8 +284,13 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           />
         ) : null}
 
-        {config.annotations && config.annotations.length > 0 ? (
-          <ChartAnnotationsLayer annotations={config.annotations} onAnnotationsChange={onAnnotationsChange} />
+        {(config.annotations && config.annotations.length > 0) || activeAnnotationTool ? (
+          <ChartAnnotationsLayer
+            annotations={config.annotations ?? []}
+            onAnnotationsChange={onAnnotationsChange}
+            creatingType={activeAnnotationTool ?? undefined}
+            onAnnotationComplete={handleAnnotationComplete}
+          />
         ) : null}
 
         {legendEnabled ? (

@@ -19,8 +19,7 @@ import type {
   ChartSelectionResult,
   ChartSelectionSeriesRange,
   ChartToolbarPosition,
-  ChartAnnotation,
-  AnnotationType
+  ChartAnnotation
 } from 'react-canvas-charts'
 
 const SERIES_COLOR_PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316']
@@ -119,7 +118,6 @@ export const InteractiveChartDemoNew: FC = () => {
     initialDataRef.current ? [...initialDataRef.current] : []
   )
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([])
-  const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
   const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
     const initialLength = initialDataRef.current?.length ?? 0
     return [
@@ -443,7 +441,7 @@ export const InteractiveChartDemoNew: FC = () => {
   )
 
   const handleToolbarToggle = useCallback(
-    (tool: InteractiveChartToolbarTool, isActive: boolean, _nextActive: string[]) => {
+    (tool: InteractiveChartToolbarTool, _isActive: boolean, _nextActive: string[]) => {
       void _nextActive
       if (tool.id === 'zoom-in') {
         if (!canZoomIn || !selection) {
@@ -476,67 +474,8 @@ export const InteractiveChartDemoNew: FC = () => {
       }
 
       // Annotation tools
-      if (tool.id === 'text' || tool.id === 'line' || tool.id === 'circle' || tool.id === 'freehand') {
-        setActiveAnnotationTool(isActive ? (tool.id as AnnotationType) : null)
-      }
     },
     [canZoomIn, canZoomOut, selection, setSelectionResetKey, visibleStartIndex]
-  )
-
-  const handleChartClick = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeAnnotationTool) return
-
-      // Get click position relative to the chart
-      const rect = event.currentTarget.getBoundingClientRect()
-      const x = event.clientX - rect.left
-      const y = event.clientY - rect.top
-
-      // Create annotation based on active tool
-      const newAnnotation: ChartAnnotation = (() => {
-        const baseId = `annotation-${Date.now()}`
-        const baseProps = {
-          id: baseId,
-          color: '#ff6b6b',
-          strokeWidth: 2
-        }
-
-        switch (activeAnnotationTool) {
-          case 'text':
-            return {
-              ...baseProps,
-              type: 'text' as const,
-              position: { x, y },
-              text: 'New Text',
-              fontSize: 14
-            }
-          case 'line':
-            return {
-              ...baseProps,
-              type: 'line' as const,
-              start: { x, y },
-              end: { x: x + 100, y }
-            }
-          case 'circle':
-            return {
-              ...baseProps,
-              type: 'circle' as const,
-              center: { x, y },
-              radius: 30
-            }
-          case 'freehand':
-            return {
-              ...baseProps,
-              type: 'freehand' as const,
-              points: [{ x, y }]
-            }
-        }
-      })()
-
-      setAnnotations((prev) => [...prev, newAnnotation])
-      setActiveAnnotationTool(null)
-    },
-    [activeAnnotationTool]
   )
 
   const codePreview = useMemo(() => buildInteractiveChartCodePreview(config, chartRecords), [chartRecords, config])
@@ -800,11 +739,7 @@ export const InteractiveChartDemoNew: FC = () => {
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
           <div className="flex-1 lg:col-span-2 space-y-8">
-            <div
-              onClick={handleChartClick}
-              className="relative"
-              style={{ cursor: activeAnnotationTool ? 'crosshair' : 'default' }}
-            >
+            <div className="relative">
               <InteractiveChartCanvas
                 data={chartRecords}
                 config={{ ...config, annotations }}

@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { GripVertical, Bold, Palette } from 'lucide-react'
-import { LayerOrder, useChartLayer, type ChartLayerRenderer } from './ChartSurface'
+import { LayerOrder, useChartLayer, type ChartLayerRenderer } from '../ChartSurface'
 import type {
   ChartAnnotation,
   AnnotationCoordinate,
@@ -10,8 +10,8 @@ import type {
   LineAnnotation,
   CircleAnnotation,
   FreehandAnnotation
-} from './annotations.types'
-import './ChartToolbar.css'
+} from '../annotations.types'
+import '../ChartToolbar.css'
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */

@@ -12,6 +12,6 @@
     "build:dev": "pnpm --filter react-canvas-charts build:dev",
     "lint": "pnpm -r lint",
     "preview": "pnpm --filter charts-demo preview",
-    "publish:charts": "pnpm --filter react-canvas-charts publish --access public"
+    "publish:charts": "pnpm --filter react-canvas-charts publish --publish-branch main"
   }
 }

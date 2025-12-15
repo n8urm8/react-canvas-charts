@@ -19,7 +19,7 @@ jobs:
         with:
           version: 10
       - name: Install dependencies and build
-        run: pnpm ci && pnpm build:charts # Optional: run your build script if needed
+        run: pnpm i && pnpm build:charts # Optional: run your build script if needed
       - name: Publish package on NPM
         run: pnpm publish:charts
         env:

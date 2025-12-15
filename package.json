@@ -1,6 +1,6 @@
 {
   "name": "react-charting-exploration",
-  "private": true,
+  "private": false,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -11,6 +11,7 @@
     "dev": "pnpm --filter charts-demo dev",
     "build:dev": "pnpm --filter react-canvas-charts build:dev",
     "lint": "pnpm -r lint",
-    "preview": "pnpm --filter charts-demo preview"
+    "preview": "pnpm --filter charts-demo preview",
+    "publish:charts": "pnpm --filter react-canvas-charts publish --access public"
   }
 }

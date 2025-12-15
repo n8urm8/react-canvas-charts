@@ -2,12 +2,9 @@
 
 ### Note - This package is still in early development
 
-React Canvas Charts is a streaming-friendly charting library built on React, TypeScript, and the HTML5 canvas element. The package ships reusable chart primitives (surface, layers, overlays). 
+React Canvas Charts is a streaming-friendly charting library built on React, TypeScript, and the HTML5 canvas element. The package ships reusable chart primitives (surface, layers, overlays).
 
-The repository contains two primary targets:
-
-- `src/components/Chart` – the publishable library source. It exposes the chart surface, layer primitives, toolbar, cursor tooling, and utilities for building custom visualizations. Consumers import from this path when bundling the library for npm distribution.
-- Development demo (root Vite app) – a local-only playground located at the repository root (`src/`, `main.tsx`, `src/pages/**`). It consumes the chart components directly from source to exercise scenarios during development; it is not part of the published package.
+Check out the [documentation page](https://react-canvas-charts.netlify.app) for information and an interactive demo.
 
 ## Features
 
@@ -38,7 +35,7 @@ Ensure `react`, `react-dom`, and `lucide-react` are available (they are peer dep
 The library exports low-level primitives (e.g., `ChartSurface`, `ChartLineSeries`, `ChartCursorLayer`) that you can compose directly. The example below mirrors the generated code preview shown in the Interactive Chart demo and demonstrates how each layer fits together.
 
 ```tsx
-import { useState } from "react";
+import { useState } from 'react'
 import {
   ChartSurface,
   ChartGridLayer,
@@ -53,52 +50,36 @@ import {
   ChartTitleLayer,
   ChartToolbar,
   ChartOverlayPortal,
-  ChartLegend,
-} from "react-canvas-charts";
+  ChartLegend
+} from 'react-canvas-charts'
 
 const DATA = [
-  { label: "00:00", series1: 18, series2: 21 },
-  { label: "00:05", series1: 20, series2: 23 },
-  { label: "00:10", series1: 22, series2: 24 },
-  { label: "00:15", series1: 23, series2: 26 },
-];
+  { label: '00:00', series1: 18, series2: 21 },
+  { label: '00:05', series1: 20, series2: 23 },
+  { label: '00:10', series1: 22, series2: 24 },
+  { label: '00:15', series1: 23, series2: 26 }
+]
 
-const VALUE_SCALES = [
-  { id: "primary", dataKeys: ["series1", "series2"] },
-];
+const VALUE_SCALES = [{ id: 'primary', dataKeys: ['series1', 'series2'] }]
 
 export function CanvasChartExample() {
-  const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [activeTools, setActiveTools] = useState<string[]>([])
 
   return (
     <ChartSurface
       data={DATA}
       xKey="label"
-      yKeys={["series1", "series2"]}
+      yKeys={['series1', 'series2']}
       width="100%"
       height={400}
       margin={{ top: 72, right: 72, bottom: 72, left: 72 }}
-      defaultColors={["#3b82f6", "#ef4444"]}
+      defaultColors={['#3b82f6', '#ef4444']}
       valueScales={VALUE_SCALES}
     >
       <ChartTitleLayer title="Live Sensor Data" />
       <ChartGridLayer show color="#e5e7eb" />
-      <ChartXAxis
-        show
-        title="Timestamp"
-        showTitle
-        tickStep={1}
-        maxTicks={8}
-        labelOffsetY={6}
-      />
-      <ChartYAxis
-        show
-        title="Value"
-        showTitle
-        titleRotation={-90}
-        scaleId="primary"
-        side="left"
-      />
+      <ChartXAxis show title="Timestamp" showTitle tickStep={1} maxTicks={8} labelOffsetY={6} />
+      <ChartYAxis show title="Value" showTitle titleRotation={-90} scaleId="primary" side="left" />
       <ChartAreaSeries dataKey="series1" color="#3b82f6" opacity={0.12} />
       <ChartAreaSeries dataKey="series2" color="#ef4444" opacity={0.12} />
       <ChartLineSeries dataKey="series1" color="#3b82f6" lineWidth={2} smooth />
@@ -110,22 +91,22 @@ export function CanvasChartExample() {
       <ChartTooltipLayer
         position="follow"
         template="{label}: {value}"
-        seriesLabels={{ series1: "Sensor A", series2: "Sensor B" }}
+        seriesLabels={{ series1: 'Sensor A', series2: 'Sensor B' }}
       />
       <ChartLegend
         title="Sensors"
         items={[
-          { dataKey: "series1", label: "Sensor A" },
-          { dataKey: "series2", label: "Sensor B" },
+          { dataKey: 'series1', label: 'Sensor A' },
+          { dataKey: 'series2', label: 'Sensor B' }
         ]}
-        placement={{ mode: "anchor", position: "top-right" }}
+        placement={{ mode: 'anchor', position: 'top-right' }}
       />
       <ChartOverlayPortal>
         <ChartToolbar
           tools={[
-            { id: "zoom-in", label: "Zoom In" },
-            { id: "zoom-out", label: "Zoom Out" },
-            { id: "pan", label: "Pan" },
+            { id: 'zoom-in', label: 'Zoom In' },
+            { id: 'zoom-out', label: 'Zoom Out' },
+            { id: 'pan', label: 'Pan' }
           ]}
           activeToolIds={activeTools}
           onToggle={(_, __, next) => setActiveTools(next)}
@@ -136,7 +117,7 @@ export function CanvasChartExample() {
         />
       </ChartOverlayPortal>
     </ChartSurface>
-  );
+  )
 }
 ```
 

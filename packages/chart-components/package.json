@@ -1,7 +1,7 @@
 {
   "name": "react-canvas-charts",
   "private": false,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "files": [
     "dist"
@@ -37,8 +37,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "lucide-react": "^0.553.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router": "^7.9.6"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -62,7 +61,7 @@
     "name": "n8urm8"
   },
   "license": "MIT",
-  "homepage": "https://github.com/n8urm8/react-canvas-charts",
+  "homepage": "https://react-canvas-charts.netlify.app",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/n8urm8/react-canvas-charts.git"
@@ -76,3 +75,4 @@
     "data-visualization"
   ]
 }
+

@@ -8,13 +8,10 @@ import { renderLineAnnotation } from './renderLineAnnotation'
 import { renderCircleAnnotation } from './renderCircleAnnotation'
 import { renderFreehandAnnotation } from './renderFreehandAnnotation'
 import { AnnotationEditor } from './AnnotationEditor'
-
-const DEFAULT_ANNOTATION_COLOR = '#ff6b6b'
-const DEFAULT_STROKE_WIDTH = 2
-const DEFAULT_TEXT = 'New Text'
-const DEFAULT_FONT_SIZE = 14
-const DEFAULT_LINE_LENGTH = 100
-const DEFAULT_CIRCLE_RADIUS = 30
+import { buildNewAnnotation } from './helpers/annotationHelpers'
+import { setupHoverHandlers } from './helpers/hoverHandlers'
+import { createMouseDownHandler, createMouseMoveHandler, createMouseUpHandler } from './helpers/drawingHandlers'
+import { createClickHandler } from './helpers/clickHandlers'
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */
@@ -131,46 +128,6 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
     : undefined
 
-  const buildNewAnnotation = useCallback((type: AnnotationType, x: number, y: number): ChartAnnotation => {
-    const baseId = `annotation-${Date.now()}`
-    const baseProps = {
-      id: baseId,
-      color: DEFAULT_ANNOTATION_COLOR,
-      strokeWidth: DEFAULT_STROKE_WIDTH
-    }
-
-    switch (type) {
-      case 'text':
-        return {
-          ...baseProps,
-          type: 'text',
-          position: { x, y },
-          text: DEFAULT_TEXT,
-          fontSize: DEFAULT_FONT_SIZE
-        }
-      case 'line':
-        return {
-          ...baseProps,
-          type: 'line',
-          start: { x, y },
-          end: { x: x + DEFAULT_LINE_LENGTH, y }
-        }
-      case 'circle':
-        return {
-          ...baseProps,
-          type: 'circle',
-          center: { x, y },
-          radius: DEFAULT_CIRCLE_RADIUS
-        }
-      case 'freehand':
-        return {
-          ...baseProps,
-          type: 'freehand',
-          points: [{ x, y }]
-        }
-    }
-  }, [])
-
   const handleUpdateAnnotation = useCallback(
     (updates: Partial<TextAnnotation>) => {
       if (!selectedAnnotationId || !onAnnotationsChange) return
@@ -189,69 +146,10 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
   // Handle hover over annotations for cursor and hover effect
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!chartContainerRef.current) return
-
-      if (creatingType) {
-        chartContainerRef.current.style.cursor = creatingType === 'text' ? 'text' : 'crosshair'
-        setHoveredAnnotationId(null)
-        return
-      }
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      let foundHover = false
-
-      // Check if hovering over a text annotation
-      for (const annotation of annotations) {
-        if (annotation.type === 'text') {
-          const textAnnotation = annotation as TextAnnotation
-          const pos = textAnnotation.position
-          const fontSize = textAnnotation.fontSize ?? 14
-          const padding = textAnnotation.padding ?? 8
-
-          // Use stored dimensions if available, otherwise calculate from text
-          const storedWidth = textAnnotation.metadata?.width
-          const storedHeight = textAnnotation.metadata?.height
-
-          let bgWidth: number
-          let bgHeight: number
-
-          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
-            // Use stored dimensions
-            bgWidth = storedWidth
-            bgHeight = storedHeight
-          } else {
-            // Calculate from text
-            const tempCanvas = document.createElement('canvas')
-            const tempCtx = tempCanvas.getContext('2d')
-            if (!tempCtx) continue
-
-            const fontWeight = textAnnotation.fontWeight ?? 'normal'
-            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-            const metrics = tempCtx.measureText(textAnnotation.text)
-            bgWidth = metrics.width + padding * 2
-            bgHeight = fontSize + padding * 2
-          }
-
-          const bgX = pos.x - padding
-          const bgY = pos.y - padding
-
-          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
-            setHoveredAnnotationId(annotation.id)
-            chartContainerRef.current.style.cursor = 'text'
-            foundHover = true
-            break
-          }
-        }
-      }
-      if (!foundHover) {
-        setHoveredAnnotationId(null)
-        chartContainerRef.current.style.cursor = 'default'
-      }
-    }
+    const handleMouseMove = setupHoverHandlers(chartContainerRef, annotations as TextAnnotation[], creatingType, {
+      hoveredAnnotationId,
+      setHoveredAnnotationId
+    })
 
     const container = chartContainerRef.current
     if (container) {
@@ -261,105 +159,34 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         container.style.cursor = 'default'
       }
     }
-  }, [annotations, creatingType])
+  }, [annotations, creatingType, hoveredAnnotationId])
 
   // Handle mousedown to start drawing line/circle annotations
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!chartContainerRef.current || !creatingType || !enableCreation) return
-
-      // Ignore toolbar clicks
-      if ((e.target as HTMLElement).closest('.chart-toolbar')) {
-        return
-      }
-
-      // Don't process clicks that came from the editor
-      const target = e.target as HTMLElement
-      if (target.closest('[data-annotation-editor]')) {
-        return
-      }
-
-      // For line and circle annotations, start drag mode
-      if (creatingType === 'line' || creatingType === 'circle') {
-        const rect = chartContainerRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
-
-        isDraggingRef.current = true
-        setIsDrawing(true)
-        drawingPointsRef.current = [{ x, y }]
-        e.preventDefault()
-        e.stopPropagation()
-      }
-      // For text and freehand, handle immediately on click (will be handled in click event)
+    const drawingState = {
+      isDrawing,
+      setIsDrawing,
+      drawingPointsRef,
+      setDrawingEndPoint,
+      isDraggingRef
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!chartContainerRef.current || !isDrawing || !isDraggingRef.current) return
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      // Update the second point for preview - use state to trigger re-render
-      setDrawingEndPoint({ x, y })
-
-      e.preventDefault()
-      e.stopPropagation()
+    const callbacks = {
+      onAnnotationCreate,
+      onAnnotationComplete,
+      onAnnotationsChange
     }
 
-    const handleMouseUp = (e: MouseEvent) => {
-      if (!chartContainerRef.current || !isDrawing || !isDraggingRef.current || !creatingType) return
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      // Finalize the annotation with start and end points
-      const startPoint = drawingPointsRef.current[0]
-      const endPoint = { x, y }
-
-      let newAnnotation: ChartAnnotation
-
-      if (creatingType === 'line') {
-        newAnnotation = {
-          id: `annotation-${Date.now()}`,
-          type: 'line',
-          color: DEFAULT_ANNOTATION_COLOR,
-          strokeWidth: DEFAULT_STROKE_WIDTH,
-          start: startPoint,
-          end: endPoint
-        }
-      } else if (creatingType === 'circle') {
-        const radius = Math.sqrt(Math.pow(endPoint.x - startPoint.x, 2) + Math.pow(endPoint.y - startPoint.y, 2))
-        newAnnotation = {
-          id: `annotation-${Date.now()}`,
-          type: 'circle',
-          color: DEFAULT_ANNOTATION_COLOR,
-          strokeWidth: DEFAULT_STROKE_WIDTH,
-          center: startPoint,
-          radius
-        }
-      } else {
-        // Shouldn't happen, but fallback
-        newAnnotation = buildNewAnnotation(creatingType, startPoint.x, startPoint.y)
-      }
-
-      onAnnotationCreate?.(newAnnotation)
-      onAnnotationComplete?.(newAnnotation)
-      if (onAnnotationsChange) {
-        onAnnotationsChange([...annotations, newAnnotation])
-      }
-
-      // Reset drawing state
-      setIsDrawing(false)
-      setDrawingEndPoint(null)
-      isDraggingRef.current = false
-      drawingPointsRef.current = []
-
-      e.preventDefault()
-      e.stopPropagation()
-    }
+    const handleMouseDown = createMouseDownHandler(chartContainerRef, creatingType, enableCreation, drawingState)
+    const handleMouseMove = createMouseMoveHandler(chartContainerRef, drawingState)
+    const handleMouseUp = createMouseUpHandler(
+      chartContainerRef,
+      creatingType,
+      annotations,
+      drawingState,
+      callbacks,
+      buildNewAnnotation
+    )
 
     const container = chartContainerRef.current
     if (container) {
@@ -375,7 +202,6 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     }
   }, [
     annotations,
-    buildNewAnnotation,
     creatingType,
     enableCreation,
     isDrawing,
@@ -386,85 +212,18 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
   // Handle clicks on annotations to select them
   useEffect(() => {
-    const handleChartClick = (e: MouseEvent) => {
-      if (!chartContainerRef.current) return
+    const selectionState = { selectedAnnotationId, setSelectedAnnotationId }
+    const callbacks = { onAnnotationCreate, onAnnotationComplete, onAnnotationsChange }
 
-      // Don't process clicks that came from the editor
-      const target = e.target as HTMLElement
-      if (target.closest('[data-annotation-editor]')) {
-        return
-      }
-
-      // Ignore toolbar clicks so we only create on a chart click
-      if ((e.target as HTMLElement).closest('.chart-toolbar')) {
-        return
-      }
-
-      // Creation mode: create annotation for text and freehand (single click types)
-      if (creatingType && enableCreation && (creatingType === 'text' || creatingType === 'freehand')) {
-        const rect = chartContainerRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
-
-        const newAnnotation = buildNewAnnotation(creatingType, x, y)
-        onAnnotationCreate?.(newAnnotation)
-        onAnnotationComplete?.(newAnnotation)
-        if (onAnnotationsChange) {
-          onAnnotationsChange([...annotations, newAnnotation])
-        }
-        return
-      }
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      // Check if clicking on a text annotation
-      for (const annotation of annotations) {
-        if (annotation.type === 'text') {
-          const textAnnotation = annotation as TextAnnotation
-          const pos = textAnnotation.position
-          const fontSize = textAnnotation.fontSize ?? 14
-          const padding = textAnnotation.padding ?? 8
-
-          // Use stored dimensions if available, otherwise calculate from text
-          const storedWidth = textAnnotation.metadata?.width
-          const storedHeight = textAnnotation.metadata?.height
-
-          let bgWidth: number
-          let bgHeight: number
-
-          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
-            // Use stored dimensions
-            bgWidth = storedWidth
-            bgHeight = storedHeight
-          } else {
-            // Calculate from text
-            const tempCanvas = document.createElement('canvas')
-            const tempCtx = tempCanvas.getContext('2d')
-            if (!tempCtx) continue
-
-            const fontWeight = textAnnotation.fontWeight ?? 'normal'
-            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-            const metrics = tempCtx.measureText(textAnnotation.text)
-            bgWidth = metrics.width + padding * 2
-            bgHeight = fontSize + padding * 2
-          }
-
-          const bgX = pos.x - padding
-          const bgY = pos.y - padding
-
-          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
-            setSelectedAnnotationId(annotation.id)
-            e.stopPropagation()
-            return
-          }
-        }
-      }
-
-      // Clicked on empty space
-      setSelectedAnnotationId(null)
-    }
+    const handleChartClick = createClickHandler(
+      chartContainerRef,
+      annotations,
+      creatingType,
+      enableCreation,
+      selectionState,
+      callbacks,
+      buildNewAnnotation
+    )
 
     const container = chartContainerRef.current
     if (container) {
@@ -473,12 +232,12 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     }
   }, [
     annotations,
-    buildNewAnnotation,
     creatingType,
     enableCreation,
     onAnnotationComplete,
     onAnnotationCreate,
-    onAnnotationsChange
+    onAnnotationsChange,
+    selectedAnnotationId
   ])
 
   return selectedAnnotation && chartContainerRef.current

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { GripVertical, Bold, Palette } from 'lucide-react'
 import type { TextAnnotation } from '../annotations.types'
+import { useDebounce } from '../../../utils/useDebounce'
 import '../ChartToolbar.css'
 
 interface AnnotationEditorProps {
@@ -24,6 +25,8 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isResizing, setIsResizing] = useState(false)
+
+  const [localColor, setLocalColor] = useDebounce(annotation.color, 150, (color) => onUpdate({ color }))
 
   const fontSize = annotation.fontSize ?? 14
   const fontWeight = annotation.fontWeight ?? 'normal'
@@ -205,7 +208,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
   }
 
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ color: e.target.value })
+    setLocalColor(e.target.value)
   }
 
   // Position editor so text box aligns with annotation position
@@ -273,7 +276,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
         <div style={{ position: 'relative' }}>
           <input
             type="color"
-            value={annotation.color}
+            value={localColor}
             onChange={handleColorChange}
             style={{
               position: 'absolute',
@@ -287,7 +290,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
           />
           <button className="chart-toolbar-button" title="Color">
             <span className="chart-toolbar-button-icon">
-              <Palette size={16} style={{ color: annotation.color }} />
+              <Palette size={16} style={{ color: localColor }} />
             </span>
           </button>
         </div>
@@ -313,7 +316,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             borderRadius: '4px',
             outline: 'none',
-            padding: '0px 8px 8px 8px',
+            padding: '1px 8px 8px 7px',
             fontSize: `${fontSize}px`,
             fontWeight,
             color: annotation.color,

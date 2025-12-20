@@ -13,13 +13,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24' # Use your desired Node.js version
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       - uses: pnpm/action-setup@v4
         with:
           version: 10
       - name: Install dependencies and build
-        run: pnpm i && pnpm build:charts # Optional: run your build script if needed
+        run: pnpm i && pnpm build:charts
       - name: Publish package on NPM
         run: pnpm publish:charts
         env:

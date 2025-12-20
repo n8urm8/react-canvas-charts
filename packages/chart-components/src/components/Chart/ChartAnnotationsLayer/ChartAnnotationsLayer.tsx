@@ -1,20 +1,28 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
+import React, { useCallback, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { LayerOrder, useChartLayer, type ChartLayerRenderer } from '../ChartSurface'
-import type { ChartAnnotation, AnnotationCoordinate, AnnotationType, TextAnnotation } from '../annotations.types'
+import { useChartSurface, ChartOverlayPortal } from '../ChartSurface'
+import type {
+  ChartAnnotation,
+  AnnotationCoordinate,
+  AnnotationType,
+  TextAnnotation,
+  LineAnnotation,
+  CircleAnnotation,
+  FreehandAnnotation
+} from '../annotations.types'
 import { toPixelSpace } from './utils'
 import { renderTextAnnotation } from './renderTextAnnotation'
 import { renderLineAnnotation } from './renderLineAnnotation'
 import { renderCircleAnnotation } from './renderCircleAnnotation'
 import { renderFreehandAnnotation } from './renderFreehandAnnotation'
 import { AnnotationEditor } from './AnnotationEditor'
-
-const DEFAULT_ANNOTATION_COLOR = '#ff6b6b'
-const DEFAULT_STROKE_WIDTH = 2
-const DEFAULT_TEXT = 'New Text'
-const DEFAULT_FONT_SIZE = 14
-const DEFAULT_LINE_LENGTH = 100
-const DEFAULT_CIRCLE_RADIUS = 30
+import { GeometricAnnotationEditor } from './GeometricAnnotationEditor'
+import { GeometricAnnotationToolbar } from './GeometricAnnotationToolbar'
+import { buildNewAnnotation } from './helpers/annotationHelpers'
+import { setupHoverHandlers } from './helpers/hoverHandlers'
+import { createMouseDownHandler, createMouseMoveHandler, createMouseUpHandler } from './helpers/drawingHandlers'
+import { createClickHandler } from './helpers/clickHandlers'
+import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper'
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */
@@ -39,17 +47,21 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   onAnnotationComplete,
   enableCreation = true
 }) => {
-  const layerOptions = useMemo(() => ({ order: LayerOrder.overlays + 5 }), [])
-  const [isDrawing] = useState(false)
+  const chartSurface = useChartSurface()
+  const [isDrawing, setIsDrawing] = useState(false)
   const drawingPointsRef = useRef<AnnotationCoordinate[]>([])
+  const [drawingEndPoint, setDrawingEndPoint] = useState<AnnotationCoordinate | null>(null)
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null)
+  const [hoveredGeometricAnnotationId, setHoveredGeometricAnnotationId] = useState<string | null>(null)
+  const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
+  const redrawRef = useRef<(() => void) | null>(null)
 
-  // Get chart container element
+  // Get chart container element for portals
   useEffect(() => {
     const findChartContainer = () => {
-      // Find the chart surface container
       const chartElement = document.querySelector('.chart-surface-container')
       if (chartElement) {
         chartContainerRef.current = chartElement as HTMLDivElement
@@ -58,8 +70,19 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     findChartContainer()
   }, [])
 
-  const draw = useCallback<ChartLayerRenderer>(
-    (context, helpers) => {
+  // Trigger canvas redraw when annotations change
+  useEffect(() => {
+    redrawRef.current?.()
+  }, [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint])
+
+  const draw = useCallback(
+    (context: CanvasRenderingContext2D) => {
+      // Get helpers from chart surface context
+      const helpers = {
+        getXPosition: chartSurface.getXPosition,
+        getYPosition: chartSurface.getYPosition
+      }
+
       // Render all annotations
       annotations.forEach((annotation) => {
         switch (annotation.type) {
@@ -87,6 +110,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       // Render temporary annotation during creation
       if (isDrawing && drawingPointsRef.current.length > 0 && creatingType) {
         const points = drawingPointsRef.current
+        const endPoint = drawingEndPoint || points[0]
         context.save()
         context.strokeStyle = '#3b82f6'
         context.lineWidth = 2
@@ -94,14 +118,14 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
         if (creatingType === 'line' && points.length >= 1) {
           const start = toPixelSpace(points[0], helpers.getXPosition, helpers.getYPosition)
-          const end = points.length > 1 ? toPixelSpace(points[1], helpers.getXPosition, helpers.getYPosition) : start
+          const end = toPixelSpace(endPoint, helpers.getXPosition, helpers.getYPosition)
           context.beginPath()
           context.moveTo(start.x, start.y)
           context.lineTo(end.x, end.y)
           context.stroke()
         } else if (creatingType === 'circle' && points.length >= 1) {
           const center = toPixelSpace(points[0], helpers.getXPosition, helpers.getYPosition)
-          const end = points.length > 1 ? toPixelSpace(points[1], helpers.getXPosition, helpers.getYPosition) : center
+          const end = toPixelSpace(endPoint, helpers.getXPosition, helpers.getYPosition)
           const radius = Math.sqrt(Math.pow(end.x - center.x, 2) + Math.pow(end.y - center.y, 2))
           context.beginPath()
           context.arc(center.x, center.y, radius, 0, 2 * Math.PI)
@@ -119,54 +143,18 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         context.restore()
       }
     },
-    [annotations, creatingType, isDrawing, hoveredAnnotationId]
+    [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint, creatingType, chartSurface]
   )
-
-  useChartLayer(draw, layerOptions)
 
   const selectedAnnotation = selectedAnnotationId
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
     : undefined
 
-  const buildNewAnnotation = useCallback((type: AnnotationType, x: number, y: number): ChartAnnotation => {
-    const baseId = `annotation-${Date.now()}`
-    const baseProps = {
-      id: baseId,
-      color: DEFAULT_ANNOTATION_COLOR,
-      strokeWidth: DEFAULT_STROKE_WIDTH
-    }
-
-    switch (type) {
-      case 'text':
-        return {
-          ...baseProps,
-          type: 'text',
-          position: { x, y },
-          text: DEFAULT_TEXT,
-          fontSize: DEFAULT_FONT_SIZE
-        }
-      case 'line':
-        return {
-          ...baseProps,
-          type: 'line',
-          start: { x, y },
-          end: { x: x + DEFAULT_LINE_LENGTH, y }
-        }
-      case 'circle':
-        return {
-          ...baseProps,
-          type: 'circle',
-          center: { x, y },
-          radius: DEFAULT_CIRCLE_RADIUS
-        }
-      case 'freehand':
-        return {
-          ...baseProps,
-          type: 'freehand',
-          points: [{ x, y }]
-        }
-    }
-  }, [])
+  const selectedGeometricAnnotation = selectedAnnotationId
+    ? (annotations.find(
+        (a) => a.id === selectedAnnotationId && (a.type === 'line' || a.type === 'circle' || a.type === 'freehand')
+      ) as LineAnnotation | CircleAnnotation | FreehandAnnotation | undefined)
+    : undefined
 
   const handleUpdateAnnotation = useCallback(
     (updates: Partial<TextAnnotation>) => {
@@ -180,75 +168,44 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     [selectedAnnotationId, annotations, onAnnotationsChange]
   )
 
+  const handleUpdateGeometricAnnotation = useCallback(
+    (updates: Partial<LineAnnotation | CircleAnnotation | FreehandAnnotation>) => {
+      if (!selectedAnnotationId || !onAnnotationsChange) return
+
+      const updatedAnnotations = annotations.map((a) =>
+        a.id === selectedAnnotationId ? ({ ...a, ...updates } as ChartAnnotation) : a
+      )
+      onAnnotationsChange(updatedAnnotations)
+    },
+    [selectedAnnotationId, annotations, onAnnotationsChange]
+  )
+
+  const handleDeleteGeometricAnnotation = useCallback(() => {
+    if (!selectedAnnotationId || !onAnnotationsChange) return
+
+    const updatedAnnotations = annotations.filter((a) => a.id !== selectedAnnotationId)
+    onAnnotationsChange(updatedAnnotations)
+    setSelectedAnnotationId(null)
+  }, [selectedAnnotationId, annotations, onAnnotationsChange])
+
   const handleCloseEditor = useCallback(() => {
     setSelectedAnnotationId(null)
   }, [])
 
   // Handle hover over annotations for cursor and hover effect
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!chartContainerRef.current) return
-
-      if (creatingType) {
-        chartContainerRef.current.style.cursor = creatingType === 'text' ? 'text' : 'crosshair'
-        setHoveredAnnotationId(null)
-        return
-      }
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      let foundHover = false
-
-      // Check if hovering over a text annotation
-      for (const annotation of annotations) {
-        if (annotation.type === 'text') {
-          const textAnnotation = annotation as TextAnnotation
-          const pos = textAnnotation.position
-          const fontSize = textAnnotation.fontSize ?? 14
-          const padding = textAnnotation.padding ?? 8
-
-          // Use stored dimensions if available, otherwise calculate from text
-          const storedWidth = textAnnotation.metadata?.width
-          const storedHeight = textAnnotation.metadata?.height
-
-          let bgWidth: number
-          let bgHeight: number
-
-          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
-            // Use stored dimensions
-            bgWidth = storedWidth
-            bgHeight = storedHeight
-          } else {
-            // Calculate from text
-            const tempCanvas = document.createElement('canvas')
-            const tempCtx = tempCanvas.getContext('2d')
-            if (!tempCtx) continue
-
-            const fontWeight = textAnnotation.fontWeight ?? 'normal'
-            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-            const metrics = tempCtx.measureText(textAnnotation.text)
-            bgWidth = metrics.width + padding * 2
-            bgHeight = fontSize + padding * 2
-          }
-
-          const bgX = pos.x - padding
-          const bgY = pos.y - padding
-
-          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
-            setHoveredAnnotationId(annotation.id)
-            chartContainerRef.current.style.cursor = 'text'
-            foundHover = true
-            break
-          }
-        }
-      }
-      if (!foundHover) {
-        setHoveredAnnotationId(null)
-        chartContainerRef.current.style.cursor = 'default'
-      }
-    }
+    const handleMouseMove = setupHoverHandlers(
+      chartContainerRef,
+      annotations,
+      creatingType,
+      {
+        hoveredAnnotationId,
+        setHoveredAnnotationId,
+        hoveredGeometricAnnotationId,
+        setHoveredGeometricAnnotationId
+      },
+      isDraggingAnnotation
+    )
 
     const container = chartContainerRef.current
     if (container) {
@@ -258,89 +215,71 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         container.style.cursor = 'default'
       }
     }
-  }, [annotations, creatingType])
+  }, [annotations, creatingType, hoveredAnnotationId, hoveredGeometricAnnotationId, isDraggingAnnotation])
+
+  // Handle mousedown to start drawing line/circle annotations
+  useEffect(() => {
+    const drawingState = {
+      isDrawing,
+      setIsDrawing,
+      drawingPointsRef,
+      setDrawingEndPoint,
+      isDraggingRef
+    }
+
+    const callbacks = {
+      onAnnotationCreate,
+      onAnnotationComplete,
+      onAnnotationsChange
+    }
+
+    const handleMouseDown = createMouseDownHandler(chartContainerRef, creatingType, enableCreation, drawingState)
+    const handleMouseMove = createMouseMoveHandler(chartContainerRef, drawingState, creatingType)
+    const handleMouseUp = createMouseUpHandler(
+      chartContainerRef,
+      creatingType,
+      annotations,
+      drawingState,
+      callbacks,
+      buildNewAnnotation
+    )
+
+    const container = chartContainerRef.current
+    if (container) {
+      // Use capture phase to intercept before ChartSurface handlers
+      container.addEventListener('mousedown', handleMouseDown, true)
+      document.addEventListener('mousemove', handleMouseMove, true)
+      document.addEventListener('mouseup', handleMouseUp, true)
+      return () => {
+        container.removeEventListener('mousedown', handleMouseDown, true)
+        document.removeEventListener('mousemove', handleMouseMove, true)
+        document.removeEventListener('mouseup', handleMouseUp, true)
+      }
+    }
+  }, [
+    annotations,
+    creatingType,
+    enableCreation,
+    isDrawing,
+    onAnnotationComplete,
+    onAnnotationCreate,
+    onAnnotationsChange
+  ])
 
   // Handle clicks on annotations to select them
   useEffect(() => {
-    const handleChartClick = (e: MouseEvent) => {
-      if (!chartContainerRef.current) return
+    const selectionState = { selectedAnnotationId, setSelectedAnnotationId }
+    const callbacks = { onAnnotationCreate, onAnnotationComplete, onAnnotationsChange }
 
-      // Don't process clicks that came from the editor
-      const target = e.target as HTMLElement
-      if (target.closest('[data-annotation-editor]')) {
-        return
-      }
-
-      // Ignore toolbar clicks so we only create on a chart click
-      if ((e.target as HTMLElement).closest('.chart-toolbar')) {
-        return
-      }
-
-      // Creation mode: create annotation and exit
-      if (creatingType && enableCreation) {
-        const rect = chartContainerRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
-
-        const newAnnotation = buildNewAnnotation(creatingType, x, y)
-        onAnnotationCreate?.(newAnnotation)
-        onAnnotationComplete?.(newAnnotation)
-        if (onAnnotationsChange) {
-          onAnnotationsChange([...annotations, newAnnotation])
-        }
-        return
-      }
-
-      const rect = chartContainerRef.current.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-
-      // Check if clicking on a text annotation
-      for (const annotation of annotations) {
-        if (annotation.type === 'text') {
-          const textAnnotation = annotation as TextAnnotation
-          const pos = textAnnotation.position
-          const fontSize = textAnnotation.fontSize ?? 14
-          const padding = textAnnotation.padding ?? 8
-
-          // Use stored dimensions if available, otherwise calculate from text
-          const storedWidth = textAnnotation.metadata?.width
-          const storedHeight = textAnnotation.metadata?.height
-
-          let bgWidth: number
-          let bgHeight: number
-
-          if (typeof storedWidth === 'number' && typeof storedHeight === 'number') {
-            // Use stored dimensions
-            bgWidth = storedWidth
-            bgHeight = storedHeight
-          } else {
-            // Calculate from text
-            const tempCanvas = document.createElement('canvas')
-            const tempCtx = tempCanvas.getContext('2d')
-            if (!tempCtx) continue
-
-            const fontWeight = textAnnotation.fontWeight ?? 'normal'
-            tempCtx.font = `${fontWeight} ${fontSize}px sans-serif`
-            const metrics = tempCtx.measureText(textAnnotation.text)
-            bgWidth = metrics.width + padding * 2
-            bgHeight = fontSize + padding * 2
-          }
-
-          const bgX = pos.x - padding
-          const bgY = pos.y - padding
-
-          if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
-            setSelectedAnnotationId(annotation.id)
-            e.stopPropagation()
-            return
-          }
-        }
-      }
-
-      // Clicked on empty space
-      setSelectedAnnotationId(null)
-    }
+    const handleChartClick = createClickHandler(
+      chartContainerRef,
+      annotations,
+      creatingType,
+      enableCreation,
+      selectionState,
+      callbacks,
+      buildNewAnnotation
+    )
 
     const container = chartContainerRef.current
     if (container) {
@@ -349,23 +288,86 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     }
   }, [
     annotations,
-    buildNewAnnotation,
     creatingType,
     enableCreation,
     onAnnotationComplete,
     onAnnotationCreate,
-    onAnnotationsChange
+    onAnnotationsChange,
+    selectedAnnotationId
   ])
 
-  return selectedAnnotation && chartContainerRef.current
-    ? createPortal(
-        <AnnotationEditor
-          annotation={selectedAnnotation}
-          onUpdate={handleUpdateAnnotation}
-          onClose={handleCloseEditor}
-          chartContainerRef={chartContainerRef.current}
-        />,
-        chartContainerRef.current
-      )
-    : null
+  return (
+    <>
+      {/* Dedicated canvas for annotations - completely independent of base layer */}
+      <ChartOverlayPortal>
+        <CanvasWrapper
+          width={chartSurface.canvasSize.width}
+          height={chartSurface.canvasSize.height}
+          className="chart-annotations-layer"
+          onDraw={draw}
+          debugLabel="annotations"
+          canvasStyle={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none',
+            zIndex: 10
+          }}
+          redrawOnPointerEvents={false}
+          onRegisterRedraw={(fn) => (redrawRef.current = fn)}
+        />
+      </ChartOverlayPortal>
+      {chartContainerRef.current &&
+        selectedAnnotation &&
+        createPortal(
+          <AnnotationEditor
+            annotation={selectedAnnotation}
+            onUpdate={handleUpdateAnnotation}
+            onClose={handleCloseEditor}
+            chartContainerRef={chartContainerRef.current}
+          />,
+          chartContainerRef.current
+        )}
+      {chartContainerRef.current && selectedGeometricAnnotation && (
+        <>
+          {hoveredGeometricAnnotationId === selectedAnnotationId &&
+            createPortal(
+              <GeometricAnnotationEditor
+                annotation={selectedGeometricAnnotation}
+                onUpdate={handleUpdateGeometricAnnotation}
+                onClose={() => setHoveredGeometricAnnotationId(null)}
+                chartContainerRef={chartContainerRef.current}
+                onDragStart={() => setIsDraggingAnnotation(true)}
+                onDragEnd={() => setIsDraggingAnnotation(false)}
+              />,
+              chartContainerRef.current
+            )}
+          {createPortal(
+            <GeometricAnnotationToolbar
+              annotation={selectedGeometricAnnotation}
+              onUpdate={handleUpdateGeometricAnnotation}
+              onDelete={handleDeleteGeometricAnnotation}
+              position={
+                selectedGeometricAnnotation.type === 'line'
+                  ? {
+                      x: (selectedGeometricAnnotation.start.x + selectedGeometricAnnotation.end.x) / 2,
+                      y: Math.min(selectedGeometricAnnotation.start.y, selectedGeometricAnnotation.end.y)
+                    }
+                  : selectedGeometricAnnotation.type === 'circle'
+                    ? {
+                        x: selectedGeometricAnnotation.center.x,
+                        y: selectedGeometricAnnotation.center.y - selectedGeometricAnnotation.radius
+                      }
+                    : {
+                        x: Math.min(...selectedGeometricAnnotation.points.map((p) => p.x)),
+                        y: Math.min(...selectedGeometricAnnotation.points.map((p) => p.y))
+                      }
+              }
+            />,
+            chartContainerRef.current
+          )}
+        </>
+      )}
+    </>
+  )
 }

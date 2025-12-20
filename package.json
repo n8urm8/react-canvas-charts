@@ -8,10 +8,14 @@
     "build:charts": "pnpm --filter react-canvas-charts build",
     "build:charts:watch": "pnpm --filter react-canvas-charts build:dev",
     "build:demo": "pnpm --filter charts-demo build",
-    "dev": "pnpm --filter charts-demo dev",
+    "dev": "concurrently \"pnpm --filter charts-demo dev\" \"pnpm --filter react-canvas-charts build:dev\"",
     "build:dev": "pnpm --filter react-canvas-charts build:dev",
     "lint": "pnpm -r lint",
     "preview": "pnpm --filter charts-demo preview",
     "publish:charts": "pnpm --filter react-canvas-charts publish --no-git-checks"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
+

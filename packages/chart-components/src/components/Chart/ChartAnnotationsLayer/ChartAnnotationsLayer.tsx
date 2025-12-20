@@ -17,6 +17,7 @@ import { renderCircleAnnotation } from './renderCircleAnnotation'
 import { renderFreehandAnnotation } from './renderFreehandAnnotation'
 import { AnnotationEditor } from './AnnotationEditor'
 import { GeometricAnnotationEditor } from './GeometricAnnotationEditor'
+import { GeometricAnnotationToolbar } from './GeometricAnnotationToolbar'
 import { buildNewAnnotation } from './helpers/annotationHelpers'
 import { setupHoverHandlers } from './helpers/hoverHandlers'
 import { createMouseDownHandler, createMouseMoveHandler, createMouseUpHandler } from './helpers/drawingHandlers'
@@ -56,6 +57,19 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const isDraggingRef = useRef(false)
 
+  // Use refs to avoid triggering layer redraws when annotations change
+  const annotationsRef = useRef(annotations)
+  const hoveredAnnotationIdRef = useRef(hoveredAnnotationId)
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    annotationsRef.current = annotations
+  }, [annotations])
+
+  useEffect(() => {
+    hoveredAnnotationIdRef.current = hoveredAnnotationId
+  }, [hoveredAnnotationId])
+
   // Get chart container element
   useEffect(() => {
     const findChartContainer = () => {
@@ -70,8 +84,8 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
   const draw = useCallback<ChartLayerRenderer>(
     (context, helpers) => {
-      // Render all annotations
-      annotations.forEach((annotation) => {
+      // Render all annotations (use ref to avoid triggering redraws)
+      annotationsRef.current.forEach((annotation) => {
         switch (annotation.type) {
           case 'text':
             renderTextAnnotation(
@@ -79,7 +93,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
               annotation,
               helpers.getXPosition,
               helpers.getYPosition,
-              annotation.id === hoveredAnnotationId
+              annotation.id === hoveredAnnotationIdRef.current
             )
             break
           case 'line':
@@ -130,7 +144,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         context.restore()
       }
     },
-    [annotations, creatingType, isDrawing, hoveredAnnotationId, drawingEndPoint]
+    [creatingType, isDrawing, drawingEndPoint]
   )
 
   useChartLayer(draw, layerOptions)
@@ -139,10 +153,9 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
     : undefined
 
-  const hoveredGeometricAnnotation = hoveredGeometricAnnotationId
+  const selectedGeometricAnnotation = selectedAnnotationId
     ? (annotations.find(
-        (a) =>
-          a.id === hoveredGeometricAnnotationId && (a.type === 'line' || a.type === 'circle' || a.type === 'freehand')
+        (a) => a.id === selectedAnnotationId && (a.type === 'line' || a.type === 'circle' || a.type === 'freehand')
       ) as LineAnnotation | CircleAnnotation | FreehandAnnotation | undefined)
     : undefined
 
@@ -160,15 +173,23 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
   const handleUpdateGeometricAnnotation = useCallback(
     (updates: Partial<LineAnnotation | CircleAnnotation | FreehandAnnotation>) => {
-      if (!hoveredGeometricAnnotationId || !onAnnotationsChange) return
+      if (!selectedAnnotationId || !onAnnotationsChange) return
 
       const updatedAnnotations = annotations.map((a) =>
-        a.id === hoveredGeometricAnnotationId ? ({ ...a, ...updates } as ChartAnnotation) : a
+        a.id === selectedAnnotationId ? ({ ...a, ...updates } as ChartAnnotation) : a
       )
       onAnnotationsChange(updatedAnnotations)
     },
-    [hoveredGeometricAnnotationId, annotations, onAnnotationsChange]
+    [selectedAnnotationId, annotations, onAnnotationsChange]
   )
+
+  const handleDeleteGeometricAnnotation = useCallback(() => {
+    if (!selectedAnnotationId || !onAnnotationsChange) return
+
+    const updatedAnnotations = annotations.filter((a) => a.id !== selectedAnnotationId)
+    onAnnotationsChange(updatedAnnotations)
+    setSelectedAnnotationId(null)
+  }, [selectedAnnotationId, annotations, onAnnotationsChange])
 
   const handleCloseEditor = useCallback(() => {
     setSelectedAnnotationId(null)
@@ -290,18 +311,46 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           />,
           chartContainerRef.current
         )}
-      {hoveredGeometricAnnotation &&
-        createPortal(
-          <GeometricAnnotationEditor
-            annotation={hoveredGeometricAnnotation}
-            onUpdate={handleUpdateGeometricAnnotation}
-            onClose={() => setHoveredGeometricAnnotationId(null)}
-            chartContainerRef={chartContainerRef.current}
-            onDragStart={() => setIsDraggingAnnotation(true)}
-            onDragEnd={() => setIsDraggingAnnotation(false)}
-          />,
-          chartContainerRef.current
-        )}
+      {selectedGeometricAnnotation && (
+        <>
+          {hoveredGeometricAnnotationId === selectedAnnotationId &&
+            createPortal(
+              <GeometricAnnotationEditor
+                annotation={selectedGeometricAnnotation}
+                onUpdate={handleUpdateGeometricAnnotation}
+                onClose={() => setHoveredGeometricAnnotationId(null)}
+                chartContainerRef={chartContainerRef.current}
+                onDragStart={() => setIsDraggingAnnotation(true)}
+                onDragEnd={() => setIsDraggingAnnotation(false)}
+              />,
+              chartContainerRef.current
+            )}
+          {createPortal(
+            <GeometricAnnotationToolbar
+              annotation={selectedGeometricAnnotation}
+              onUpdate={handleUpdateGeometricAnnotation}
+              onDelete={handleDeleteGeometricAnnotation}
+              position={
+                selectedGeometricAnnotation.type === 'line'
+                  ? {
+                      x: (selectedGeometricAnnotation.start.x + selectedGeometricAnnotation.end.x) / 2,
+                      y: Math.min(selectedGeometricAnnotation.start.y, selectedGeometricAnnotation.end.y)
+                    }
+                  : selectedGeometricAnnotation.type === 'circle'
+                    ? {
+                        x: selectedGeometricAnnotation.center.x,
+                        y: selectedGeometricAnnotation.center.y - selectedGeometricAnnotation.radius
+                      }
+                    : {
+                        x: Math.min(...selectedGeometricAnnotation.points.map((p) => p.x)),
+                        y: Math.min(...selectedGeometricAnnotation.points.map((p) => p.y))
+                      }
+              }
+            />,
+            chartContainerRef.current
+          )}
+        </>
+      )}
     </>
   ) : null
 }

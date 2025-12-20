@@ -178,7 +178,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     }
 
     const handleMouseDown = createMouseDownHandler(chartContainerRef, creatingType, enableCreation, drawingState)
-    const handleMouseMove = createMouseMoveHandler(chartContainerRef, drawingState)
+    const handleMouseMove = createMouseMoveHandler(chartContainerRef, drawingState, creatingType)
     const handleMouseUp = createMouseUpHandler(
       chartContainerRef,
       creatingType,

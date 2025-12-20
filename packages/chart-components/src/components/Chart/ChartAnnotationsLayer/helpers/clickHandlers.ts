@@ -34,8 +34,8 @@ export function createClickHandler(
       return
     }
 
-    // Creation mode: create annotation for text and freehand (single click types)
-    if (creatingType && enableCreation && (creatingType === 'text' || creatingType === 'freehand')) {
+    // Creation mode: create annotation for text (single click type)
+    if (creatingType && enableCreation && creatingType === 'text') {
       const rect = chartContainerRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top

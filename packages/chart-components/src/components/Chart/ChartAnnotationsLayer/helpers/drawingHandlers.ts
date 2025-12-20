@@ -35,8 +35,8 @@ export function createMouseDownHandler(
       return
     }
 
-    // For line and circle annotations, start drag mode
-    if (creatingType === 'line' || creatingType === 'circle') {
+    // For line, circle, and freehand annotations, start drag mode
+    if (creatingType === 'line' || creatingType === 'circle' || creatingType === 'freehand') {
       const rect = chartContainerRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
@@ -47,13 +47,14 @@ export function createMouseDownHandler(
       e.preventDefault()
       e.stopPropagation()
     }
-    // For text and freehand, handle immediately on click (will be handled in click event)
+    // For text, handle immediately on click (will be handled in click event)
   }
 }
 
 export function createMouseMoveHandler(
   chartContainerRef: React.RefObject<HTMLDivElement | null>,
-  drawingState: DrawingState
+  drawingState: DrawingState,
+  creatingType: AnnotationType | undefined
 ) {
   return (e: MouseEvent) => {
     if (!chartContainerRef.current || !drawingState.isDrawing || !drawingState.isDraggingRef.current) return
@@ -62,8 +63,16 @@ export function createMouseMoveHandler(
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    // Update the second point for preview - use state to trigger re-render
-    drawingState.setDrawingEndPoint({ x, y })
+    // For freehand, collect all points along the path
+    if (creatingType === 'freehand') {
+      const currentPoints = drawingState.drawingPointsRef.current || []
+      drawingState.drawingPointsRef.current = [...currentPoints, { x, y }]
+      // Use setDrawingEndPoint to trigger re-render for preview
+      drawingState.setDrawingEndPoint({ x, y })
+    } else {
+      // For line and circle, just update the end point for preview
+      drawingState.setDrawingEndPoint({ x, y })
+    }
 
     e.preventDefault()
     e.stopPropagation()
@@ -110,6 +119,16 @@ export function createMouseUpHandler(
         strokeWidth: DEFAULT_STROKE_WIDTH,
         center: startPoint,
         radius
+      }
+    } else if (creatingType === 'freehand') {
+      // Use all collected points from the drawing
+      const points = drawingState.drawingPointsRef.current || []
+      newAnnotation = {
+        id: `annotation-${Date.now()}`,
+        type: 'freehand',
+        color: DEFAULT_ANNOTATION_COLOR,
+        strokeWidth: DEFAULT_STROKE_WIDTH,
+        points
       }
     } else {
       // Shouldn't happen, but fallback

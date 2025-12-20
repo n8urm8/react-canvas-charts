@@ -1,13 +1,22 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { LayerOrder, useChartLayer, type ChartLayerRenderer } from '../ChartSurface'
-import type { ChartAnnotation, AnnotationCoordinate, AnnotationType, TextAnnotation } from '../annotations.types'
+import type {
+  ChartAnnotation,
+  AnnotationCoordinate,
+  AnnotationType,
+  TextAnnotation,
+  LineAnnotation,
+  CircleAnnotation,
+  FreehandAnnotation
+} from '../annotations.types'
 import { toPixelSpace } from './utils'
 import { renderTextAnnotation } from './renderTextAnnotation'
 import { renderLineAnnotation } from './renderLineAnnotation'
 import { renderCircleAnnotation } from './renderCircleAnnotation'
 import { renderFreehandAnnotation } from './renderFreehandAnnotation'
 import { AnnotationEditor } from './AnnotationEditor'
+import { GeometricAnnotationEditor } from './GeometricAnnotationEditor'
 import { buildNewAnnotation } from './helpers/annotationHelpers'
 import { setupHoverHandlers } from './helpers/hoverHandlers'
 import { createMouseDownHandler, createMouseMoveHandler, createMouseUpHandler } from './helpers/drawingHandlers'
@@ -42,6 +51,8 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   const [drawingEndPoint, setDrawingEndPoint] = useState<AnnotationCoordinate | null>(null)
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null)
+  const [hoveredGeometricAnnotationId, setHoveredGeometricAnnotationId] = useState<string | null>(null)
+  const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const isDraggingRef = useRef(false)
 
@@ -128,6 +139,13 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
     : undefined
 
+  const hoveredGeometricAnnotation = hoveredGeometricAnnotationId
+    ? (annotations.find(
+        (a) =>
+          a.id === hoveredGeometricAnnotationId && (a.type === 'line' || a.type === 'circle' || a.type === 'freehand')
+      ) as LineAnnotation | CircleAnnotation | FreehandAnnotation | undefined)
+    : undefined
+
   const handleUpdateAnnotation = useCallback(
     (updates: Partial<TextAnnotation>) => {
       if (!selectedAnnotationId || !onAnnotationsChange) return
@@ -140,16 +158,36 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     [selectedAnnotationId, annotations, onAnnotationsChange]
   )
 
+  const handleUpdateGeometricAnnotation = useCallback(
+    (updates: Partial<LineAnnotation | CircleAnnotation | FreehandAnnotation>) => {
+      if (!hoveredGeometricAnnotationId || !onAnnotationsChange) return
+
+      const updatedAnnotations = annotations.map((a) =>
+        a.id === hoveredGeometricAnnotationId ? ({ ...a, ...updates } as ChartAnnotation) : a
+      )
+      onAnnotationsChange(updatedAnnotations)
+    },
+    [hoveredGeometricAnnotationId, annotations, onAnnotationsChange]
+  )
+
   const handleCloseEditor = useCallback(() => {
     setSelectedAnnotationId(null)
   }, [])
 
   // Handle hover over annotations for cursor and hover effect
   useEffect(() => {
-    const handleMouseMove = setupHoverHandlers(chartContainerRef, annotations as TextAnnotation[], creatingType, {
-      hoveredAnnotationId,
-      setHoveredAnnotationId
-    })
+    const handleMouseMove = setupHoverHandlers(
+      chartContainerRef,
+      annotations,
+      creatingType,
+      {
+        hoveredAnnotationId,
+        setHoveredAnnotationId,
+        hoveredGeometricAnnotationId,
+        setHoveredGeometricAnnotationId
+      },
+      isDraggingAnnotation
+    )
 
     const container = chartContainerRef.current
     if (container) {
@@ -159,7 +197,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         container.style.cursor = 'default'
       }
     }
-  }, [annotations, creatingType, hoveredAnnotationId])
+  }, [annotations, creatingType, hoveredAnnotationId, hoveredGeometricAnnotationId, isDraggingAnnotation])
 
   // Handle mousedown to start drawing line/circle annotations
   useEffect(() => {
@@ -240,15 +278,30 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     selectedAnnotationId
   ])
 
-  return selectedAnnotation && chartContainerRef.current
-    ? createPortal(
-        <AnnotationEditor
-          annotation={selectedAnnotation}
-          onUpdate={handleUpdateAnnotation}
-          onClose={handleCloseEditor}
-          chartContainerRef={chartContainerRef.current}
-        />,
-        chartContainerRef.current
-      )
-    : null
+  return chartContainerRef.current ? (
+    <>
+      {selectedAnnotation &&
+        createPortal(
+          <AnnotationEditor
+            annotation={selectedAnnotation}
+            onUpdate={handleUpdateAnnotation}
+            onClose={handleCloseEditor}
+            chartContainerRef={chartContainerRef.current}
+          />,
+          chartContainerRef.current
+        )}
+      {hoveredGeometricAnnotation &&
+        createPortal(
+          <GeometricAnnotationEditor
+            annotation={hoveredGeometricAnnotation}
+            onUpdate={handleUpdateGeometricAnnotation}
+            onClose={() => setHoveredGeometricAnnotationId(null)}
+            chartContainerRef={chartContainerRef.current}
+            onDragStart={() => setIsDraggingAnnotation(true)}
+            onDragEnd={() => setIsDraggingAnnotation(false)}
+          />,
+          chartContainerRef.current
+        )}
+    </>
+  ) : null
 }

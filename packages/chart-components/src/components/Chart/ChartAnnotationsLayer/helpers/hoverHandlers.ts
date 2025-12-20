@@ -1,22 +1,37 @@
-import type { TextAnnotation, AnnotationType } from '../../annotations.types'
+import type {
+  ChartAnnotation,
+  TextAnnotation,
+  AnnotationType,
+  LineAnnotation,
+  CircleAnnotation,
+  FreehandAnnotation
+} from '../../annotations.types'
+import { checkLineHit, checkCircleHit, checkFreehandHit } from './hitDetection'
 
 export interface HoverState {
   hoveredAnnotationId: string | null
   setHoveredAnnotationId: (id: string | null) => void
+  hoveredGeometricAnnotationId: string | null
+  setHoveredGeometricAnnotationId: (id: string | null) => void
 }
 
 export function setupHoverHandlers(
   chartContainerRef: React.RefObject<HTMLDivElement | null>,
-  annotations: TextAnnotation[],
+  annotations: ChartAnnotation[],
   creatingType: AnnotationType | undefined,
-  hoverState: HoverState
+  hoverState: HoverState,
+  isDraggingAnnotation: boolean
 ) {
   return (e: MouseEvent) => {
     if (!chartContainerRef.current) return
 
+    // Don't update hover state while dragging an annotation
+    if (isDraggingAnnotation) return
+
     if (creatingType) {
       chartContainerRef.current.style.cursor = creatingType === 'text' ? 'text' : 'crosshair'
       hoverState.setHoveredAnnotationId(null)
+      hoverState.setHoveredGeometricAnnotationId(null)
       return
     }
 
@@ -26,7 +41,7 @@ export function setupHoverHandlers(
 
     let foundHover = false
 
-    // Check if hovering over a text annotation
+    // Check all annotations for hover
     for (const annotation of annotations) {
       if (annotation.type === 'text') {
         const textAnnotation = annotation as TextAnnotation
@@ -63,7 +78,35 @@ export function setupHoverHandlers(
 
         if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
           hoverState.setHoveredAnnotationId(annotation.id)
+          hoverState.setHoveredGeometricAnnotationId(null)
           chartContainerRef.current.style.cursor = 'text'
+          foundHover = true
+          break
+        }
+      } else if (annotation.type === 'line') {
+        const hitResult = checkLineHit(x, y, annotation as LineAnnotation)
+        if (hitResult) {
+          hoverState.setHoveredAnnotationId(null)
+          hoverState.setHoveredGeometricAnnotationId(annotation.id)
+          chartContainerRef.current.style.cursor = 'move'
+          foundHover = true
+          break
+        }
+      } else if (annotation.type === 'circle') {
+        const hitResult = checkCircleHit(x, y, annotation as CircleAnnotation)
+        if (hitResult) {
+          hoverState.setHoveredAnnotationId(null)
+          hoverState.setHoveredGeometricAnnotationId(annotation.id)
+          chartContainerRef.current.style.cursor = 'move'
+          foundHover = true
+          break
+        }
+      } else if (annotation.type === 'freehand') {
+        const hitResult = checkFreehandHit(x, y, annotation as FreehandAnnotation)
+        if (hitResult) {
+          hoverState.setHoveredAnnotationId(null)
+          hoverState.setHoveredGeometricAnnotationId(annotation.id)
+          chartContainerRef.current.style.cursor = 'move'
           foundHover = true
           break
         }
@@ -71,6 +114,7 @@ export function setupHoverHandlers(
     }
     if (!foundHover) {
       hoverState.setHoveredAnnotationId(null)
+      hoverState.setHoveredGeometricAnnotationId(null)
       chartContainerRef.current.style.cursor = 'default'
     }
   }

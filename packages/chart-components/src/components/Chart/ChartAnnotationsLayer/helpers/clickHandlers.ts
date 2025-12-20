@@ -1,4 +1,12 @@
-import type { ChartAnnotation, AnnotationType, TextAnnotation } from '../../annotations.types'
+import type {
+  ChartAnnotation,
+  AnnotationType,
+  TextAnnotation,
+  LineAnnotation,
+  CircleAnnotation,
+  FreehandAnnotation
+} from '../../annotations.types'
+import { checkLineHit, checkCircleHit, checkFreehandHit } from './hitDetection'
 
 export interface SelectionState {
   selectedAnnotationId: string | null
@@ -53,7 +61,7 @@ export function createClickHandler(
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    // Check if clicking on a text annotation
+    // Check all annotations for hits
     for (const annotation of annotations) {
       if (annotation.type === 'text') {
         const textAnnotation = annotation as TextAnnotation
@@ -89,6 +97,27 @@ export function createClickHandler(
         const bgY = pos.y - padding
 
         if (x >= bgX && x <= bgX + bgWidth && y >= bgY && y <= bgY + bgHeight) {
+          selectionState.setSelectedAnnotationId(annotation.id)
+          e.stopPropagation()
+          return
+        }
+      } else if (annotation.type === 'line') {
+        const hitResult = checkLineHit(x, y, annotation as LineAnnotation)
+        if (hitResult) {
+          selectionState.setSelectedAnnotationId(annotation.id)
+          e.stopPropagation()
+          return
+        }
+      } else if (annotation.type === 'circle') {
+        const hitResult = checkCircleHit(x, y, annotation as CircleAnnotation)
+        if (hitResult) {
+          selectionState.setSelectedAnnotationId(annotation.id)
+          e.stopPropagation()
+          return
+        }
+      } else if (annotation.type === 'freehand') {
+        const hitResult = checkFreehandHit(x, y, annotation as FreehandAnnotation)
+        if (hitResult) {
           selectionState.setSelectedAnnotationId(annotation.id)
           e.stopPropagation()
           return

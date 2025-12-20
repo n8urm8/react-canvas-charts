@@ -40,11 +40,13 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   enableCreation = true
 }) => {
   const layerOptions = useMemo(() => ({ order: LayerOrder.overlays + 5 }), [])
-  const [isDrawing] = useState(false)
+  const [isDrawing, setIsDrawing] = useState(false)
   const drawingPointsRef = useRef<AnnotationCoordinate[]>([])
+  const [drawingEndPoint, setDrawingEndPoint] = useState<AnnotationCoordinate | null>(null)
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null)
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
 
   // Get chart container element
   useEffect(() => {
@@ -87,6 +89,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       // Render temporary annotation during creation
       if (isDrawing && drawingPointsRef.current.length > 0 && creatingType) {
         const points = drawingPointsRef.current
+        const endPoint = drawingEndPoint || points[0]
         context.save()
         context.strokeStyle = '#3b82f6'
         context.lineWidth = 2
@@ -94,14 +97,14 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
 
         if (creatingType === 'line' && points.length >= 1) {
           const start = toPixelSpace(points[0], helpers.getXPosition, helpers.getYPosition)
-          const end = points.length > 1 ? toPixelSpace(points[1], helpers.getXPosition, helpers.getYPosition) : start
+          const end = toPixelSpace(endPoint, helpers.getXPosition, helpers.getYPosition)
           context.beginPath()
           context.moveTo(start.x, start.y)
           context.lineTo(end.x, end.y)
           context.stroke()
         } else if (creatingType === 'circle' && points.length >= 1) {
           const center = toPixelSpace(points[0], helpers.getXPosition, helpers.getYPosition)
-          const end = points.length > 1 ? toPixelSpace(points[1], helpers.getXPosition, helpers.getYPosition) : center
+          const end = toPixelSpace(endPoint, helpers.getXPosition, helpers.getYPosition)
           const radius = Math.sqrt(Math.pow(end.x - center.x, 2) + Math.pow(end.y - center.y, 2))
           context.beginPath()
           context.arc(center.x, center.y, radius, 0, 2 * Math.PI)
@@ -119,7 +122,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         context.restore()
       }
     },
-    [annotations, creatingType, isDrawing, hoveredAnnotationId]
+    [annotations, creatingType, isDrawing, hoveredAnnotationId, drawingEndPoint]
   )
 
   useChartLayer(draw, layerOptions)
@@ -260,6 +263,127 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     }
   }, [annotations, creatingType])
 
+  // Handle mousedown to start drawing line/circle annotations
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!chartContainerRef.current || !creatingType || !enableCreation) return
+
+      // Ignore toolbar clicks
+      if ((e.target as HTMLElement).closest('.chart-toolbar')) {
+        return
+      }
+
+      // Don't process clicks that came from the editor
+      const target = e.target as HTMLElement
+      if (target.closest('[data-annotation-editor]')) {
+        return
+      }
+
+      // For line and circle annotations, start drag mode
+      if (creatingType === 'line' || creatingType === 'circle') {
+        const rect = chartContainerRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+
+        isDraggingRef.current = true
+        setIsDrawing(true)
+        drawingPointsRef.current = [{ x, y }]
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      // For text and freehand, handle immediately on click (will be handled in click event)
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!chartContainerRef.current || !isDrawing || !isDraggingRef.current) return
+
+      const rect = chartContainerRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      // Update the second point for preview - use state to trigger re-render
+      setDrawingEndPoint({ x, y })
+
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!chartContainerRef.current || !isDrawing || !isDraggingRef.current || !creatingType) return
+
+      const rect = chartContainerRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      // Finalize the annotation with start and end points
+      const startPoint = drawingPointsRef.current[0]
+      const endPoint = { x, y }
+
+      let newAnnotation: ChartAnnotation
+
+      if (creatingType === 'line') {
+        newAnnotation = {
+          id: `annotation-${Date.now()}`,
+          type: 'line',
+          color: DEFAULT_ANNOTATION_COLOR,
+          strokeWidth: DEFAULT_STROKE_WIDTH,
+          start: startPoint,
+          end: endPoint
+        }
+      } else if (creatingType === 'circle') {
+        const radius = Math.sqrt(Math.pow(endPoint.x - startPoint.x, 2) + Math.pow(endPoint.y - startPoint.y, 2))
+        newAnnotation = {
+          id: `annotation-${Date.now()}`,
+          type: 'circle',
+          color: DEFAULT_ANNOTATION_COLOR,
+          strokeWidth: DEFAULT_STROKE_WIDTH,
+          center: startPoint,
+          radius
+        }
+      } else {
+        // Shouldn't happen, but fallback
+        newAnnotation = buildNewAnnotation(creatingType, startPoint.x, startPoint.y)
+      }
+
+      onAnnotationCreate?.(newAnnotation)
+      onAnnotationComplete?.(newAnnotation)
+      if (onAnnotationsChange) {
+        onAnnotationsChange([...annotations, newAnnotation])
+      }
+
+      // Reset drawing state
+      setIsDrawing(false)
+      setDrawingEndPoint(null)
+      isDraggingRef.current = false
+      drawingPointsRef.current = []
+
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
+    const container = chartContainerRef.current
+    if (container) {
+      // Use capture phase to intercept before ChartSurface handlers
+      container.addEventListener('mousedown', handleMouseDown, true)
+      document.addEventListener('mousemove', handleMouseMove, true)
+      document.addEventListener('mouseup', handleMouseUp, true)
+      return () => {
+        container.removeEventListener('mousedown', handleMouseDown, true)
+        document.removeEventListener('mousemove', handleMouseMove, true)
+        document.removeEventListener('mouseup', handleMouseUp, true)
+      }
+    }
+  }, [
+    annotations,
+    buildNewAnnotation,
+    creatingType,
+    enableCreation,
+    isDrawing,
+    onAnnotationComplete,
+    onAnnotationCreate,
+    onAnnotationsChange
+  ])
+
   // Handle clicks on annotations to select them
   useEffect(() => {
     const handleChartClick = (e: MouseEvent) => {
@@ -276,8 +400,8 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         return
       }
 
-      // Creation mode: create annotation and exit
-      if (creatingType && enableCreation) {
+      // Creation mode: create annotation for text and freehand (single click types)
+      if (creatingType && enableCreation && (creatingType === 'text' || creatingType === 'freehand')) {
         const rect = chartContainerRef.current.getBoundingClientRect()
         const x = e.clientX - rect.left
         const y = e.clientY - rect.top

@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
+import React, { useCallback, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { LayerOrder, useChartLayer, type ChartLayerRenderer } from '../ChartSurface'
+import { useChartSurface, ChartOverlayPortal } from '../ChartSurface'
 import type {
   ChartAnnotation,
   AnnotationCoordinate,
@@ -22,6 +22,7 @@ import { buildNewAnnotation } from './helpers/annotationHelpers'
 import { setupHoverHandlers } from './helpers/hoverHandlers'
 import { createMouseDownHandler, createMouseMoveHandler, createMouseUpHandler } from './helpers/drawingHandlers'
 import { createClickHandler } from './helpers/clickHandlers'
+import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper'
 
 export interface ChartAnnotationsLayerProps {
   /** Array of annotations to render */
@@ -46,7 +47,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   onAnnotationComplete,
   enableCreation = true
 }) => {
-  const layerOptions = useMemo(() => ({ order: LayerOrder.overlays + 5 }), [])
+  const chartSurface = useChartSurface()
   const [isDrawing, setIsDrawing] = useState(false)
   const drawingPointsRef = useRef<AnnotationCoordinate[]>([])
   const [drawingEndPoint, setDrawingEndPoint] = useState<AnnotationCoordinate | null>(null)
@@ -56,24 +57,11 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false)
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const isDraggingRef = useRef(false)
+  const redrawRef = useRef<(() => void) | null>(null)
 
-  // Use refs to avoid triggering layer redraws when annotations change
-  const annotationsRef = useRef(annotations)
-  const hoveredAnnotationIdRef = useRef(hoveredAnnotationId)
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    annotationsRef.current = annotations
-  }, [annotations])
-
-  useEffect(() => {
-    hoveredAnnotationIdRef.current = hoveredAnnotationId
-  }, [hoveredAnnotationId])
-
-  // Get chart container element
+  // Get chart container element for portals
   useEffect(() => {
     const findChartContainer = () => {
-      // Find the chart surface container
       const chartElement = document.querySelector('.chart-surface-container')
       if (chartElement) {
         chartContainerRef.current = chartElement as HTMLDivElement
@@ -82,10 +70,21 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     findChartContainer()
   }, [])
 
-  const draw = useCallback<ChartLayerRenderer>(
-    (context, helpers) => {
-      // Render all annotations (use ref to avoid triggering redraws)
-      annotationsRef.current.forEach((annotation) => {
+  // Trigger canvas redraw when annotations change
+  useEffect(() => {
+    redrawRef.current?.()
+  }, [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint])
+
+  const draw = useCallback(
+    (context: CanvasRenderingContext2D) => {
+      // Get helpers from chart surface context
+      const helpers = {
+        getXPosition: chartSurface.getXPosition,
+        getYPosition: chartSurface.getYPosition
+      }
+
+      // Render all annotations
+      annotations.forEach((annotation) => {
         switch (annotation.type) {
           case 'text':
             renderTextAnnotation(
@@ -93,7 +92,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
               annotation,
               helpers.getXPosition,
               helpers.getYPosition,
-              annotation.id === hoveredAnnotationIdRef.current
+              annotation.id === hoveredAnnotationId
             )
             break
           case 'line':
@@ -144,10 +143,8 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         context.restore()
       }
     },
-    [creatingType, isDrawing, drawingEndPoint]
+    [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint, creatingType, chartSurface]
   )
-
-  useChartLayer(draw, layerOptions)
 
   const selectedAnnotation = selectedAnnotationId
     ? (annotations.find((a) => a.id === selectedAnnotationId && a.type === 'text') as TextAnnotation | undefined)
@@ -299,9 +296,29 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     selectedAnnotationId
   ])
 
-  return chartContainerRef.current ? (
+  return (
     <>
-      {selectedAnnotation &&
+      {/* Dedicated canvas for annotations - completely independent of base layer */}
+      <ChartOverlayPortal>
+        <CanvasWrapper
+          width={chartSurface.canvasSize.width}
+          height={chartSurface.canvasSize.height}
+          className="chart-annotations-layer"
+          onDraw={draw}
+          debugLabel="annotations"
+          canvasStyle={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            pointerEvents: 'none',
+            zIndex: 10
+          }}
+          redrawOnPointerEvents={false}
+          onRegisterRedraw={(fn) => (redrawRef.current = fn)}
+        />
+      </ChartOverlayPortal>
+      {chartContainerRef.current &&
+        selectedAnnotation &&
         createPortal(
           <AnnotationEditor
             annotation={selectedAnnotation}
@@ -311,7 +328,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           />,
           chartContainerRef.current
         )}
-      {selectedGeometricAnnotation && (
+      {chartContainerRef.current && selectedGeometricAnnotation && (
         <>
           {hoveredGeometricAnnotationId === selectedAnnotationId &&
             createPortal(
@@ -352,5 +369,5 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         </>
       )}
     </>
-  ) : null
+  )
 }

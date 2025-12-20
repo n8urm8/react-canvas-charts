@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Palette, Trash2 } from 'lucide-react'
+import { Palette, Trash2, ArrowRight } from 'lucide-react'
 import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from '../annotations.types'
 import { useDebounce } from '../../../utils/useDebounce'
 import '../ChartToolbar.css'
@@ -37,6 +37,20 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
     [onUpdate]
   )
 
+  const handleArrowStartToggle = useCallback(() => {
+    if (annotation.type === 'line') {
+      onUpdate({ arrowStart: !annotation.arrowStart } as Partial<LineAnnotation>)
+    }
+  }, [annotation, onUpdate])
+
+  const handleArrowEndToggle = useCallback(() => {
+    if (annotation.type === 'line') {
+      onUpdate({ arrowEnd: !annotation.arrowEnd } as Partial<LineAnnotation>)
+    }
+  }, [annotation, onUpdate])
+
+  const isLineAnnotation = annotation.type === 'line'
+
   return (
     <div
       className="chart-toolbar"
@@ -70,6 +84,36 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
         <option value="6">6px</option>
         <option value="8">8px</option>
       </select>
+
+      {isLineAnnotation && (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleArrowStartToggle()
+            }}
+            className={`chart-toolbar-button ${(annotation as LineAnnotation).arrowStart ? 'active' : ''}`}
+            title="Arrow at start"
+            style={{ transform: 'scaleX(-1)' }}
+          >
+            <span className="chart-toolbar-button-icon">
+              <ArrowRight size={16} />
+            </span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleArrowEndToggle()
+            }}
+            className={`chart-toolbar-button ${(annotation as LineAnnotation).arrowEnd ? 'active' : ''}`}
+            title="Arrow at end"
+          >
+            <span className="chart-toolbar-button-icon">
+              <ArrowRight size={16} />
+            </span>
+          </button>
+        </>
+      )}
 
       <div style={{ position: 'relative' }}>
         <input

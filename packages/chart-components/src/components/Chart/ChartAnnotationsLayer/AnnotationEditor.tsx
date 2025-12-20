@@ -316,7 +316,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             borderRadius: '4px',
             outline: 'none',
-            padding: '0px 8px 8px 8px',
+            padding: '1px 8px 8px 7px',
             fontSize: `${fontSize}px`,
             fontWeight,
             color: annotation.color,

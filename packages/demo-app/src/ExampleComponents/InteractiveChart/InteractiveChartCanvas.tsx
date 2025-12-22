@@ -1,24 +1,23 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import {
-  ChartSurface,
+  ChartAnnotationsLayer,
+  ChartAreaSeries,
+  ChartCursorLayer,
   ChartGridLayer,
-  ChartXAxis,
-  ChartYAxis,
+  ChartLegend,
   ChartLineSeries,
   ChartPointSeries,
-  ChartCursorLayer,
-  ChartTooltipLayer,
-  ChartAreaSeries,
-  ChartValueLabels,
+  ChartSurface,
   ChartTitleLayer,
   ChartToolbar,
-  ChartLegend,
-  ChartOverlayPortal,
-  ChartAnnotationsLayer,
-  type ChartSelectionResult,
-  type ChartToolbarPosition,
+  ChartTooltipLayer,
+  ChartValueLabels,
+  ChartXAxis,
+  ChartYAxis,
+  type AnnotationType,
   type ChartAnnotation,
-  type AnnotationType
+  type ChartSelectionResult,
+  type ChartToolbarPosition
 } from 'react-canvas-charts'
 import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
@@ -303,19 +302,17 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         ) : null}
 
         {resolvedToolbarEnabled ? (
-          <ChartOverlayPortal>
-            <ChartToolbar
-              tools={resolvedToolbarTools}
-              activeToolIds={EMPTY_TOOL_IDS}
-              defaultActiveToolIds={toolbarConfig?.defaultActiveIds}
-              onToggle={handleToolbarToggle}
-              multiSelect={resolvedToolbarMultiSelect}
-              position={toolbarConfig?.position}
-              visibility={resolvedToolbarVisibility}
-              moveable={resolvedToolbarMoveable}
-              onPositionChange={resolvedToolbarMoveable ? handleToolbarPositionChange : undefined}
-            />
-          </ChartOverlayPortal>
+          <ChartToolbar
+            tools={resolvedToolbarTools}
+            activeToolIds={EMPTY_TOOL_IDS}
+            defaultActiveToolIds={toolbarConfig?.defaultActiveIds}
+            onToggle={handleToolbarToggle}
+            multiSelect={resolvedToolbarMultiSelect}
+            position={toolbarConfig?.position}
+            visibility={resolvedToolbarVisibility}
+            moveable={resolvedToolbarMoveable}
+            onPositionChange={resolvedToolbarMoveable ? handleToolbarPositionChange : undefined}
+          />
         ) : null}
       </ChartSurface>
     </div>

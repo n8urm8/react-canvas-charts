@@ -3,8 +3,8 @@ export const ChartSurfaceSection = () => {
     <section id="chart-surface" className="mb-12">
       <h2 className="text-3xl font-bold mb-6 border-b-2 border-gray-200 pb-2">ChartSurface</h2>
       <p className="text-gray-700 mb-4">
-        The foundational component that provides context and rendering infrastructure for all child chart
-        components. Manages canvas layers, data normalization, coordinate transformations, and event handling.
+        The foundational component that provides context and rendering infrastructure for all child chart components.
+        Manages canvas layers, data normalization, coordinate transformations, and event handling.
       </p>
 
       <div className="bg-gray-50 p-6 rounded-lg mb-4">

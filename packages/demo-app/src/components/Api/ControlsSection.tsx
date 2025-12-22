@@ -17,9 +17,7 @@ export function ControlsSection() {
             <dl className="space-y-3">
               <div>
                 <dt className="font-mono text-sm text-blue-600">placement?: ChartLegendPlacement</dt>
-                <dd className="text-gray-700 ml-4">
-                  Position using anchor (e.g., "top-right") or custom coordinates.
-                </dd>
+                <dd className="text-gray-700 ml-4">Position using anchor (e.g., "top-right") or custom coordinates.</dd>
               </div>
               <div>
                 <dt className="font-mono text-sm text-blue-600">items?: ChartLegendItem[]</dt>
@@ -69,9 +67,7 @@ export function ControlsSection() {
             <dl className="space-y-3">
               <div>
                 <dt className="font-mono text-sm text-blue-600">tools: ChartToolbarTool[] (required)</dt>
-                <dd className="text-gray-700 ml-4">
-                  Array of tool definitions with id, label, icon, tooltip, etc.
-                </dd>
+                <dd className="text-gray-700 ml-4">Array of tool definitions with id, label, icon, tooltip, etc.</dd>
               </div>
               <div>
                 <dt className="font-mono text-sm text-blue-600">position?: ChartToolbarPosition</dt>
@@ -133,5 +129,5 @@ export function ControlsSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

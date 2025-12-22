@@ -99,15 +99,15 @@ const [creatingType, setCreatingType] = useState<AnnotationType | null>(null);
           <div className="mb-6">
             <h4 className="text-xl font-semibold mb-2">TextAnnotation</h4>
             <p className="text-gray-700 mb-3">
-              Click-to-place text labels with customizable font, color, and background. Editable after placement with
-              a rich text editor.
+              Click-to-place text labels with customizable font, color, and background. Editable after placement with a
+              rich text editor.
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <h5 className="font-semibold mb-2">Properties</h5>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <code className="text-blue-600">position: AnnotationCoordinate</code> - X/Y position in data or
-                  pixel space
+                  <code className="text-blue-600">position: AnnotationCoordinate</code> - X/Y position in data or pixel
+                  space
                 </li>
                 <li>
                   <code className="text-blue-600">text: string</code> - The text content to display
@@ -254,8 +254,7 @@ const [creatingType, setCreatingType] = useState<AnnotationType | null>(null);
               <h5 className="font-semibold mb-2">Properties</h5>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <code className="text-blue-600">points: AnnotationCoordinate[]</code> - Array of points along the
-                  path
+                  <code className="text-blue-600">points: AnnotationCoordinate[]</code> - Array of points along the path
                 </li>
                 <li>
                   <code className="text-blue-600">strokeWidth?: number</code> - Line thickness (default: 2)
@@ -264,8 +263,7 @@ const [creatingType, setCreatingType] = useState<AnnotationType | null>(null);
                   <code className="text-blue-600">color?: string</code> - Line color (default: '#000000')
                 </li>
                 <li>
-                  <code className="text-blue-600">closed?: boolean</code> - Connect last point to first (default:
-                  false)
+                  <code className="text-blue-600">closed?: boolean</code> - Connect last point to first (default: false)
                 </li>
                 <li>
                   <code className="text-blue-600">smoothing?: number</code> - Path smoothing factor 0-1 (not yet
@@ -329,8 +327,8 @@ const [creatingType, setCreatingType] = useState<AnnotationType | null>(null);
               <strong>Text annotations:</strong> Click to open text editor with font size, bold, and color controls
             </li>
             <li>
-              <strong>Geometric annotations (line/circle/freehand):</strong> Hover to see drag handles and toolbar
-              with stroke width, color, and delete options
+              <strong>Geometric annotations (line/circle/freehand):</strong> Hover to see drag handles and toolbar with
+              stroke width, color, and delete options
             </li>
             <li>
               <strong>Line annotations:</strong> Additional arrow toggle buttons for start and end arrows
@@ -344,9 +342,7 @@ const [creatingType, setCreatingType] = useState<AnnotationType | null>(null);
         {/* Toolbar Integration */}
         <div>
           <h3 className="text-2xl font-semibold mb-3">Toolbar Integration</h3>
-          <p className="text-gray-700 mb-4">
-            Use ChartToolbar with annotation tools to control the creation mode:
-          </p>
+          <p className="text-gray-700 mb-4">Use ChartToolbar with annotation tools to control the creation mode:</p>
           <div className="bg-blue-50 p-4 rounded-lg">
             <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
               {`const annotationTools: ChartToolbarTool[] = [
@@ -382,8 +378,7 @@ const creatingType = activeTools[0] as AnnotationType | undefined;
           <h3 className="text-2xl font-semibold mb-3">Best Practices</h3>
           <ul className="list-disc list-inside space-y-2 text-gray-700">
             <li>
-              Store annotations in component state or external state management (Redux, Zustand, etc.) for
-              persistence
+              Store annotations in component state or external state management (Redux, Zustand, etc.) for persistence
             </li>
             <li>Use data space coordinates when annotations should follow chart zoom/pan transformations</li>
             <li>Use pixel space coordinates for fixed overlay elements that shouldn't move with the chart</li>
@@ -392,12 +387,11 @@ const creatingType = activeTools[0] as AnnotationType | undefined;
             </li>
             <li>The annotation canvas is separate from the base chart layer to optimize rendering performance</li>
             <li>
-              Only enable one annotation tool at a time by setting <code>multiSelect={`{false}`}</code> on
-              ChartToolbar
+              Only enable one annotation tool at a time by setting <code>multiSelect={`{false}`}</code> on ChartToolbar
             </li>
           </ul>
         </div>
       </div>
     </section>
-  );
+  )
 }

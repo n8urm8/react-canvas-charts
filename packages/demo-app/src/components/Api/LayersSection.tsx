@@ -107,9 +107,7 @@ export function LayersSection() {
         {/* ChartTooltipLayer */}
         <div>
           <h3 className="text-2xl font-semibold mb-3">ChartTooltipLayer</h3>
-          <p className="text-gray-700 mb-4">
-            Displays a tooltip box showing values for data points near the cursor.
-          </p>
+          <p className="text-gray-700 mb-4">Displays a tooltip box showing values for data points near the cursor.</p>
 
           <div className="bg-gray-50 p-6 rounded-lg mb-4">
             <h4 className="font-semibold mb-3">Props</h4>
@@ -254,5 +252,5 @@ export function LayersSection() {
         </div>
       </div>
     </section>
-  );
+  )
 }

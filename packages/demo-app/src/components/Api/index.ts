@@ -1,3 +1,8 @@
-export { LayersSection } from './LayersSection';
-export { ControlsSection } from './ControlsSection';
-export { AnnotationsSection } from './AnnotationsSection';
+export { GettingStarted } from './GettingStarted'
+export { ChartSurfaceSection } from './ChartSurfaceSection'
+export { SeriesComponents } from './SeriesComponents'
+export { AxesSection } from './AxesSection'
+export { LayersSection } from './LayersSection'
+export { ControlsSection } from './ControlsSection'
+export { ToolbarSection } from './ToolbarSection'
+export { AnnotationsSection } from './AnnotationsSection'

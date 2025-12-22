@@ -32,9 +32,7 @@ export const AxesSection = () => {
               </div>
               <div>
                 <dt className="font-mono text-sm text-blue-600">labelRotation?: number</dt>
-                <dd className="text-gray-700 ml-4">
-                  Rotate labels by degrees (e.g., -45 for diagonal). Default: 0
-                </dd>
+                <dd className="text-gray-700 ml-4">Rotate labels by degrees (e.g., -45 for diagonal). Default: 0</dd>
               </div>
               <div>
                 <dt className="font-mono text-sm text-blue-600">labelOffsetY?: number</dt>
@@ -68,8 +66,7 @@ export const AxesSection = () => {
         <div>
           <h3 className="text-2xl font-semibold mb-3">ChartYAxis</h3>
           <p className="text-gray-700 mb-4">
-            Renders the vertical axis with value labels and tick marks. Supports multiple axes on left and right
-            sides.
+            Renders the vertical axis with value labels and tick marks. Supports multiple axes on left and right sides.
           </p>
 
           <div className="bg-gray-50 p-6 rounded-lg mb-4">

@@ -16,8 +16,8 @@ import {
   ChartYAxis,
   type AnnotationType,
   type ChartAnnotation,
-  type ChartSelectionResult,
-  type ChartToolbarPosition
+  type ChartToolbarPosition,
+  type ChartSelectionResult
 } from 'react-canvas-charts'
 import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 

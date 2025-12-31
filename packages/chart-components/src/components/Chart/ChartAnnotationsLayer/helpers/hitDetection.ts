@@ -1,4 +1,4 @@
-import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from '../../annotations.types'
+import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from '../annotations.types'
 
 const HANDLE_RADIUS = 6
 const LINE_HIT_TOLERANCE = 8

@@ -1,6 +1,9 @@
 import React, { useMemo, useEffect, useCallback } from 'react'
-import { renderChartAxis, type ChartAxisProps, defaultChartAxisProps } from './components/ChartAxis'
-import { LayerOrder, useChartLayer, useChartSurface, type ChartLayerRenderer } from './ChartSurface'
+import { renderChartAxis, type ChartAxisProps, defaultChartAxisProps } from './InternalComponents/ChartAxis'
+import { LayerOrder } from './ChartSurface/ChartSurface.constants'
+import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
+import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
+import { useChartLayer } from '../../utils/hooks/useChartLayer'
 
 export interface ChartXAxisProps extends ChartAxisProps {
   position?: 'bottom' | 'top'

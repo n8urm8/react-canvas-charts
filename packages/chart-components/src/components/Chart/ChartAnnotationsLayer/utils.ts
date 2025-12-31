@@ -1,4 +1,4 @@
-import type { AnnotationCoordinate } from '../annotations.types'
+import type { AnnotationCoordinate } from './annotations.types'
 
 /**
  * Helper to convert data space coordinates to pixel space

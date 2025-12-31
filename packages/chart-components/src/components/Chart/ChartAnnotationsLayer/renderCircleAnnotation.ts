@@ -1,4 +1,4 @@
-import type { CircleAnnotation } from '../annotations.types'
+import type { CircleAnnotation } from './annotations.types'
 import { toPixelSpace } from './utils'
 
 /**

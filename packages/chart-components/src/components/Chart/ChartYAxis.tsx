@@ -1,6 +1,9 @@
 import React, { useMemo, useCallback, useEffect, useState } from 'react'
-import { renderChartAxis, type ChartAxisProps } from './components/ChartAxis'
-import { LayerOrder, useChartLayer, useChartSurface, type ChartLayerRenderer } from './ChartSurface'
+import { renderChartAxis, type ChartAxisProps } from './InternalComponents/ChartAxis'
+import { LayerOrder } from './ChartSurface/ChartSurface.constants'
+import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
+import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 
 export interface ChartYAxisProps extends ChartAxisProps {
   tickCount?: number

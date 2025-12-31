@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useChartSurface, ChartOverlayPortal } from '../ChartSurface'
+import { useChartSurface } from '../../../utils/context/ChartSurfaceContext'
+import { ChartOverlayPortal } from '../../../utils/context/ChartOverlayContext'
 import type {
   ChartAnnotation,
   AnnotationCoordinate,
@@ -9,7 +10,7 @@ import type {
   LineAnnotation,
   CircleAnnotation,
   FreehandAnnotation
-} from '../annotations.types'
+} from './annotations.types'
 import { toPixelSpace } from './utils'
 import { renderTextAnnotation } from './renderTextAnnotation'
 import { renderLineAnnotation } from './renderLineAnnotation'

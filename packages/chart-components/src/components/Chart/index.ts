@@ -1,4 +1,5 @@
 export * from './ChartSurface'
+export * from './ChartSurface/ChartSurface.types'
 export * from '../../utils/hooks/useChartLayer'
 export * from '../../utils/context/ChartSurfaceContext'
 export * from '../../utils/context/ChartOverlayContext'

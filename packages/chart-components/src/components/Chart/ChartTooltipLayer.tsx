@@ -1,26 +1,20 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react'
 import {
   renderChartTooltip,
   type ChartTooltipProps,
   defaultChartTooltipProps,
-  type TooltipSeriesEntry,
-} from './components/ChartTooltip';
-import {
-  LayerOrder,
-  useChartLayer,
-  type ChartLayerRenderer,
-} from './ChartSurface';
-import {
-  findNearestDataPoint,
-  defaultChartCursorProps,
-  type DataPoint,
-} from './components/ChartCursor';
+  type TooltipSeriesEntry
+} from './InternalComponents/ChartTooltip'
+import { LayerOrder } from './ChartSurface/ChartSurface.constants'
+import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
+import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { findNearestDataPoint, defaultChartCursorProps, type DataPoint } from './InternalComponents/ChartCursor'
 
 export interface ChartTooltipLayerProps extends ChartTooltipProps {
-  snapRadius?: number;
-  snapToDataPoints?: boolean;
-  seriesLabels?: Record<string, string>;
-  snapAlongYAxis?: boolean;
+  snapRadius?: number
+  snapToDataPoints?: boolean
+  seriesLabels?: Record<string, string>
+  snapAlongYAxis?: boolean
 }
 
 export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
@@ -30,96 +24,90 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
   seriesLabels,
   ...tooltipProps
 }) => {
-  const layerOptions = useMemo(() => ({ order: LayerOrder.tooltip }), []);
+  const layerOptions = useMemo(() => ({ order: LayerOrder.tooltip }), [])
 
-  const draw = useCallback<ChartLayerRenderer>((context, helpers) => {
-    if (!helpers.pointer) {
-      return;
-    }
-
-    let activePoint: DataPoint | null = null;
-    let activeIndex: number | undefined;
-
-    if (snapToDataPoints) {
-      const nearest = findNearestDataPoint(
-        helpers.pointer.x,
-        helpers.pointer.y,
-        helpers.dataPoints,
-        snapRadius,
-        snapAlongYAxis
-      );
-      activePoint = nearest?.point ?? null;
-      activeIndex = activePoint?.dataIndex;
-    } else if (helpers.normalizedData.length > 0) {
-      const closest = findClosestIndexByX(
-        helpers.pointer.x,
-        helpers.labelPositions
-      );
-      if (closest !== null) {
-        activeIndex = closest;
-        // Use any existing data point at this index as active reference
-        activePoint = helpers.dataPoints.find(
-          (point) => point.dataIndex === closest
-        ) ?? null;
+  const draw = useCallback<ChartLayerRenderer>(
+    (context, helpers) => {
+      if (!helpers.pointer) {
+        return
       }
-    }
 
-    if (!activePoint) {
-      return;
-    }
+      let activePoint: DataPoint | null = null
+      let activeIndex: number | undefined
 
-    if (activeIndex === undefined) {
-      activeIndex = activePoint.dataIndex;
-    }
+      if (snapToDataPoints) {
+        const nearest = findNearestDataPoint(
+          helpers.pointer.x,
+          helpers.pointer.y,
+          helpers.dataPoints,
+          snapRadius,
+          snapAlongYAxis
+        )
+        activePoint = nearest?.point ?? null
+        activeIndex = activePoint?.dataIndex
+      } else if (helpers.normalizedData.length > 0) {
+        const closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
+        if (closest !== null) {
+          activeIndex = closest
+          // Use any existing data point at this index as active reference
+          activePoint = helpers.dataPoints.find((point) => point.dataIndex === closest) ?? null
+        }
+      }
 
-    const seriesEntries = buildSeriesEntries(
-      helpers,
-      activeIndex,
-      seriesLabels
-    );
-    const resolvedLabel = resolveLabel(helpers, activePoint, activeIndex);
+      if (!activePoint) {
+        return
+      }
 
-    renderChartTooltip({
-      context,
-      dataPoint: activePoint,
-      dataPoints: seriesEntries.map((entry) => entry.point),
-      entries: seriesEntries,
-      label: resolvedLabel,
-      cursorX: helpers.pointer.x,
-      cursorY: helpers.pointer.y,
-      chartX: helpers.chartArea.x,
-      chartY: helpers.chartArea.y,
-      chartWidth: helpers.chartArea.width,
-      chartHeight: helpers.chartArea.height,
-      canvasWidth: helpers.canvasWidth,
-      canvasHeight: helpers.canvasHeight,
-      ...defaultChartTooltipProps,
-      ...tooltipProps,
-    });
-  }, [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps]);
+      if (activeIndex === undefined) {
+        activeIndex = activePoint.dataIndex
+      }
 
-  useChartLayer(draw, layerOptions);
+      const seriesEntries = buildSeriesEntries(helpers, activeIndex, seriesLabels)
+      const resolvedLabel = resolveLabel(helpers, activePoint, activeIndex)
 
-  return null;
-};
+      renderChartTooltip({
+        context,
+        dataPoint: activePoint,
+        dataPoints: seriesEntries.map((entry) => entry.point),
+        entries: seriesEntries,
+        label: resolvedLabel,
+        cursorX: helpers.pointer.x,
+        cursorY: helpers.pointer.y,
+        chartX: helpers.chartArea.x,
+        chartY: helpers.chartArea.y,
+        chartWidth: helpers.chartArea.width,
+        chartHeight: helpers.chartArea.height,
+        canvasWidth: helpers.canvasWidth,
+        canvasHeight: helpers.canvasHeight,
+        ...defaultChartTooltipProps,
+        ...tooltipProps
+      })
+    },
+    [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps]
+  )
+
+  useChartLayer(draw, layerOptions)
+
+  return null
+}
 
 function findClosestIndexByX(cursorX: number, labelPositions: number[]): number | null {
   if (labelPositions.length === 0) {
-    return null;
+    return null
   }
 
-  let closestIndex = 0;
-  let closestDistance = Math.abs(cursorX - labelPositions[0]);
+  let closestIndex = 0
+  let closestDistance = Math.abs(cursorX - labelPositions[0])
 
   for (let index = 1; index < labelPositions.length; index += 1) {
-    const distance = Math.abs(cursorX - labelPositions[index]);
+    const distance = Math.abs(cursorX - labelPositions[index])
     if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
+      closestDistance = distance
+      closestIndex = index
     }
   }
 
-  return closestIndex;
+  return closestIndex
 }
 
 function buildSeriesEntries(
@@ -128,55 +116,53 @@ function buildSeriesEntries(
   seriesLabels?: Record<string, string>
 ): TooltipSeriesEntry[] {
   if (dataIndex === undefined || dataIndex < 0) {
-    return [];
+    return []
   }
 
-  const matchingPoints = helpers.dataPoints.filter(
-    (point) => point.dataIndex === dataIndex
-  );
+  const matchingPoints = helpers.dataPoints.filter((point) => point.dataIndex === dataIndex)
 
   if (matchingPoints.length === 0) {
-    return [];
+    return []
   }
 
-  const seenIds = new Set<string>();
+  const seenIds = new Set<string>()
 
   return matchingPoints
     .sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0))
     .map((point) => {
-      const seriesId = inferSeriesId(point);
-      const label = seriesLabels?.[seriesId] ?? seriesId;
-      const color = helpers.colorForKey(seriesId);
+      const seriesId = inferSeriesId(point)
+      const label = seriesLabels?.[seriesId] ?? seriesId
+      const color = helpers.colorForKey(seriesId)
       const entry: TooltipSeriesEntry = {
         id: seriesId,
         label,
         value: point.value,
         color,
-        point,
-      };
-      return entry;
+        point
+      }
+      return entry
     })
     .filter((entry) => {
       if (seenIds.has(entry.id)) {
-        return false;
+        return false
       }
-      seenIds.add(entry.id);
-      return true;
-    });
+      seenIds.add(entry.id)
+      return true
+    })
 }
 
 function inferSeriesId(point: DataPoint): string {
-  const rawKey = point.originalData?.dataKey;
+  const rawKey = point.originalData?.dataKey
 
   if (typeof rawKey === 'string' && rawKey.length > 0) {
-    return rawKey;
+    return rawKey
   }
 
   if (typeof point.seriesIndex === 'number') {
-    return `series-${point.seriesIndex + 1}`;
+    return `series-${point.seriesIndex + 1}`
   }
 
-  return 'value';
+  return 'value'
 }
 
 function resolveLabel(
@@ -185,15 +171,15 @@ function resolveLabel(
   dataIndex: number | undefined
 ): string {
   if (dataIndex !== undefined && dataIndex >= 0) {
-    const normalized = helpers.normalizedData[dataIndex];
+    const normalized = helpers.normalizedData[dataIndex]
     if (normalized?.label) {
-      return normalized.label;
+      return normalized.label
     }
-    const label = helpers.labels?.[dataIndex];
+    const label = helpers.labels?.[dataIndex]
     if (label) {
-      return label;
+      return label
     }
   }
 
-  return point.label ?? '';
+  return point.label ?? ''
 }

@@ -1,4 +1,4 @@
-import type { LineAnnotation } from '../annotations.types'
+import type { LineAnnotation } from './annotations.types'
 import { toPixelSpace } from './utils'
 
 /**

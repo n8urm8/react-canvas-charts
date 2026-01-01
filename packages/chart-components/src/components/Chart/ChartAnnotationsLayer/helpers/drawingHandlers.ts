@@ -1,4 +1,4 @@
-import type { ChartAnnotation, AnnotationCoordinate, AnnotationType } from '../../annotations.types'
+import type { ChartAnnotation, AnnotationCoordinate, AnnotationType } from '../annotations.types'
 import { DEFAULT_ANNOTATION_COLOR, DEFAULT_STROKE_WIDTH } from './annotationHelpers'
 
 export interface DrawingState {

@@ -27,6 +27,7 @@
     "build:dev": "vite build --watch",
     "build:analyze": "set ANALYZE_VISUALIZE=true && vite build",
     "lint": "eslint .",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview"
   },
   "peerDependencies": {

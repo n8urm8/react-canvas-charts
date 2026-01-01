@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react'
-import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from '../annotations.types'
+import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from './annotations.types'
 
 type GeometricAnnotation = LineAnnotation | CircleAnnotation | FreehandAnnotation
 

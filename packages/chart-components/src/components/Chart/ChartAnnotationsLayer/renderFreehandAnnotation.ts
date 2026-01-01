@@ -1,4 +1,4 @@
-import type { FreehandAnnotation } from '../annotations.types'
+import type { FreehandAnnotation } from './annotations.types'
 import { toPixelSpace } from './utils'
 
 /**

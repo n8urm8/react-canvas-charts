@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react'
 import { Palette, Trash2, ArrowRight } from 'lucide-react'
-import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from '../annotations.types'
-import { useDebounce } from '../../../utils/useDebounce'
+import type { LineAnnotation, CircleAnnotation, FreehandAnnotation } from './annotations.types'
+import { useDebounce } from '../../../utils/hooks/useDebounce'
 import '../ChartToolbar.css'
 
 type GeometricAnnotation = LineAnnotation | CircleAnnotation | FreehandAnnotation

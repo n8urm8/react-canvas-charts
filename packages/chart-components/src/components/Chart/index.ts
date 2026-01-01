@@ -1,10 +1,8 @@
 export * from './ChartSurface'
-export type {
-  ChartSurfaceProps,
-  ChartSelectionResult,
-  ChartSelectionSeriesEntry,
-  ChartSelectionSeriesRange
-} from './ChartSurface'
+export * from './ChartSurface/ChartSurface.types'
+export * from '../../utils/hooks/useChartLayer'
+export * from '../../utils/context/ChartSurfaceContext'
+export * from '../../utils/context/ChartOverlayContext'
 export * from './ChartGridLayer'
 export * from './ChartXAxis'
 export * from './ChartYAxis'
@@ -19,4 +17,4 @@ export * from './ChartLegend'
 export * from './CanvasWrapper/CanvasWrapper'
 export * from './ChartToolbar'
 export * from './ChartAnnotationsLayer'
-export * from './annotations.types'
+export * from './ChartAnnotationsLayer/annotations.types'

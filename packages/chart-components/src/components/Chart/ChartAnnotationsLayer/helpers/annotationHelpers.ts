@@ -1,4 +1,4 @@
-import type { ChartAnnotation, AnnotationType } from '../../annotations.types'
+import type { ChartAnnotation, AnnotationType } from '../annotations.types'
 
 export const DEFAULT_ANNOTATION_COLOR = '#000000'
 export const DEFAULT_STROKE_WIDTH = 2

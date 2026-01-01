@@ -1,14 +1,8 @@
-import React, { useMemo, useCallback } from 'react';
-import {
-  renderChartTitle,
-  type ChartTitleProps,
-  defaultChartTitleProps,
-} from './components/ChartTitle';
-import {
-  LayerOrder,
-  useChartLayer,
-  type ChartLayerRenderer,
-} from './ChartSurface';
+import React, { useMemo, useCallback } from 'react'
+import { renderChartTitle, type ChartTitleProps, defaultChartTitleProps } from './InternalComponents/ChartTitle'
+import { LayerOrder } from './ChartSurface/ChartSurface.constants'
+import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
+import { useChartLayer } from '../../utils/hooks/useChartLayer'
 
 export const ChartTitleLayer: React.FC<ChartTitleProps> = ({
   title,
@@ -17,31 +11,32 @@ export const ChartTitleLayer: React.FC<ChartTitleProps> = ({
   marginBottom = defaultChartTitleProps.marginBottom,
   ...titleProps
 }) => {
-  const layerOptions = useMemo(() => ({ order: LayerOrder.background }), []);
+  const layerOptions = useMemo(() => ({ order: LayerOrder.background }), [])
 
-  const draw = useCallback<ChartLayerRenderer>((context, helpers) => {
-    if (!title) {
-      return;
-    }
+  const draw = useCallback<ChartLayerRenderer>(
+    (context, helpers) => {
+      if (!title) {
+        return
+      }
 
-    const y = position === 'bottom'
-      ? helpers.canvasHeight - marginBottom
-      : marginTop;
+      const y = position === 'bottom' ? helpers.canvasHeight - marginBottom : marginTop
 
-    renderChartTitle({
-      context,
-      canvasWidth: helpers.canvasWidth,
-      canvasHeight: helpers.canvasHeight,
-      title,
-      y,
-      position,
-      marginBottom,
-      marginTop,
-      ...titleProps,
-    });
-  }, [marginBottom, marginTop, position, title, titleProps]);
+      renderChartTitle({
+        context,
+        canvasWidth: helpers.canvasWidth,
+        canvasHeight: helpers.canvasHeight,
+        title,
+        y,
+        position,
+        marginBottom,
+        marginTop,
+        ...titleProps
+      })
+    },
+    [marginBottom, marginTop, position, title, titleProps]
+  )
 
-  useChartLayer(draw, layerOptions);
+  useChartLayer(draw, layerOptions)
 
-  return null;
-};
+  return null
+}

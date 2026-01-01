@@ -5,7 +5,7 @@ import type {
   LineAnnotation,
   CircleAnnotation,
   FreehandAnnotation
-} from '../../annotations.types'
+} from '../annotations.types'
 import { checkLineHit, checkCircleHit, checkFreehandHit } from './hitDetection'
 
 export interface HoverState {

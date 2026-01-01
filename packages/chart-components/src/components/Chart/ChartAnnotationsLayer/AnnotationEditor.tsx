@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { GripVertical, Bold, Palette } from 'lucide-react'
-import type { TextAnnotation } from '../annotations.types'
-import { useDebounce } from '../../../utils/useDebounce'
+import type { TextAnnotation } from './annotations.types'
+import { useDebounce } from '../../../utils/hooks/useDebounce'
 import '../ChartToolbar.css'
 
 interface AnnotationEditorProps {

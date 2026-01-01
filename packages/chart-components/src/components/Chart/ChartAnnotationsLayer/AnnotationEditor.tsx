@@ -66,6 +66,7 @@ export const AnnotationEditor: React.FC<AnnotationEditorProps> = ({
       }
       textInputRef.current.focus()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only on mount
 
   useEffect(() => {

@@ -27,6 +27,14 @@ export const Navigation: React.FC = () => {
     }`
   }
 
+  const getExamplesLinkClass = () => {
+    return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
+      currentPath === '/examples'
+        ? 'bg-green-500 text-white shadow-md'
+        : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+    }`
+  }
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 mb-8 w-full">
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -35,6 +43,9 @@ export const Navigation: React.FC = () => {
           <div className="flex items-center gap-2">
             <Link to="/" className={getLinkClass('/')}>
               📊 API Docs
+            </Link>
+            <Link to="/examples" className={getExamplesLinkClass()}>
+              📈 Examples
             </Link>
             <Link to="/interactive" className={getInteractiveLinkClass()}>
               🎮 Interactive Demo

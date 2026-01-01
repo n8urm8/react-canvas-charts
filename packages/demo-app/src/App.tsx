@@ -3,6 +3,7 @@ import { Navigation } from './ExampleComponents'
 import { MainDemo } from './pages/MainDemo'
 import './App.css'
 import InteractiveChartDemoNew from './pages/InteractiveChartDemoNew'
+import { ChartExamples } from './pages/ChartExamples'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MainDemo />} />
         <Route path="/interactive" element={<InteractiveChartDemoNew />} />
+        <Route path="/examples" element={<ChartExamples />} />
       </Routes>
     </div>
   )

@@ -176,6 +176,7 @@ export interface ChartSurfaceProps {
   data: Record<string, unknown>[]
   xKey: string
   yKeys?: string[]
+  xAxisType?: 'linear' | 'categorical'
   width?: number | string
   height?: number | string
   margin?: Partial<ChartMargin>

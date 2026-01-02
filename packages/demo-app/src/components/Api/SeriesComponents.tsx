@@ -151,6 +151,119 @@ export const SeriesComponents = () => {
             </pre>
           </div>
         </div>
+
+        {/* ChartBarSeries */}
+        <div>
+          <h3 className="text-2xl font-semibold mb-3">ChartBarSeries</h3>
+          <p className="text-gray-700 mb-4">
+            Renders vertical bars for categorical or continuous data. Supports stacked and grouped (side-by-side) modes.
+          </p>
+
+          <div className="bg-gray-50 p-6 rounded-lg mb-4">
+            <h4 className="font-semibold mb-3">Props</h4>
+            <dl className="space-y-3">
+              <div>
+                <dt className="font-mono text-sm text-blue-600">dataKey: string (required)</dt>
+                <dd className="text-gray-700 ml-4">The Y-value property name from the data objects.</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">color?: string</dt>
+                <dd className="text-gray-700 ml-4">Bar fill color. Falls back to ChartSurface color mapping.</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">opacity?: number</dt>
+                <dd className="text-gray-700 ml-4">Bar opacity (0-1). Default: 1</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">show?: boolean</dt>
+                <dd className="text-gray-700 ml-4">Toggle visibility. Default: true</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">barWidth?: number | "auto"</dt>
+                <dd className="text-gray-700 ml-4">
+                  Bar width in pixels or "auto" to fill available space. Default: "auto"
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">barGap?: number</dt>
+                <dd className="text-gray-700 ml-4">Gap between bar groups in pixels. Default: 4</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">baseline?: number | string</dt>
+                <dd className="text-gray-700 ml-4">
+                  Baseline value or dataKey for stacking bars. Undefined starts from chart bottom.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">seriesIndex?: number</dt>
+                <dd className="text-gray-700 ml-4">
+                  Position within a group (0-based) for grouped bars. Use with totalSeries.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">totalSeries?: number</dt>
+                <dd className="text-gray-700 ml-4">
+                  Total number of series in a group for grouped bars. Use with seriesIndex.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">groupGap?: number</dt>
+                <dd className="text-gray-700 ml-4">Gap between bars within a group in pixels. Default: 2</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">Example: Basic Bars</h4>
+              <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
+                {`<ChartBarSeries
+  dataKey="sales"
+  color="#3b82f6"
+  barGap={8}
+/>`}
+              </pre>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Example: Stacked Bars</h4>
+              <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
+                {`<ChartBarSeries dataKey="sales" color="#3b82f6" />
+<ChartBarSeries dataKey="target" color="#10b981" baseline="sales" />`}
+              </pre>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Example: Grouped Bars (Side-by-Side)</h4>
+              <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
+                {`<ChartBarSeries 
+  dataKey="sales" 
+  color="#3b82f6" 
+  seriesIndex={0}
+  totalSeries={3}
+  groupGap={4}
+  barGap={20}
+/>
+<ChartBarSeries 
+  dataKey="target" 
+  color="#10b981" 
+  seriesIndex={1}
+  totalSeries={3}
+  groupGap={4}
+  barGap={20}
+/>
+<ChartBarSeries 
+  dataKey="forecast" 
+  color="#f59e0b" 
+  seriesIndex={2}
+  totalSeries={3}
+  groupGap={4}
+  barGap={20}
+/>`}
+              </pre>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )

@@ -1,6 +1,6 @@
 import React from 'react'
-import { ChartSurface } from './ChartSurface/ChartSurface'
-import type { ChartSurfaceProps } from './ChartSurface/ChartSurface.types'
+import { ChartSurface } from './ChartSurface'
+import type { ChartSurfaceProps } from './ChartSurface'
 
 export interface SparkSurfaceProps extends Omit<ChartSurfaceProps, 'margin'> {
   margin?: ChartSurfaceProps['margin']

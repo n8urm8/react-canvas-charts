@@ -2,6 +2,8 @@ import React from 'react'
 import { ChartExampleCard } from '../components/ChartExampleCard'
 import { LineChartExample, lineChartCode } from '../components/examples/LineChartExample'
 import { AreaChartExample, areaChartCode } from '../components/examples/AreaChartExample'
+import { BarChartExample, barChartCode } from '../components/examples/BarChartExample'
+import { GroupedBarChartExample, groupedBarChartCode } from '../components/examples/GroupedBarChartExample'
 import { sparkChartCode, SparkChartExample } from '../components/examples/SparkChartExample'
 export const ChartExamples: React.FC = () => {
   return (
@@ -25,6 +27,22 @@ export const ChartExamples: React.FC = () => {
             description="Multi-series area chart comparing revenue and expenses"
             code={areaChartCode}
             chart={<AreaChartExample />}
+          />
+
+          {/* Bar Chart Example */}
+          <ChartExampleCard
+            title="Bar Chart"
+            description="Overlapping bar chart showing sales vs target"
+            code={barChartCode}
+            chart={<BarChartExample />}
+          />
+
+          {/* Grouped Bar Chart Example */}
+          <ChartExampleCard
+            title="Grouped Bar Chart"
+            description="Side-by-side grouped bars for comparing multiple series"
+            code={groupedBarChartCode}
+            chart={<GroupedBarChartExample />}
           />
 
           {/* Spark Chart Example */}

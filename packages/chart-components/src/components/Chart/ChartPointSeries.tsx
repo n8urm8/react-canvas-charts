@@ -23,39 +23,39 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
 }) => {
   const { normalizedData, getYPositionForKey, getColorForKey } = useChartSurface()
 
-  const points = useMemo(
-    () =>
-      normalizedData
-        .map((datum) => {
-          const value = datum.values[dataKey]
-          if (value === null || !Number.isFinite(value)) {
-            return null
-          }
+  const points = useMemo(() => {
+    const filtered: Array<{ x: number; y: number; value: number; size?: number }> = []
 
-          let size = pointProps.size
-          if (sizeKey) {
-            const sizeValue = datum.raw[sizeKey]
-            if (typeof sizeValue === 'number' && Number.isFinite(sizeValue)) {
-              size = sizeValue
-            }
-          }
+    normalizedData.forEach((datum) => {
+      const value = datum.values[dataKey]
+      if (value === null || !Number.isFinite(value)) {
+        return
+      }
 
-          return {
-            x: datum.x,
-            y: getYPositionForKey(dataKey, value),
-            value,
-            size
-          }
-        })
-        .filter((point): point is { x: number; y: number; value: number; size?: number } => point !== null),
-    [dataKey, getYPositionForKey, normalizedData, pointProps.size, sizeKey]
-  )
+      let size = pointProps.size
+      if (sizeKey) {
+        const sizeValue = datum.raw[sizeKey]
+        if (typeof sizeValue === 'number' && Number.isFinite(sizeValue)) {
+          size = sizeValue
+        }
+      }
+
+      filtered.push({
+        x: datum.x,
+        y: getYPositionForKey(dataKey, value),
+        value,
+        size
+      })
+    })
+
+    return filtered
+  }, [dataKey, getYPositionForKey, normalizedData, pointProps.size, sizeKey])
 
   // Calculate size scaling if using sizeKey
   const sizeScale = useMemo(() => {
     if (!sizeKey) return null
 
-    const sizes = points.map((p) => p.size).filter((s): s is number => s !== undefined)
+    const sizes = points.map((p) => p.size).filter((s): s is number => typeof s === 'number')
     if (sizes.length === 0) return null
 
     const minValue = Math.min(...sizes)
@@ -63,7 +63,7 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
     const range = maxValue - minValue
 
     if (range === 0) {
-      return (value: number) => (minSize + maxSize) / 2
+      return (_: number) => (minSize + maxSize) / 2
     }
 
     return (value: number) => minSize + ((value - minValue) / range) * (maxSize - minSize)

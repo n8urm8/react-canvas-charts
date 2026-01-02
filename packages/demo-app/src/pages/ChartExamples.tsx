@@ -4,11 +4,13 @@ import { LineChartExample, lineChartCode } from '../components/examples/LineChar
 import { AreaChartExample, areaChartCode } from '../components/examples/AreaChartExample'
 import { BarChartExample, barChartCode } from '../components/examples/BarChartExample'
 import { GroupedBarChartExample, groupedBarChartCode } from '../components/examples/GroupedBarChartExample'
+import { ScatterPlotExample, scatterPlotCode } from '../components/examples/ScatterPlotExample'
+import { BubblePlotExample, bubblePlotCode } from '../components/examples/BubblePlotExample'
 import { sparkChartCode, SparkChartExample } from '../components/examples/SparkChartExample'
 export const ChartExamples: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 w-full">
+      <div className="w-full px-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Chart Examples</h1>
         <p className="text-gray-600 mb-8">Click on any card to view the code. Click again to return to the chart.</p>
 
@@ -43,6 +45,22 @@ export const ChartExamples: React.FC = () => {
             description="Side-by-side grouped bars for comparing multiple series"
             code={groupedBarChartCode}
             chart={<GroupedBarChartExample />}
+          />
+
+          {/* Scatter Plot Example */}
+          <ChartExampleCard
+            title="Scatter Plot"
+            description="Multi-series scatter plot with different point shapes"
+            code={scatterPlotCode}
+            chart={<ScatterPlotExample />}
+          />
+
+          {/* Bubble Plot Example */}
+          <ChartExampleCard
+            title="Bubble Plot"
+            description="Bubble chart with variable point sizes based on data values"
+            code={bubblePlotCode}
+            chart={<BubblePlotExample />}
           />
 
           {/* Spark Chart Example */}

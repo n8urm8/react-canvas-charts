@@ -26,13 +26,13 @@ export const MainDemo = () => {
             <a href="#chart-surface" className="text-blue-600 hover:text-blue-800 hover:underline block">
               ChartSurface
             </a>
-            <span className="text-xs text-gray-500 block mt-1">Core chart container</span>
+            <span className="text-xs text-gray-500 block mt-1">Core chart container & SparkSurface</span>
           </li>
           <li>
             <a href="#series" className="text-blue-600 hover:text-blue-800 hover:underline block">
               Series Components
             </a>
-            <span className="text-xs text-gray-500 block mt-1">Line, Area, and Point</span>
+            <span className="text-xs text-gray-500 block mt-1">Line, Area, Point, and Bar series</span>
           </li>
           <li>
             <a href="#axes" className="text-blue-600 hover:text-blue-800 hover:underline block">
@@ -121,14 +121,6 @@ export const MainDemo = () => {
               {' - '}Source code and examples
             </li>
           </ul>
-
-          <div className="mt-8 p-4 bg-yellow-50 rounded-lg">
-            <h3 className="font-semibold mb-2">Note on Bar Charts</h3>
-            <p className="text-gray-700">
-              Bar chart components are currently under development and not included in this documentation. Please use
-              the line, area, and point series components for production applications.
-            </p>
-          </div>
         </footer>
       </div>
     </div>

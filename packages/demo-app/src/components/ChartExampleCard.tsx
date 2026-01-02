@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { Activity, useState } from 'react'
 
 interface ChartExampleCardProps {
   title: string
@@ -23,7 +23,9 @@ export const ChartExampleCard: React.FC<ChartExampleCardProps> = ({ title, descr
             <h2 className="text-2xl font-semibold text-gray-800 mb-2">{title}</h2>
             <p className="text-gray-600 text-sm">{description}</p>
           </div>
-          <div className="h-[400px]">{chart}</div>
+          <div className="h-[400px]">
+            <Activity mode={isFlipped ? 'hidden' : 'visible'}>{chart}</Activity>
+          </div>
           <div
             className="mt-3 text-center text-sm text-gray-500 cursor-pointer hover:text-gray-700 transition-colors py-2"
             onClick={() => setIsFlipped(true)}

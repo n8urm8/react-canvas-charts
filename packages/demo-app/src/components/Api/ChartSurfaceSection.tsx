@@ -69,7 +69,7 @@ export const ChartSurfaceSection = () => {
         </dl>
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg">
+      <div className="bg-blue-50 p-4 rounded-lg mb-8">
         <h4 className="font-semibold mb-2">Usage Example</h4>
         <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
           {`<ChartSurface
@@ -84,6 +84,64 @@ export const ChartSurfaceSection = () => {
   {/* Child components */}
 </ChartSurface>`}
         </pre>
+      </div>
+
+      {/* SparkSurface */}
+      <div>
+        <h3 className="text-2xl font-semibold mb-3 mt-8">SparkSurface</h3>
+        <p className="text-gray-700 mb-4">
+          A lightweight wrapper around ChartSurface optimized for small inline charts (sparklines). Provides minimal
+          margins and compact defaults.
+        </p>
+
+        <div className="bg-gray-50 p-6 rounded-lg mb-4">
+          <h4 className="font-semibold mb-3">Props</h4>
+          <dl className="space-y-3">
+            <div>
+              <dt className="font-mono text-sm text-blue-600">data: T[] (required)</dt>
+              <dd className="text-gray-700 ml-4">Array of data objects to visualize.</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-sm text-blue-600">width?: number | string</dt>
+              <dd className="text-gray-700 ml-4">Chart width in pixels or percentage. Default: 150</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-sm text-blue-600">height?: number | string</dt>
+              <dd className="text-gray-700 ml-4">Chart height in pixels. Default: 40</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-sm text-blue-600">margin?: Margin</dt>
+              <dd className="text-gray-700 ml-4">
+                Inner margins. Default: {`{ top: 2, right: 2, bottom: 2, left: 2 }`}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-sm text-blue-600">...ChartSurfaceProps</dt>
+              <dd className="text-gray-700 ml-4">
+                Inherits all other props from ChartSurface (xKey, yKeys, colors, etc.)
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-semibold mb-2">Example</h4>
+          <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
+            {`<SparkSurface 
+  data={data} 
+  xKey="date" 
+  yKeys={["value"]}
+  width={150} 
+  height={40}
+>
+  <ChartLineSeries 
+    dataKey="value" 
+    color="#10b981" 
+    width={1.5}
+  />
+</SparkSurface>`}
+          </pre>
+        </div>
       </div>
     </section>
   )

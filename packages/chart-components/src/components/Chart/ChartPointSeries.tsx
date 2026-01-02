@@ -7,28 +7,67 @@ import { useChartLayer } from '../../utils/hooks/useChartLayer'
 
 export interface ChartPointSeriesProps extends ChartPointProps {
   dataKey: string
+  sizeKey?: string // Key in data for bubble size
+  minSize?: number // Minimum bubble size (default: 4)
+  maxSize?: number // Maximum bubble size (default: 20)
 }
 
-export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({ dataKey, color, fillColor, ...pointProps }) => {
+export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
+  dataKey,
+  color,
+  fillColor,
+  sizeKey,
+  minSize = 4,
+  maxSize = 20,
+  ...pointProps
+}) => {
   const { normalizedData, getYPositionForKey, getColorForKey } = useChartSurface()
 
-  const points = useMemo(
-    () =>
-      normalizedData
-        .map((datum) => {
-          const value = datum.values[dataKey]
-          if (value === null || !Number.isFinite(value)) {
-            return null
-          }
-          return {
-            x: datum.x,
-            y: getYPositionForKey(dataKey, value),
-            value
-          }
-        })
-        .filter((point): point is { x: number; y: number; value: number } => point !== null),
-    [dataKey, getYPositionForKey, normalizedData]
-  )
+  const points = useMemo(() => {
+    const filtered: Array<{ x: number; y: number; value: number; size?: number }> = []
+
+    normalizedData.forEach((datum) => {
+      const value = datum.values[dataKey]
+      if (value === null || !Number.isFinite(value)) {
+        return
+      }
+
+      let size = pointProps.size
+      if (sizeKey) {
+        const sizeValue = datum.raw[sizeKey]
+        if (typeof sizeValue === 'number' && Number.isFinite(sizeValue)) {
+          size = sizeValue
+        }
+      }
+
+      filtered.push({
+        x: datum.x,
+        y: getYPositionForKey(dataKey, value),
+        value,
+        size
+      })
+    })
+
+    return filtered
+  }, [dataKey, getYPositionForKey, normalizedData, pointProps.size, sizeKey])
+
+  // Calculate size scaling if using sizeKey
+  const sizeScale = useMemo(() => {
+    if (!sizeKey) return null
+
+    const sizes = points.map((p) => p.size).filter((s): s is number => typeof s === 'number')
+    if (sizes.length === 0) return null
+
+    const minValue = Math.min(...sizes)
+    const maxValue = Math.max(...sizes)
+    const range = maxValue - minValue
+
+    if (range === 0) {
+      return (_: number) => (minSize + maxSize) / 2
+    }
+
+    return (value: number) => minSize + ((value - minValue) / range) * (maxSize - minSize)
+  }, [points, sizeKey, minSize, maxSize])
 
   const resolvedColor = useMemo(() => color ?? getColorForKey(dataKey), [color, dataKey, getColorForKey])
 
@@ -37,6 +76,8 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({ dataKey, col
   const draw = useCallback<ChartLayerRenderer>(
     (context) => {
       points.forEach((point, index) => {
+        const scaledSize = point.size !== undefined && sizeScale ? sizeScale(point.size) : pointProps.size
+
         renderChartPoint({
           context,
           x: point.x,
@@ -44,12 +85,13 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({ dataKey, col
           value: point.value,
           index,
           ...pointProps,
+          size: scaledSize,
           color: resolvedColor,
           fillColor: resolvedFillColor
         })
       })
     },
-    [pointProps, points, resolvedColor, resolvedFillColor]
+    [pointProps, points, resolvedColor, resolvedFillColor, sizeScale, sizeKey]
   )
 
   const layerOptions = useMemo(() => ({ order: LayerOrder.points }), [])

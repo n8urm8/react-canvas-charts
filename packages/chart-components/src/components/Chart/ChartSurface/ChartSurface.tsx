@@ -50,6 +50,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   data,
   xKey,
   yKeys: yKeysProp,
+  xAxisType = 'linear',
   width = 800,
   height = 400,
   margin,
@@ -432,10 +433,19 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         return chartArea.x + chartArea.width / 2
       }
 
-      const spacing = chartArea.width / Math.max(1, labels.length - 1)
-      return chartArea.x + index * spacing
+      if (xAxisType === 'categorical') {
+        // For categorical data (bar charts), center points in equal-width bands with padding
+        // Divide width into (labels.length + 1) segments to create padding on both sides
+        const segmentWidth = chartArea.width / (labels.length + 1)
+        // Position bars starting at segment 1 (leaving segment 0 as left padding)
+        return chartArea.x + (index + 1) * segmentWidth
+      } else {
+        // For linear data (line charts), spread points evenly from edge to edge
+        const spacing = chartArea.width / Math.max(1, labels.length - 1)
+        return chartArea.x + index * spacing
+      }
     },
-    [chartArea.width, chartArea.x, labels.length]
+    [chartArea.width, chartArea.x, labels.length, xAxisType]
   )
 
   const labelPositions = useMemo(() => labels.map((_, index) => getXPosition(index)), [getXPosition, labels])

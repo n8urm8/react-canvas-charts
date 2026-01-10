@@ -18,7 +18,7 @@ export function AnnotationsSection() {
 
           <div className="bg-gray-50 p-6 rounded-lg mb-4">
             <h4 className="font-semibold mb-3">Props</h4>
-            <dl className="space-y-3">
+            <dl className="space-y-3 max-w-full">
               <div>
                 <dt className="font-mono text-sm text-blue-600">annotations: ChartAnnotation[] (required)</dt>
                 <dd className="text-gray-700 ml-4">

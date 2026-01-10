@@ -12,7 +12,7 @@ export function ToolbarSection() {
       <div className="mb-8">
         <h3 className="text-2xl font-semibold mb-3">Props</h3>
         <div className="bg-gray-50 p-6 rounded-lg">
-          <dl className="space-y-3">
+          <dl className="space-y-3 max-w-full">
             <div>
               <dt className="font-mono text-sm text-blue-600">tools: ChartToolbarTool[] (required)</dt>
               <dd className="text-gray-700 ml-4">

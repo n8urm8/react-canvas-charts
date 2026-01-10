@@ -9,12 +9,14 @@ import { BubblePlotExample, bubblePlotCode } from '../components/examples/Bubble
 import { sparkChartCode, SparkChartExample } from '../components/examples/SparkChartExample'
 export const ChartExamples: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 w-full">
-      <div className="w-full px-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Chart Examples</h1>
-        <p className="text-gray-600 mb-8">Click on any card to view the code. Click again to return to the chart.</p>
+    <div className="min-h-screen bg-gray-50 py-4 md:py-8 px-4 w-full">
+      <div className="w-full max-w-7xl mx-auto">
+        <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">Chart Examples</h1>
+        <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-8">
+          Click on any card to view the code. Click again to return to the chart.
+        </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
           {/* Line Chart Example */}
           <ChartExampleCard
             title="Line Chart"

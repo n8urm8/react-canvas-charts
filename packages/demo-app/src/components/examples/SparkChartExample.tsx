@@ -70,46 +70,46 @@ const engagementData = [
 export const SparkChartExample = () => {
   return (
     <div className="w-full h-full">
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Metric Cards with Spark Charts */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
-            <div className="text-sm text-gray-500">Sales</div>
-            <div className="text-2xl font-bold">95K</div>
-            <div className="text-xs text-green-600">+12.5% this month</div>
-            <SparkSurface data={salesData} xKey="x" width={200} height={50}>
-              <ChartLineSeries dataKey="value" color="#10b981" lineWidth={2} />
+        <div className="grid grid-cols-2 gap-2 md:gap-4">
+          <div className="bg-white rounded-lg shadow p-2 md:p-4 space-y-1 md:space-y-2">
+            <div className="text-xs md:text-sm text-gray-500">Sales</div>
+            <div className="text-lg md:text-2xl font-bold">95K</div>
+            <div className="text-[10px] md:text-xs text-green-600">+12.5% this month</div>
+            <SparkSurface data={salesData} xKey="x" width="100%" height={40}>
+              <ChartLineSeries dataKey="value" color="#10b981" lineWidth={1.5} />
             </SparkSurface>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
-            <div className="text-sm text-gray-500">User Growth</div>
-            <div className="text-2xl font-bold">258</div>
-            <div className="text-xs text-blue-600">+15.2% this month</div>
-            <SparkSurface data={userGrowthData} xKey="x" width={200} height={50}>
+          <div className="bg-white rounded-lg shadow p-2 md:p-4 space-y-1 md:space-y-2">
+            <div className="text-xs md:text-sm text-gray-500">User Growth</div>
+            <div className="text-lg md:text-2xl font-bold">258</div>
+            <div className="text-[10px] md:text-xs text-blue-600">+15.2% this month</div>
+            <SparkSurface data={userGrowthData} xKey="x" width="100%" height={40}>
               <ChartAreaSeries dataKey="value" color="#3b82f6" opacity={0.3} />
-              <ChartLineSeries dataKey="value" color="#3b82f6" lineWidth={2} />
+              <ChartLineSeries dataKey="value" color="#3b82f6" lineWidth={1.5} />
             </SparkSurface>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
-            <div className="text-sm text-gray-500">Revenue</div>
-            <div className="text-2xl font-bold">$10.5K</div>
-            <div className="text-xs text-purple-600">+18.3% this month</div>
-            <SparkSurface data={revenueData} xKey="x" width={200} height={50}>
+          <div className="bg-white rounded-lg shadow p-2 md:p-4 space-y-1 md:space-y-2">
+            <div className="text-xs md:text-sm text-gray-500">Revenue</div>
+            <div className="text-lg md:text-2xl font-bold">$10.5K</div>
+            <div className="text-[10px] md:text-xs text-purple-600">+18.3% this month</div>
+            <SparkSurface data={revenueData} xKey="x" width="100%" height={40}>
               <ChartAreaSeries dataKey="value" color="#8b5cf6" opacity={0.3} />
-              <ChartLineSeries dataKey="value" color="#8b5cf6" lineWidth={2} />
+              <ChartLineSeries dataKey="value" color="#8b5cf6" lineWidth={1.5} />
               <ChartCursorLayer snapToDataPoints />
               <ChartTooltipLayer />
             </SparkSurface>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
-            <div className="text-sm text-gray-500">Engagement</div>
-            <div className="text-2xl font-bold">90%</div>
-            <div className="text-xs text-orange-600">+8.1% this month</div>
-            <SparkSurface data={engagementData} xKey="x" width={200} height={50}>
-              <ChartLineSeries dataKey="value" color="#f97316" lineWidth={2} />
+          <div className="bg-white rounded-lg shadow p-2 md:p-4 space-y-1 md:space-y-2">
+            <div className="text-xs md:text-sm text-gray-500">Engagement</div>
+            <div className="text-lg md:text-2xl font-bold">90%</div>
+            <div className="text-[10px] md:text-xs text-orange-600">+8.1% this month</div>
+            <SparkSurface data={engagementData} xKey="x" width="100%" height={40}>
+              <ChartLineSeries dataKey="value" color="#f97316" lineWidth={1.5} />
               <ChartCursorLayer snapToDataPoints />
               <ChartTooltipLayer />
             </SparkSurface>

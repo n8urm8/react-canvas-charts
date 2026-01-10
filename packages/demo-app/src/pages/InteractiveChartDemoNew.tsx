@@ -730,15 +730,17 @@ export const InteractiveChartDemoNew: FC = () => {
   }, [])
 
   return (
-    <div className="p-5 font-sans bg-gray-50 min-h-screen">
+    <div className="p-3 md:p-5 font-sans bg-gray-50 min-h-screen">
       <div className="w-full mx-auto">
-        <h1 className="text-center text-3xl font-bold text-gray-900 mb-8">🎮 Interactive Chart Demo</h1>
-        <p className="mb-4">
+        <h1 className="text-center text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-8">
+          🎮 Interactive Chart Demo
+        </h1>
+        <p className="mb-4 text-sm md:text-base">
           Try out the chart and change all the options. Add lines, axes, stream data, and more. A code preview below the
           chart updates with every change to provide an example of how to use the chart.
         </p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-          <div className="flex-1 lg:col-span-2 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full">
+          <div className="flex-1 lg:col-span-2 space-y-4 md:space-y-8">
             <div className="relative">
               <InteractiveChartCanvas
                 data={chartRecords}

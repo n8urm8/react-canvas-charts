@@ -13,7 +13,7 @@ export const MainDemo = () => {
   return (
     <div className="flex min-h-screen w-full">
       {/* Side Navigation */}
-      <nav className="w-64 bg-gray-50 border-r border-gray-200 p-6 sticky top-0 h-screen overflow-y-auto">
+      <nav className="hidden lg:block w-64 bg-gray-50 border-r border-gray-200 p-6 sticky top-0 h-screen overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4 text-gray-900">Navigation</h2>
         <ul className="space-y-3">
           <li>
@@ -68,10 +68,12 @@ export const MainDemo = () => {
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 w-full p-8">
-        <header className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">React Canvas Charts API Documentation</h1>
-          <p className="text-lg text-gray-600">
+      <div className="flex-1 w-full p-4 md:p-8">
+        <header className="mb-8 md:mb-12">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
+            React Canvas Charts API Documentation
+          </h1>
+          <p className="text-base md:text-lg text-gray-600">
             High-performance canvas-based charting components for React applications. Built with TypeScript and
             optimized for real-time data visualization.
           </p>
@@ -100,8 +102,8 @@ export const MainDemo = () => {
         <AnnotationsSection />
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t-2 border-gray-200">
-          <h2 className="text-2xl font-bold mb-4">Additional Resources</h2>
+        <footer className="mt-8 md:mt-16 pt-6 md:pt-8 border-t-2 border-gray-200">
+          <h2 className="text-xl md:text-2xl font-bold mb-4">Additional Resources</h2>
           <ul className="space-y-2 text-gray-700">
             <li>
               <a href="/interactive-chart" className="text-blue-600 hover:underline">

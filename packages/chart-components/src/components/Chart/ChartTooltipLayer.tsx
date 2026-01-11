@@ -15,6 +15,8 @@ export interface ChartTooltipLayerProps extends ChartTooltipProps {
   snapToDataPoints?: boolean
   seriesLabels?: Record<string, string>
   snapAlongYAxis?: boolean
+  /** Set to 'horizontal' for horizontal bar charts to search by Y position */
+  orientation?: 'vertical' | 'horizontal'
 }
 
 export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
@@ -22,6 +24,7 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
   snapToDataPoints = true,
   snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
   seriesLabels,
+  orientation = 'vertical',
   ...tooltipProps
 }) => {
   const layerOptions = useMemo(() => ({ order: LayerOrder.tooltip }), [])
@@ -46,7 +49,15 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         activePoint = nearest?.point ?? null
         activeIndex = activePoint?.dataIndex
       } else if (helpers.normalizedData.length > 0) {
-        const closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
+        let closest: number | null
+        if (orientation === 'horizontal') {
+          // For horizontal bars, categories are along Y-axis
+          closest = findClosestIndexByY(helpers.pointer.y, helpers.normalizedData, helpers.chartArea)
+        } else {
+          // For vertical bars, categories are along X-axis
+          closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
+        }
+
         if (closest !== null) {
           activeIndex = closest
           // Use any existing data point at this index as active reference
@@ -83,7 +94,7 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         ...tooltipProps
       })
     },
-    [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps]
+    [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps, orientation]
   )
 
   useChartLayer(draw, layerOptions)
@@ -101,6 +112,40 @@ function findClosestIndexByX(cursorX: number, labelPositions: number[]): number 
 
   for (let index = 1; index < labelPositions.length; index += 1) {
     const distance = Math.abs(cursorX - labelPositions[index])
+    if (distance < closestDistance) {
+      closestDistance = distance
+      closestIndex = index
+    }
+  }
+
+  return closestIndex
+}
+
+function findClosestIndexByY(
+  cursorY: number,
+  normalizedData: Array<{ index: number }>,
+  chartArea: { y: number; height: number }
+): number | null {
+  if (normalizedData.length === 0) {
+    return null
+  }
+
+  // Calculate Y positions for categories (same logic as in ChartBarSeries for horizontal bars)
+  const dataCount = normalizedData.length
+  if (dataCount <= 1) {
+    return 0
+  }
+
+  const getCategoryYPosition = (index: number): number => {
+    const segmentHeight = chartArea.height / (dataCount + 1)
+    return chartArea.y + (index + 1) * segmentHeight
+  }
+
+  let closestIndex = 0
+  let closestDistance = Math.abs(cursorY - getCategoryYPosition(0))
+
+  for (let index = 1; index < dataCount; index += 1) {
+    const distance = Math.abs(cursorY - getCategoryYPosition(index))
     if (distance < closestDistance) {
       closestDistance = distance
       closestIndex = index

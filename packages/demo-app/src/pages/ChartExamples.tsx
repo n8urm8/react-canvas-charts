@@ -4,6 +4,7 @@ import { LineChartExample, lineChartCode } from '../components/examples/LineChar
 import { AreaChartExample, areaChartCode } from '../components/examples/AreaChartExample'
 import { BarChartExample, barChartCode } from '../components/examples/BarChartExample'
 import { GroupedBarChartExample, groupedBarChartCode } from '../components/examples/GroupedBarChartExample'
+import { HorizontalBarChartExample, horizontalBarChartCode } from '../components/examples/HorizontalBarChartExample'
 import { ScatterPlotExample, scatterPlotCode } from '../components/examples/ScatterPlotExample'
 import { BubblePlotExample, bubblePlotCode } from '../components/examples/BubblePlotExample'
 import { sparkChartCode, SparkChartExample } from '../components/examples/SparkChartExample'
@@ -47,6 +48,14 @@ export const ChartExamples: React.FC = () => {
             description="Side-by-side grouped bars for comparing multiple series"
             code={groupedBarChartCode}
             chart={<GroupedBarChartExample />}
+          />
+
+          {/* Horizontal Bar Chart Example */}
+          <ChartExampleCard
+            title="Horizontal Bar Chart"
+            description="Horizontal bars showing data comparison from left to right"
+            code={horizontalBarChartCode}
+            chart={<HorizontalBarChartExample />}
           />
 
           {/* Scatter Plot Example */}

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
-import { ChartOverlayPortal } from '../../utils/context/ChartOverlayContext'
 import './ChartLegend.css'
 
 export type ChartLegendPosition =
@@ -137,26 +136,24 @@ export const ChartLegend: React.FC<ChartLegendProps> = ({
   const finalStyle = { ...positionStyle, ...coordinateStyle }
 
   return (
-    <ChartOverlayPortal>
-      <div className={containerClasses} style={finalStyle}>
-        {title ? <div className="chart-legend-title">{title}</div> : null}
-        {resolvedItems.map((entry) => (
-          <div key={entry.key} className={`chart-legend-item ${itemClassName || ''}`}>
-            <span
-              className={`chart-legend-marker ${markerClassName || ''}`}
-              style={{
-                backgroundColor: entry.color,
-                width: markerSize,
-                height: markerSize,
-                borderRadius: markerSize / 4
-              }}
-              aria-hidden="true"
-            />
-            <span>{entry.label}</span>
-          </div>
-        ))}
-      </div>
-    </ChartOverlayPortal>
+    <div className={containerClasses} style={finalStyle}>
+      {title ? <div className="chart-legend-title">{title}</div> : null}
+      {resolvedItems.map((entry) => (
+        <div key={entry.key} className={`chart-legend-item ${itemClassName || ''}`}>
+          <span
+            className={`chart-legend-marker ${markerClassName || ''}`}
+            style={{
+              backgroundColor: entry.color,
+              width: markerSize,
+              height: markerSize,
+              borderRadius: markerSize / 4
+            }}
+            aria-hidden="true"
+          />
+          <span>{entry.label}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 

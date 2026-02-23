@@ -91,8 +91,6 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
     cursorY,
     chartX,
     chartY,
-    chartWidth,
-    chartHeight,
     canvasWidth,
     canvasHeight,
     show = defaultChartTooltipProps.show,
@@ -115,9 +113,6 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
     formatter,
     template = defaultChartTooltipProps.template,
   } = props;
-
-  void chartWidth;
-  void chartHeight;
 
   if (!show || !dataPoint) return;
 
@@ -173,12 +168,19 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
   // Set font for text measurement
   context.font = `${fontSize}px ${fontFamily}`;
 
-  // Calculate text dimensions
+  // Pre-wrap content first so tooltip height/width match what will be drawn.
   const lineHeight = fontSize * 1.2;
-  const textMetrics = content.map(line => context.measureText(line));
-  const maxTextWidth = Math.max(...textMetrics.map(m => m.width));
+  const maxInnerWidth = Math.max(1, maxWidth - padding * 2);
+  const wrappedLines = content.flatMap((line) => wrapLine(context, line, maxInnerWidth));
+
+  if (wrappedLines.length === 0) {
+    context.restore();
+    return;
+  }
+
+  const maxTextWidth = Math.max(...wrappedLines.map((line) => context.measureText(line).width));
   const tooltipWidth = Math.min(maxTextWidth + padding * 2, maxWidth);
-  const tooltipHeight = content.length * lineHeight + padding * 2;
+  const tooltipHeight = wrappedLines.length * lineHeight + padding * 2;
 
   // Calculate tooltip position
   let tooltipX: number;
@@ -269,32 +271,9 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
   context.textAlign = 'left';
   context.textBaseline = 'top';
 
-  content.forEach((line, index) => {
+  wrappedLines.forEach((line, index) => {
     const textY = tooltipY + padding + index * lineHeight;
-    
-    // Handle text wrapping if needed
-    if (context.measureText(line).width > maxWidth - padding * 2) {
-      const words = line.split(' ');
-      let currentLine = '';
-      let lineIndex = index;
-      
-      words.forEach(word => {
-        const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        if (context.measureText(testLine).width > maxWidth - padding * 2 && currentLine) {
-          context.fillText(currentLine, tooltipX + padding, tooltipY + padding + lineIndex * lineHeight);
-          currentLine = word;
-          lineIndex++;
-        } else {
-          currentLine = testLine;
-        }
-      });
-      
-      if (currentLine) {
-        context.fillText(currentLine, tooltipX + padding, tooltipY + padding + lineIndex * lineHeight);
-      }
-    } else {
-      context.fillText(line, tooltipX + padding, textY);
-    }
+    context.fillText(line, tooltipX + padding, textY);
   });
 
   // Restore context state
@@ -336,4 +315,42 @@ function formatValue(value: unknown): string {
   }
 
   return String(value);
+}
+
+function wrapLine(context: CanvasRenderingContext2D, line: string, maxWidth: number): string[] {
+  if (line.length === 0) {
+    return [''];
+  }
+
+  if (context.measureText(line).width <= maxWidth) {
+    return [line];
+  }
+
+  const words = line.split(' ');
+  const wrapped: string[] = [];
+  let current = '';
+
+  words.forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (context.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+      return;
+    }
+
+    if (current) {
+      wrapped.push(current);
+      current = word;
+      return;
+    }
+
+    // Single very long token: keep as-is to avoid dropping content.
+    wrapped.push(word);
+    current = '';
+  });
+
+  if (current) {
+    wrapped.push(current);
+  }
+
+  return wrapped.length > 0 ? wrapped : [''];
 }

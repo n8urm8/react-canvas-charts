@@ -9,6 +9,7 @@ import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
 import { findNearestDataPoint, defaultChartCursorProps, type DataPoint } from './InternalComponents/ChartCursor'
+import { findHorizontalBarHoverMatch } from '../../utils/horizontalBarHoverMatch'
 
 export interface ChartTooltipLayerProps extends ChartTooltipProps {
   snapRadius?: number
@@ -36,54 +37,20 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
       let activeIndex: number | undefined
 
       if (helpers.barOrientation === 'horizontal') {
-        // Proper 2D bar rectangle hit test for horizontal bars.
-        // helpers.dataPoints use vertical-chart geometry so we can't use findNearestDataPoint here;
-        // instead we compute the real visual positions the same way ChartBarSeries does.
-        const dataCount = helpers.normalizedData.length
-        if (dataCount > 0) {
-          const getCategoryY = (index: number): number => {
-            if (dataCount <= 1) return helpers.chartArea.y + helpers.chartArea.height / 2
-            const segH = helpers.chartArea.height / (dataCount + 1)
-            return helpers.chartArea.y + (index + 1) * segH
-          }
-          const halfBand = helpers.chartArea.height / (dataCount + 1) / 2
+        const match = findHorizontalBarHoverMatch(helpers, helpers.pointer.x, helpers.pointer.y, snapRadius)
+        if (match) {
+          activeIndex = match.index
+          const basePoint = helpers.dataPoints.find((p) => p.dataIndex === match.index)
+          const tooltipPosition = tooltipProps.position ?? defaultChartTooltipProps.position
 
-          const getBarTipX = (key: string, value: number): number => {
-            const scaleId = helpers.getScaleIdForKey(key)
-            const domain = helpers.getScaleDomain(scaleId)
-            const range = domain.paddedMax - domain.paddedMin
-            if (range === 0) return helpers.chartArea.x + helpers.chartArea.width / 2
-            const normalized = Math.max(0, Math.min(1, (value - domain.paddedMin) / range))
-            return helpers.chartArea.x + normalized * helpers.chartArea.width
-          }
+          // For non-follow positions, anchor to the horizontal bar row geometry.
+          // For follow mode, keep using cursorX/cursorY in renderChartTooltip.
+          const anchorX = tooltipPosition === 'follow' ? helpers.pointer.x : match.maxBarTipX
+          const anchorY = tooltipPosition === 'follow' ? helpers.pointer.y : match.categoryY
 
-          const cx = helpers.pointer.x
-          const cy = helpers.pointer.y
-
-          for (let index = 0; index < dataCount; index++) {
-            const datum = helpers.normalizedData[index]
-            const catY = getCategoryY(index)
-
-            // Must be within this category's Y band
-            if (Math.abs(cy - catY) > halfBand) continue
-
-            // Find the furthest bar tip in this row (covers all series)
-            let maxBarTipX = helpers.chartArea.x
-            for (const [key, value] of Object.entries(datum.values)) {
-              if (value === null || !Number.isFinite(value as number)) continue
-              const tipX = getBarTipX(key, value as number)
-              if (tipX > maxBarTipX) maxBarTipX = tipX
-            }
-
-            // Must be horizontally within the chart area up to the furthest bar
-            if (cx >= helpers.chartArea.x - snapRadius && cx <= maxBarTipX + snapRadius) {
-              activeIndex = index
-              // Use cursor position so tooltip placement comes from cursorX/cursorY
-              activePoint = helpers.dataPoints.find((p) => p.dataIndex === index) ??
-                ({ x: cx, y: cy, value: 0, dataIndex: index } as DataPoint)
-              break
-            }
-          }
+          activePoint = basePoint
+            ? { ...basePoint, x: anchorX, y: anchorY }
+            : ({ x: anchorX, y: anchorY, value: 0, dataIndex: match.index } as DataPoint)
         }
       } else if (snapToDataPoints) {
         const nearest = findNearestDataPoint(

@@ -11,6 +11,7 @@ import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { findHorizontalBarHoverMatch } from '../../utils/horizontalBarHoverMatch'
 
 export interface ChartCursorLayerProps extends ChartCursorProps {}
 
@@ -44,47 +45,10 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
       let snappedCategoryIndex: number | undefined
 
       if (barOrientation === 'horizontal') {
-        // Proper 2D bar rectangle hit test — same geometry as ChartBarSeries horizontal rendering
-        const dataCount = helpers.normalizedData.length
-        if (dataCount > 0) {
-          const getCategoryY = (index: number): number => {
-            if (dataCount <= 1) return helpers.chartArea.y + helpers.chartArea.height / 2
-            const segH = helpers.chartArea.height / (dataCount + 1)
-            return helpers.chartArea.y + (index + 1) * segH
-          }
-          const halfBand = helpers.chartArea.height / (dataCount + 1) / 2
-
-          const getBarTipX = (key: string, value: number): number => {
-            const scaleId = helpers.getScaleIdForKey(key)
-            const domain = helpers.getScaleDomain(scaleId)
-            const range = domain.paddedMax - domain.paddedMin
-            if (range === 0) return helpers.chartArea.x + helpers.chartArea.width / 2
-            const normalized = Math.max(0, Math.min(1, (value - domain.paddedMin) / range))
-            return helpers.chartArea.x + normalized * helpers.chartArea.width
-          }
-
-          const cx = helpers.pointer.x
-          const cy = helpers.pointer.y
-
-          for (let index = 0; index < dataCount; index++) {
-            const datum = helpers.normalizedData[index]
-            const catY = getCategoryY(index)
-
-            if (Math.abs(cy - catY) > halfBand) continue
-
-            let maxBarTipX = helpers.chartArea.x
-            for (const [key, value] of Object.entries(datum.values)) {
-              if (value === null || !Number.isFinite(value as number)) continue
-              const tipX = getBarTipX(key, value as number)
-              if (tipX > maxBarTipX) maxBarTipX = tipX
-            }
-
-            if (cx >= helpers.chartArea.x - snapRadius && cx <= maxBarTipX + snapRadius) {
-              snappedCategoryIndex = index
-              snappedCategoryY = catY
-              break
-            }
-          }
+        const match = findHorizontalBarHoverMatch(helpers, helpers.pointer.x, helpers.pointer.y, snapRadius)
+        if (match) {
+          snappedCategoryIndex = match.index
+          snappedCategoryY = match.categoryY
         }
       } else {
         // For vertical bars, use the standard dataPoint snapping

@@ -12,19 +12,15 @@ import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
 
-export interface ChartCursorLayerProps extends ChartCursorProps {
-  /** Set to 'horizontal' for horizontal bar charts */
-  orientation?: 'vertical' | 'horizontal'
-}
+export interface ChartCursorLayerProps extends ChartCursorProps {}
 
 export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
   snapRadius = defaultChartCursorProps.snapRadius,
   snapToDataPoints = defaultChartCursorProps.snapToDataPoints,
   snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
-  orientation = 'vertical',
   ...cursorProps
 }) => {
-  const { registerCursorOptions } = useChartSurface()
+  const { registerCursorOptions, barOrientation } = useChartSurface()
 
   useEffect(() => {
     const unregister = registerCursorOptions({
@@ -47,32 +43,47 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
       let snappedCategoryY: number | undefined
       let snappedCategoryIndex: number | undefined
 
-      if (orientation === 'horizontal') {
-        // For horizontal bars, find the closest category by Y position
-        if (helpers.normalizedData.length > 0) {
-          const dataCount = helpers.normalizedData.length
-          const getCategoryYPosition = (index: number): number => {
-            if (dataCount <= 1) {
-              return helpers.chartArea.y + helpers.chartArea.height / 2
-            }
-            const segmentHeight = helpers.chartArea.height / (dataCount + 1)
-            return helpers.chartArea.y + (index + 1) * segmentHeight
+      if (barOrientation === 'horizontal') {
+        // Proper 2D bar rectangle hit test — same geometry as ChartBarSeries horizontal rendering
+        const dataCount = helpers.normalizedData.length
+        if (dataCount > 0) {
+          const getCategoryY = (index: number): number => {
+            if (dataCount <= 1) return helpers.chartArea.y + helpers.chartArea.height / 2
+            const segH = helpers.chartArea.height / (dataCount + 1)
+            return helpers.chartArea.y + (index + 1) * segH
+          }
+          const halfBand = helpers.chartArea.height / (dataCount + 1) / 2
+
+          const getBarTipX = (key: string, value: number): number => {
+            const scaleId = helpers.getScaleIdForKey(key)
+            const domain = helpers.getScaleDomain(scaleId)
+            const range = domain.paddedMax - domain.paddedMin
+            if (range === 0) return helpers.chartArea.x + helpers.chartArea.width / 2
+            const normalized = Math.max(0, Math.min(1, (value - domain.paddedMin) / range))
+            return helpers.chartArea.x + normalized * helpers.chartArea.width
           }
 
-          let closestIndex = 0
-          let closestDistance = Math.abs(helpers.pointer.y - getCategoryYPosition(0))
+          const cx = helpers.pointer.x
+          const cy = helpers.pointer.y
 
-          for (let index = 1; index < dataCount; index += 1) {
-            const distance = Math.abs(helpers.pointer.y - getCategoryYPosition(index))
-            if (distance < closestDistance) {
-              closestDistance = distance
-              closestIndex = index
+          for (let index = 0; index < dataCount; index++) {
+            const datum = helpers.normalizedData[index]
+            const catY = getCategoryY(index)
+
+            if (Math.abs(cy - catY) > halfBand) continue
+
+            let maxBarTipX = helpers.chartArea.x
+            for (const [key, value] of Object.entries(datum.values)) {
+              if (value === null || !Number.isFinite(value as number)) continue
+              const tipX = getBarTipX(key, value as number)
+              if (tipX > maxBarTipX) maxBarTipX = tipX
             }
-          }
 
-          if (closestDistance <= snapRadius) {
-            snappedCategoryIndex = closestIndex
-            snappedCategoryY = getCategoryYPosition(closestIndex)
+            if (cx >= helpers.chartArea.x - snapRadius && cx <= maxBarTipX + snapRadius) {
+              snappedCategoryIndex = index
+              snappedCategoryY = catY
+              break
+            }
           }
         }
       } else {
@@ -109,7 +120,7 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
           return 'series'
         }
 
-        if (orientation === 'horizontal' && snappedCategoryIndex !== undefined) {
+        if (barOrientation === 'horizontal' && snappedCategoryIndex !== undefined) {
           // For horizontal bars, show all series at the snapped category
           const candidatePoints = helpers.dataPoints.filter((point) => point.dataIndex === snappedCategoryIndex)
 
@@ -161,25 +172,25 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         chartHeight: helpers.chartArea.height,
         cursorX: helpers.pointer.x,
         cursorY: helpers.pointer.y,
-        snappedX: orientation === 'horizontal' ? helpers.pointer.x : nearest?.point.x,
-        snappedY: orientation === 'horizontal' ? snappedCategoryY : nearest?.point.y,
+        snappedX: barOrientation === 'horizontal' ? helpers.pointer.x : nearest?.point.x,
+        snappedY: barOrientation === 'horizontal' ? snappedCategoryY : nearest?.point.y,
         snapToDataPoints,
         snapRadius,
         hoverPoints,
         ...cursorProps,
         showHorizontalLine:
-          orientation === 'horizontal'
+          barOrientation === 'horizontal'
             ? (cursorProps.showHorizontalLine ?? true)
             : snapAlongYAxis
               ? (cursorProps.showHorizontalLine ?? defaultChartCursorProps.showHorizontalLine)
               : false,
         showVerticalLine:
-          orientation === 'horizontal'
+          barOrientation === 'horizontal'
             ? false
             : (cursorProps.showVerticalLine ?? defaultChartCursorProps.showVerticalLine)
       })
     },
-    [cursorProps, snapAlongYAxis, snapRadius, snapToDataPoints, orientation]
+    [cursorProps, snapAlongYAxis, snapRadius, snapToDataPoints, barOrientation]
   )
 
   useChartLayer(draw, layerOptions)

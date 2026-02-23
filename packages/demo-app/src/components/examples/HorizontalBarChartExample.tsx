@@ -35,8 +35,8 @@ export const HorizontalBarChartExample = () => {
         <ChartXAxis show title="Sales ($)" showTitle valueScale />
         <ChartBarSeries dataKey="sales" color="#3b82f6" barGap={8} orientation="horizontal" />
         <ChartBarSeries dataKey="target" color="#94a3b8" opacity={0.5} barGap={8} orientation="horizontal" />
-        <ChartCursorLayer orientation="horizontal" snapToDataPoints />
-        <ChartTooltipLayer orientation="horizontal" />
+        <ChartCursorLayer snapToDataPoints />
+        <ChartTooltipLayer />
         <ChartLegend
           placement={{ position: 'top-center' }}
           items={[
@@ -85,8 +85,8 @@ export const GroupedHorizontalBarChartExample = () => {
           orientation="horizontal"
         />
 
-        <ChartCursorLayer orientation="horizontal" snapToDataPoints />
-        <ChartTooltipLayer orientation="horizontal" />
+        <ChartCursorLayer snapToDataPoints />
+        <ChartTooltipLayer />
         <ChartLegend
           placement={{ position: 'top-center' }}
           items={[
@@ -119,8 +119,8 @@ export const StackedHorizontalBarChartExample = () => {
         <ChartBarSeries dataKey="sales" color="#3b82f6" barGap={8} orientation="horizontal" />
         <ChartBarSeries dataKey="target" color="#10b981" barGap={8} baseline="sales" orientation="horizontal" />
 
-        <ChartCursorLayer orientation="horizontal" snapToDataPoints />
-        <ChartTooltipLayer orientation="horizontal" />
+        <ChartCursorLayer snapToDataPoints />
+        <ChartTooltipLayer />
         <ChartLegend
           placement={{ position: 'top-center' }}
           items={[
@@ -167,8 +167,8 @@ const data = [
   <ChartXAxis show title="Sales ($)" showTitle valueScale />
   <ChartBarSeries dataKey="sales" color="#3b82f6" barGap={8} orientation="horizontal" />
   <ChartBarSeries dataKey="target" color="#94a3b8" opacity={0.5} barGap={8} orientation="horizontal" />
-  <ChartCursorLayer orientation="horizontal" snapToDataPoints />
-  <ChartTooltipLayer orientation="horizontal" />
+  <ChartCursorLayer snapToDataPoints />
+  <ChartTooltipLayer />
   <ChartLegend
     placement={{ position: 'top-center' }}
     items={[
@@ -208,8 +208,8 @@ const data = [
     barGap={20}
     orientation="horizontal"
   />
-  <ChartCursorLayer orientation="horizontal" snapToDataPoints />
-  <ChartTooltipLayer orientation="horizontal" />
+  <ChartCursorLayer snapToDataPoints />
+  <ChartTooltipLayer />
   <ChartLegend
     placement={{ position: 'top-center' }}
     items={[

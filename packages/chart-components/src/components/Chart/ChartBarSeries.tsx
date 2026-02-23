@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react'
+import React, { useMemo, useCallback, useEffect } from 'react'
 import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
@@ -35,7 +35,25 @@ export const ChartBarSeries: React.FC<ChartBarSeriesProps> = ({
   groupGap = 2,
   orientation = 'vertical'
 }) => {
-  const { normalizedData, getYPositionForKey, getColorForKey, chartArea } = useChartSurface()
+  const { normalizedData, getYPositionForKey, getColorForKey, chartArea, getScaleDomain, getScaleIdForKey, registerHorizontalBars } = useChartSurface()
+
+  useEffect(() => {
+    if (orientation !== 'horizontal') return
+    return registerHorizontalBars()
+  }, [orientation, registerHorizontalBars])
+
+  // For horizontal bars, map a value linearly onto the X axis (same formula as ChartXAxis valueScale)
+  const getXPositionForValue = useCallback(
+    (key: string, value: number): number => {
+      const scaleId = getScaleIdForKey(key)
+      const domain = getScaleDomain(scaleId)
+      const range = domain.paddedMax - domain.paddedMin
+      if (range === 0) return chartArea.x + chartArea.width / 2
+      const normalized = Math.max(0, Math.min(1, (value - domain.paddedMin) / range))
+      return chartArea.x + normalized * chartArea.width
+    },
+    [chartArea.x, chartArea.width, getScaleDomain, getScaleIdForKey]
+  )
 
   const bars = useMemo(() => {
     if (normalizedData.length === 0) return []
@@ -91,21 +109,20 @@ export const ChartBarSeries: React.FC<ChartBarSeriesProps> = ({
 
           let baselineX: number
           if (baseline === undefined) {
-            // Default: bars start from left of chart
+            // Default: bars start from left edge (represents paddedMin)
             baselineX = chartArea.x
           } else if (typeof baseline === 'number') {
-            // Fixed baseline value
-            baselineX = getYPositionForKey(dataKey, baseline) // Using getYPositionForKey as it handles scale mapping
+            baselineX = getXPositionForValue(dataKey, baseline)
           } else {
             // Baseline from another dataKey (for stacking)
             const baselineValue = datum.values[baseline]
             if (baselineValue === null || !Number.isFinite(baselineValue)) {
               return null
             }
-            baselineX = getYPositionForKey(dataKey, baselineValue)
+            baselineX = getXPositionForValue(dataKey, baselineValue)
           }
 
-          const x = getYPositionForKey(dataKey, value) // Use Y position function as it maps values to pixels
+          const x = getXPositionForValue(dataKey, value)
           const barLength = Math.abs(x - baselineX)
           const categoryY = getCategoryYPosition(index)
 
@@ -189,6 +206,7 @@ export const ChartBarSeries: React.FC<ChartBarSeriesProps> = ({
     chartArea,
     dataKey,
     getYPositionForKey,
+    getXPositionForValue,
     normalizedData,
     seriesIndex,
     totalSeries,
@@ -199,7 +217,7 @@ export const ChartBarSeries: React.FC<ChartBarSeriesProps> = ({
   const fillColor = useMemo(() => color ?? getColorForKey(dataKey), [color, dataKey, getColorForKey])
 
   const draw = useCallback<ChartLayerRenderer>(
-    (context, _helpers) => {
+    (context) => {
       if (!show || bars.length === 0) {
         return
       }

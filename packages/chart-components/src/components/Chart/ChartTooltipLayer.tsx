@@ -15,8 +15,6 @@ export interface ChartTooltipLayerProps extends ChartTooltipProps {
   snapToDataPoints?: boolean
   seriesLabels?: Record<string, string>
   snapAlongYAxis?: boolean
-  /** Set to 'horizontal' for horizontal bar charts to search by Y position */
-  orientation?: 'vertical' | 'horizontal'
 }
 
 export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
@@ -24,7 +22,6 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
   snapToDataPoints = true,
   snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
   seriesLabels,
-  orientation = 'vertical',
   ...tooltipProps
 }) => {
   const layerOptions = useMemo(() => ({ order: LayerOrder.tooltip }), [])
@@ -38,7 +35,57 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
       let activePoint: DataPoint | null = null
       let activeIndex: number | undefined
 
-      if (snapToDataPoints) {
+      if (helpers.barOrientation === 'horizontal') {
+        // Proper 2D bar rectangle hit test for horizontal bars.
+        // helpers.dataPoints use vertical-chart geometry so we can't use findNearestDataPoint here;
+        // instead we compute the real visual positions the same way ChartBarSeries does.
+        const dataCount = helpers.normalizedData.length
+        if (dataCount > 0) {
+          const getCategoryY = (index: number): number => {
+            if (dataCount <= 1) return helpers.chartArea.y + helpers.chartArea.height / 2
+            const segH = helpers.chartArea.height / (dataCount + 1)
+            return helpers.chartArea.y + (index + 1) * segH
+          }
+          const halfBand = helpers.chartArea.height / (dataCount + 1) / 2
+
+          const getBarTipX = (key: string, value: number): number => {
+            const scaleId = helpers.getScaleIdForKey(key)
+            const domain = helpers.getScaleDomain(scaleId)
+            const range = domain.paddedMax - domain.paddedMin
+            if (range === 0) return helpers.chartArea.x + helpers.chartArea.width / 2
+            const normalized = Math.max(0, Math.min(1, (value - domain.paddedMin) / range))
+            return helpers.chartArea.x + normalized * helpers.chartArea.width
+          }
+
+          const cx = helpers.pointer.x
+          const cy = helpers.pointer.y
+
+          for (let index = 0; index < dataCount; index++) {
+            const datum = helpers.normalizedData[index]
+            const catY = getCategoryY(index)
+
+            // Must be within this category's Y band
+            if (Math.abs(cy - catY) > halfBand) continue
+
+            // Find the furthest bar tip in this row (covers all series)
+            let maxBarTipX = helpers.chartArea.x
+            for (const [key, value] of Object.entries(datum.values)) {
+              if (value === null || !Number.isFinite(value as number)) continue
+              const tipX = getBarTipX(key, value as number)
+              if (tipX > maxBarTipX) maxBarTipX = tipX
+            }
+
+            // Must be horizontally within the chart area up to the furthest bar
+            if (cx >= helpers.chartArea.x - snapRadius && cx <= maxBarTipX + snapRadius) {
+              activeIndex = index
+              // Use cursor position so tooltip placement comes from cursorX/cursorY
+              activePoint = helpers.dataPoints.find((p) => p.dataIndex === index) ??
+                ({ x: cx, y: cy, value: 0, dataIndex: index } as DataPoint)
+              break
+            }
+          }
+        }
+      } else if (snapToDataPoints) {
         const nearest = findNearestDataPoint(
           helpers.pointer.x,
           helpers.pointer.y,
@@ -49,18 +96,9 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         activePoint = nearest?.point ?? null
         activeIndex = activePoint?.dataIndex
       } else if (helpers.normalizedData.length > 0) {
-        let closest: number | null
-        if (orientation === 'horizontal') {
-          // For horizontal bars, categories are along Y-axis
-          closest = findClosestIndexByY(helpers.pointer.y, helpers.normalizedData, helpers.chartArea)
-        } else {
-          // For vertical bars, categories are along X-axis
-          closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
-        }
-
+        const closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
         if (closest !== null) {
           activeIndex = closest
-          // Use any existing data point at this index as active reference
           activePoint = helpers.dataPoints.find((point) => point.dataIndex === closest) ?? null
         }
       }
@@ -94,7 +132,7 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         ...tooltipProps
       })
     },
-    [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps, orientation]
+    [seriesLabels, snapAlongYAxis, snapRadius, snapToDataPoints, tooltipProps]
   )
 
   useChartLayer(draw, layerOptions)
@@ -112,40 +150,6 @@ function findClosestIndexByX(cursorX: number, labelPositions: number[]): number 
 
   for (let index = 1; index < labelPositions.length; index += 1) {
     const distance = Math.abs(cursorX - labelPositions[index])
-    if (distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = index
-    }
-  }
-
-  return closestIndex
-}
-
-function findClosestIndexByY(
-  cursorY: number,
-  normalizedData: Array<{ index: number }>,
-  chartArea: { y: number; height: number }
-): number | null {
-  if (normalizedData.length === 0) {
-    return null
-  }
-
-  // Calculate Y positions for categories (same logic as in ChartBarSeries for horizontal bars)
-  const dataCount = normalizedData.length
-  if (dataCount <= 1) {
-    return 0
-  }
-
-  const getCategoryYPosition = (index: number): number => {
-    const segmentHeight = chartArea.height / (dataCount + 1)
-    return chartArea.y + (index + 1) * segmentHeight
-  }
-
-  let closestIndex = 0
-  let closestDistance = Math.abs(cursorY - getCategoryYPosition(0))
-
-  for (let index = 1; index < dataCount; index += 1) {
-    const distance = Math.abs(cursorY - getCategoryYPosition(index))
     if (distance < closestDistance) {
       closestDistance = distance
       closestIndex = index

@@ -58,16 +58,8 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
   scaleId,
   ...axisProps
 }) => {
-  const {
-    labels,
-    labelPositions,
-    chartArea,
-    canvasSize,
-    setAxisTicks,
-    getScaleDomain,
-    getYPositionForScale,
-    defaultScaleId
-  } = useChartSurface()
+  const { labels, labelPositions, chartArea, canvasSize, setAxisTicks, getScaleDomain, defaultScaleId } =
+    useChartSurface()
 
   const resolvedScaleId = useMemo(() => scaleId ?? defaultScaleId, [scaleId, defaultScaleId])
 

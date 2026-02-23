@@ -103,6 +103,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   })
   const yAxisIdRef = useRef(0)
   const [yAxisCounts, setYAxisCounts] = useState<{ left: number; right: number }>(() => ({ left: 0, right: 0 }))
+  const [horizontalBarCount, setHorizontalBarCount] = useState(0)
+  const barOrientation = horizontalBarCount > 0 ? ('horizontal' as const) : ('vertical' as const)
 
   const recomputeCursorOptions = useCallback(() => {
     const aggregated: CursorOptions = { ...defaultCursorOptions }
@@ -161,6 +163,13 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           right: current.right.length
         })
       }
+    }
+  }, [])
+
+  const registerHorizontalBars = useCallback(() => {
+    setHorizontalBarCount((c) => c + 1)
+    return () => {
+      setHorizontalBarCount((c) => c - 1)
     }
   }, [])
 
@@ -1038,7 +1047,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         valueDomain,
         valueDomainsByScale,
         renderCycle: baseRenderVersion,
-        yAxisCounts
+        yAxisCounts,
+        barOrientation
       }
 
       baseLayers.forEach((layer) => {
@@ -1066,7 +1076,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
-      defaultScaleId
+      defaultScaleId,
+      barOrientation
     ]
   )
 
@@ -1123,7 +1134,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         valueDomain,
         valueDomainsByScale,
         renderCycle: overlayRenderCycleRef.current,
-        yAxisCounts
+        yAxisCounts,
+        barOrientation
       }
 
       overlayLayers.forEach((layer) => {
@@ -1147,6 +1159,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
+      barOrientation,
       defaultScaleId
     ]
   )
@@ -1180,7 +1193,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       registerYAxis,
       getYAxisIndex,
       yAxisCounts,
-      yAxisSpacing: Y_AXIS_BAND_WIDTH
+      yAxisSpacing: Y_AXIS_BAND_WIDTH,
+      barOrientation,
+      registerHorizontalBars
     }),
     [
       axisTicks,
@@ -1209,7 +1224,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       valueDomain,
       valueDomainsByScale,
       xKey,
-      yAxisCounts
+      yAxisCounts,
+      barOrientation,
+      registerHorizontalBars
     ]
   )
 

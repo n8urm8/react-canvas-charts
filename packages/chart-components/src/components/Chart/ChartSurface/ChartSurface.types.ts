@@ -128,6 +128,7 @@ export interface ChartSurfaceRenderHelpers {
   valueDomainsByScale: Record<string, ValueDomain>
   renderCycle: number
   yAxisCounts: { left: number; right: number }
+  barOrientation: 'vertical' | 'horizontal'
 }
 
 export type ChartLayerRenderer = (context: CanvasRenderingContext2D, helpers: ChartSurfaceRenderHelpers) => void
@@ -162,6 +163,8 @@ export interface ChartSurfaceContextValue {
   getYAxisIndex: (id: string, side: 'left' | 'right') => number
   yAxisCounts: { left: number; right: number }
   yAxisSpacing: number
+  barOrientation: 'vertical' | 'horizontal'
+  registerHorizontalBars: () => () => void
 }
 
 // Cursor types

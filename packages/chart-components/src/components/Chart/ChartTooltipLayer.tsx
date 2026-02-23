@@ -9,6 +9,7 @@ import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
 import { findNearestDataPoint, defaultChartCursorProps, type DataPoint } from './InternalComponents/ChartCursor'
+import { findHorizontalBarHoverMatch } from '../../utils/horizontalBarHoverMatch'
 
 export interface ChartTooltipLayerProps extends ChartTooltipProps {
   snapRadius?: number
@@ -35,7 +36,23 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
       let activePoint: DataPoint | null = null
       let activeIndex: number | undefined
 
-      if (snapToDataPoints) {
+      if (helpers.barOrientation === 'horizontal') {
+        const match = findHorizontalBarHoverMatch(helpers, helpers.pointer.x, helpers.pointer.y, snapRadius)
+        if (match) {
+          activeIndex = match.index
+          const basePoint = helpers.dataPoints.find((p) => p.dataIndex === match.index)
+          const tooltipPosition = tooltipProps.position ?? defaultChartTooltipProps.position
+
+          // For non-follow positions, anchor to the horizontal bar row geometry.
+          // For follow mode, keep using cursorX/cursorY in renderChartTooltip.
+          const anchorX = tooltipPosition === 'follow' ? helpers.pointer.x : match.maxBarTipX
+          const anchorY = tooltipPosition === 'follow' ? helpers.pointer.y : match.categoryY
+
+          activePoint = basePoint
+            ? { ...basePoint, x: anchorX, y: anchorY }
+            : ({ x: anchorX, y: anchorY, value: 0, dataIndex: match.index } as DataPoint)
+        }
+      } else if (snapToDataPoints) {
         const nearest = findNearestDataPoint(
           helpers.pointer.x,
           helpers.pointer.y,
@@ -49,7 +66,6 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         const closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
         if (closest !== null) {
           activeIndex = closest
-          // Use any existing data point at this index as active reference
           activePoint = helpers.dataPoints.find((point) => point.dataIndex === closest) ?? null
         }
       }

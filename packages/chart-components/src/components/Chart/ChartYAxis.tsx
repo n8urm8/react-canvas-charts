@@ -11,6 +11,8 @@ export interface ChartYAxisProps extends ChartAxisProps {
   scaleId?: string
   side?: 'left' | 'right'
   registerTicks?: boolean
+  /** When true, displays categorical labels from data instead of value scale */
+  categorical?: boolean
 }
 
 export const ChartYAxis: React.FC<ChartYAxisProps> = ({
@@ -20,6 +22,7 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
   side = 'left',
   registerTicks,
   orientation,
+  categorical = false,
   ...restAxisProps
 }) => {
   const {
@@ -31,7 +34,9 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     setAxisTicks,
     registerYAxis,
     getYAxisIndex,
-    yAxisSpacing
+    yAxisSpacing,
+    labels,
+    normalizedData
   } = useChartSurface()
 
   const resolvedScaleId = useMemo(() => scaleId ?? defaultScaleId, [scaleId, defaultScaleId])
@@ -52,7 +57,31 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
 
   const domain = useMemo(() => getScaleDomain(resolvedScaleId), [getScaleDomain, resolvedScaleId])
 
+  // For categorical mode, calculate positions based on data distribution along Y-axis
+  const categoricalPositions = useMemo(() => {
+    if (!categorical || normalizedData.length === 0) {
+      return []
+    }
+
+    const dataCount = normalizedData.length
+    const getCategoryYPosition = (index: number): number => {
+      if (dataCount <= 1) {
+        return chartArea.y + chartArea.height / 2
+      }
+      // For categorical data, center in equal-height bands with padding
+      const segmentHeight = chartArea.height / (dataCount + 1)
+      return chartArea.y + (index + 1) * segmentHeight
+    }
+
+    return normalizedData.map((_, index) => getCategoryYPosition(index))
+  }, [categorical, normalizedData, chartArea.y, chartArea.height])
+
   const tickValues = useMemo(() => {
+    if (categorical) {
+      // For categorical, we don't use numeric values
+      return []
+    }
+
     const count = Math.max(1, tickCount)
     const range = domain.paddedMax - domain.paddedMin
 
@@ -68,22 +97,26 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     }
 
     return values
-  }, [domain.paddedMax, domain.paddedMin, tickCount])
+  }, [categorical, domain.paddedMax, domain.paddedMin, tickCount])
 
   const getPositionForValue = useCallback(
     (value: number) => getYPositionForScale(resolvedScaleId, value),
     [getYPositionForScale, resolvedScaleId]
   )
 
-  const tickPositions = useMemo(
-    () => tickValues.map((value) => getPositionForValue(value)),
-    [getPositionForValue, tickValues]
-  )
+  const tickPositions = useMemo(() => {
+    if (categorical) {
+      return categoricalPositions
+    }
+    return tickValues.map((value) => getPositionForValue(value))
+  }, [categorical, categoricalPositions, getPositionForValue, tickValues])
 
-  const tickLabels = useMemo(
-    () => tickValues.map((value) => (formatLabel ? formatLabel(value) : Math.round(value).toString())),
-    [formatLabel, tickValues]
-  )
+  const tickLabels = useMemo(() => {
+    if (categorical) {
+      return labels
+    }
+    return tickValues.map((value) => (formatLabel ? formatLabel(value) : Math.round(value).toString()))
+  }, [categorical, labels, formatLabel, tickValues])
 
   const shouldRegisterTicks = registerTicks ?? resolvedScaleId === defaultScaleId
 

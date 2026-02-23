@@ -11,8 +11,9 @@ import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { findHorizontalBarHoverMatch } from '../../utils/horizontalBarHoverMatch'
 
-export type ChartCursorLayerProps = ChartCursorProps
+export interface ChartCursorLayerProps extends ChartCursorProps {}
 
 export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
   snapRadius = defaultChartCursorProps.snapRadius,
@@ -20,7 +21,7 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
   snapAlongYAxis = defaultChartCursorProps.snapAlongYAxis,
   ...cursorProps
 }) => {
-  const { registerCursorOptions } = useChartSurface()
+  const { registerCursorOptions, barOrientation } = useChartSurface()
 
   useEffect(() => {
     const unregister = registerCursorOptions({
@@ -39,15 +40,28 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         return
       }
 
-      const nearest = snapToDataPoints
-        ? findNearestDataPoint(helpers.pointer.x, helpers.pointer.y, helpers.dataPoints, snapRadius, snapAlongYAxis)
-        : null
+      let nearest: { point: DataPoint; distance: number } | null = null
+      let snappedCategoryY: number | undefined
+      let snappedCategoryIndex: number | undefined
+
+      if (barOrientation === 'horizontal') {
+        const match = findHorizontalBarHoverMatch(helpers, helpers.pointer.x, helpers.pointer.y, snapRadius)
+        if (match) {
+          snappedCategoryIndex = match.index
+          snappedCategoryY = match.categoryY
+        }
+      } else {
+        // For vertical bars, use the standard dataPoint snapping
+        nearest = snapToDataPoints
+          ? findNearestDataPoint(helpers.pointer.x, helpers.pointer.y, helpers.dataPoints, snapRadius, snapAlongYAxis)
+          : null
+      }
 
       const showHoverPoints = cursorProps.showHoverPoints ?? defaultChartCursorProps.showHoverPoints
 
       let hoverPoints: ChartCursorHoverPoint[] = []
 
-      if (showHoverPoints && snapToDataPoints && nearest) {
+      if (showHoverPoints && snapToDataPoints && (nearest || snappedCategoryIndex !== undefined)) {
         // Highlight either the snapped point or every series sharing the snapped index (tooltip behavior).
         const mapHoverPoint = (point: DataPoint): ChartCursorHoverPoint => {
           const dataKey =
@@ -70,9 +84,24 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
           return 'series'
         }
 
-        if (snapAlongYAxis) {
+        if (barOrientation === 'horizontal' && snappedCategoryIndex !== undefined) {
+          // For horizontal bars, show all series at the snapped category
+          const candidatePoints = helpers.dataPoints.filter((point) => point.dataIndex === snappedCategoryIndex)
+
+          const seenSeries = new Set<string>()
+          hoverPoints = candidatePoints.reduce<ChartCursorHoverPoint[]>((accumulator, point) => {
+            const seriesKey = getSeriesKey(point)
+            if (seenSeries.has(seriesKey)) {
+              return accumulator
+            }
+
+            seenSeries.add(seriesKey)
+            accumulator.push(mapHoverPoint(point))
+            return accumulator
+          }, [])
+        } else if (snapAlongYAxis && nearest) {
           hoverPoints = [mapHoverPoint(nearest.point)]
-        } else {
+        } else if (nearest) {
           const targetDataIndex = nearest.point.dataIndex
           const targetX = nearest.point.x
 
@@ -107,18 +136,25 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         chartHeight: helpers.chartArea.height,
         cursorX: helpers.pointer.x,
         cursorY: helpers.pointer.y,
-        snappedX: nearest?.point.x,
-        snappedY: nearest?.point.y,
+        snappedX: barOrientation === 'horizontal' ? helpers.pointer.x : nearest?.point.x,
+        snappedY: barOrientation === 'horizontal' ? snappedCategoryY : nearest?.point.y,
         snapToDataPoints,
         snapRadius,
         hoverPoints,
         ...cursorProps,
-        showHorizontalLine: snapAlongYAxis
-          ? (cursorProps.showHorizontalLine ?? defaultChartCursorProps.showHorizontalLine)
-          : false
+        showHorizontalLine:
+          barOrientation === 'horizontal'
+            ? (cursorProps.showHorizontalLine ?? true)
+            : snapAlongYAxis
+              ? (cursorProps.showHorizontalLine ?? defaultChartCursorProps.showHorizontalLine)
+              : false,
+        showVerticalLine:
+          barOrientation === 'horizontal'
+            ? false
+            : (cursorProps.showVerticalLine ?? defaultChartCursorProps.showVerticalLine)
       })
     },
-    [cursorProps, snapAlongYAxis, snapRadius, snapToDataPoints]
+    [cursorProps, snapAlongYAxis, snapRadius, snapToDataPoints, barOrientation]
   )
 
   useChartLayer(draw, layerOptions)

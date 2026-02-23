@@ -222,7 +222,8 @@ export const renderChartTooltip = (props: ChartTooltipRenderProps): void => {
     tooltipX = 5;
   }
   if (tooltipY < 5) {
-    tooltipY = dataPoint.y + offset; // Flip to bottom if too close to top
+    // In follow mode, place below cursor so it stays with the pointer (fixes horizontal bar chart)
+    tooltipY = position === 'follow' ? cursorY + offset : dataPoint.y + offset;
   }
   if (tooltipY + tooltipHeight > canvasHeight) {
     tooltipY = canvasHeight - tooltipHeight - 5;

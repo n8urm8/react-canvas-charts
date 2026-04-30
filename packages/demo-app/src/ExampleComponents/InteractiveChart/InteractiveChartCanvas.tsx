@@ -7,6 +7,7 @@ import {
   ChartLegend,
   ChartLineSeries,
   ChartPointSeries,
+  ChartPointSelectorsLayer,
   ChartSurface,
   ChartTitleLayer,
   ChartToolbar,
@@ -14,8 +15,10 @@ import {
   ChartValueLabels,
   ChartXAxis,
   ChartYAxis,
+  createChartPointSelector,
   type AnnotationType,
   type ChartAnnotation,
+  type ChartPointSelector,
   type ChartToolbarPosition,
   type ChartSelectionResult
 } from 'react-canvas-charts'
@@ -34,6 +37,8 @@ type InteractiveChartCanvasProps = {
   onToolbarToggle?: (tool: InteractiveChartToolbarTool, isActive: boolean, nextActiveIds: string[]) => void
   onToolbarPositionChange?: (position: ChartToolbarPosition) => void
   onAnnotationsChange?: (annotations: ChartAnnotation[]) => void
+  pointSelectors?: ChartPointSelector[]
+  onPointSelectorsChange?: (selectors: ChartPointSelector[]) => void
 }
 
 const EMPTY_TOOL_IDS: string[] = []
@@ -50,7 +55,9 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   selectionResetKey,
   onToolbarToggle,
   onToolbarPositionChange,
-  onAnnotationsChange
+  onAnnotationsChange,
+  pointSelectors,
+  onPointSelectorsChange
 }) => {
   const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
   const resolvedAxes = useMemo(() => {
@@ -289,6 +296,15 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             onAnnotationsChange={onAnnotationsChange}
             creatingType={activeAnnotationTool ?? undefined}
             onAnnotationComplete={handleAnnotationComplete}
+          />
+        ) : null}
+
+        {pointSelectors && onPointSelectorsChange ? (
+          <ChartPointSelectorsLayer
+            selectors={pointSelectors}
+            onSelectorsChange={onPointSelectorsChange}
+            ringColor="#6b7280"
+            crosshairColor="#6b7280"
           />
         ) : null}
 

@@ -19,8 +19,9 @@
 
 [] Chart types
 - [x] Line
-- [] Area
-- [] Bar
+- [x] Area
+- [x] Bar
 - [] 3D charts (line)?
-- [] Bubble
-- [] scatter
+- [x] Bubble
+- [x] scatter
+- [x] Spark

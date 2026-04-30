@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   ChartSurface,
   ChartLineSeries,
   ChartPointSeries,
+  ChartPointSelectorsLayer,
   ChartXAxis,
   ChartYAxis,
   ChartGridLayer,
   ChartCursorLayer,
   ChartTooltipLayer,
-  ChartTitleLayer
+  ChartTitleLayer,
+  createChartPointSelector,
+  type ChartPointSelector
 } from 'react-canvas-charts'
 
 interface DataPoint {
@@ -18,6 +21,8 @@ interface DataPoint {
 }
 
 export const LineChartExample: React.FC = () => {
+  const [pointSelectors, setPointSelectors] = useState<ChartPointSelector[]>([])
+
   const lineData = useMemo<DataPoint[]>(
     () => [
       { label: 'Jan', value: 65 },
@@ -37,24 +42,56 @@ export const LineChartExample: React.FC = () => {
   )
 
   return (
-    <ChartSurface
-      data={lineData}
-      xKey="label"
-      yKeys={['value']}
-      width="100%"
-      height="100%"
-      margin={{ top: 40, right: 20, bottom: 60, left: 60 }}
-      backgroundColor="#ffffff"
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+      }}
     >
-      <ChartTitleLayer title="Monthly Sales Data" />
-      <ChartGridLayer show alignWithXAxisTicks color="#e5e7eb" />
-      <ChartXAxis show title="Month" showTitle />
-      <ChartYAxis show title="Sales ($)" showTitle titleRotation={-90} />
-      <ChartLineSeries dataKey="value" color="#3b82f6" lineWidth={2} />
-      <ChartPointSeries dataKey="value" color="#3b82f6" size={4} />
-      <ChartCursorLayer snapToDataPoints />
-      <ChartTooltipLayer seriesLabels={{ value: 'Sales' }} />
-    </ChartSurface>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ChartSurface
+          data={lineData}
+          xKey="label"
+          yKeys={['value']}
+          width="100%"
+          height="100%"
+          margin={{ top: 40, right: 20, bottom: 60, left: 60 }}
+          backgroundColor="#ffffff"
+        >
+          <ChartTitleLayer title="Monthly Sales Data" />
+          <ChartGridLayer show alignWithXAxisTicks color="#e5e7eb" />
+          <ChartXAxis show title="Month" showTitle />
+          <ChartYAxis show title="Sales ($)" showTitle titleRotation={-90} />
+          <ChartLineSeries dataKey="value" color="#3b82f6" lineWidth={2} />
+          <ChartPointSeries dataKey="value" color="#3b82f6" size={4} />
+          <ChartPointSelectorsLayer selectors={pointSelectors} onSelectorsChange={setPointSelectors} />
+          <ChartCursorLayer snapToDataPoints />
+          <ChartTooltipLayer seriesLabels={{ value: 'Sales' }} />
+        </ChartSurface>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setPointSelectors((current) => [...current, createChartPointSelector('value', 0)])
+          }}
+        >
+          Add point selector
+        </button>
+        <button
+          type="button"
+          disabled={pointSelectors.length === 0}
+          onClick={() => {
+            setPointSelectors([])
+          }}
+        >
+          Remove all selectors
+        </button>
+      </div>
+    </div>
   )
 }
 

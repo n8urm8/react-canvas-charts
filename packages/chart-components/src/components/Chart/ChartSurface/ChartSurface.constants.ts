@@ -41,5 +41,7 @@ export const LayerOrder = {
   points: 40,
   axes: 50,
   overlays: 60,
+  /** Draggable line point markers (above cursor, below tooltip). */
+  pointSelectors: 62,
   tooltip: 70
 } as const

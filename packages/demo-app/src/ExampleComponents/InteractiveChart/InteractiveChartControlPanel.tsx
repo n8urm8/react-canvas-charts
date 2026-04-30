@@ -4,6 +4,8 @@ import type {
   InteractiveChartConfig,
   InteractiveChartSeriesConfig,
 } from './types';
+import type { ChartPointSelector } from 'react-canvas-charts';
+import { PointSelectorsControl } from './PointSelectorsControl';
 
 type AxisSeriesSummary = {
   axis: InteractiveChartAxisConfig;
@@ -36,6 +38,8 @@ type InteractiveChartControlPanelProps = {
   onRemoveAxis: (axisId: string) => void;
   onUpdateAxis: (axisId: string, updates: Partial<InteractiveChartAxisConfig>) => void;
   setConfig: React.Dispatch<React.SetStateAction<InteractiveChartConfig>>;
+  pointSelectors?: ChartPointSelector[];
+  onPointSelectorsChange?: (selectors: ChartPointSelector[]) => void;
 };
 
 export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanelProps> = ({
@@ -51,6 +55,8 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
   onRemoveAxis,
   onUpdateAxis,
   setConfig,
+  pointSelectors,
+  onPointSelectorsChange,
 }) => {
   const legendPlacement = config.legend?.placement ?? { mode: 'anchor', position: 'top-right' as const };
   const isCoordinatePlacement = legendPlacement.mode === 'coordinate';
@@ -891,6 +897,17 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
         ) : null}
       </div>
     </section>
+
+    {/* Point Selectors */}
+    {pointSelectors && onPointSelectorsChange ? (
+      <section className="mb-6">
+        <PointSelectorsControl
+          selectors={pointSelectors}
+          series={config.series}
+          onSelectorsChange={onPointSelectorsChange}
+        />
+      </section>
+    ) : null}
     </div>
   );
 };

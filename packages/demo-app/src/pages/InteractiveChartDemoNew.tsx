@@ -19,7 +19,8 @@ import type {
   ChartSelectionResult,
   ChartSelectionSeriesRange,
   ChartToolbarPosition,
-  ChartAnnotation
+  ChartAnnotation,
+  ChartPointSelector
 } from 'react-canvas-charts'
 
 const SERIES_COLOR_PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316']
@@ -118,6 +119,7 @@ export const InteractiveChartDemoNew: FC = () => {
     initialDataRef.current ? [...initialDataRef.current] : []
   )
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([])
+  const [pointSelectors, setPointSelectors] = useState<ChartPointSelector[]>([])
   const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
     const initialLength = initialDataRef.current?.length ?? 0
     return [
@@ -753,6 +755,8 @@ export const InteractiveChartDemoNew: FC = () => {
                 onToolbarToggle={handleToolbarToggle}
                 onToolbarPositionChange={handleToolbarPositionChange}
                 onAnnotationsChange={setAnnotations}
+                pointSelectors={pointSelectors}
+                onPointSelectorsChange={setPointSelectors}
               />
             </div>
 
@@ -850,6 +854,8 @@ export const InteractiveChartDemoNew: FC = () => {
               onRemoveAxis={handleRemoveAxis}
               onUpdateAxis={handleUpdateAxis}
               setConfig={setConfig}
+              pointSelectors={pointSelectors}
+              onPointSelectorsChange={setPointSelectors}
             />
 
             {selection ? (

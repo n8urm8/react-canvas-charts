@@ -3,6 +3,7 @@ import {
   ChartAnnotationsLayer,
   ChartAreaSeries,
   ChartCursorLayer,
+  ChartCustomTagsLayer,
   ChartGridLayer,
   ChartLegend,
   ChartLineSeries,
@@ -15,10 +16,11 @@ import {
   ChartValueLabels,
   ChartXAxis,
   ChartYAxis,
-  createChartPointSelector,
   type AnnotationType,
   type ChartAnnotation,
+  type ChartCustomTag,
   type ChartPointSelector,
+  type ChartTagPlacement,
   type ChartToolbarPosition,
   type ChartSelectionResult
 } from 'react-canvas-charts'
@@ -39,6 +41,12 @@ type InteractiveChartCanvasProps = {
   onAnnotationsChange?: (annotations: ChartAnnotation[]) => void
   pointSelectors?: ChartPointSelector[]
   onPointSelectorsChange?: (selectors: ChartPointSelector[]) => void
+  customTags?: ChartCustomTag[]
+  onCustomTagsChange?: (tags: ChartCustomTag[]) => void
+  enableCustomTagCreation?: boolean
+  customTagCreationDataKey?: string
+  onCustomTagPlacement?: (placement: ChartTagPlacement) => void
+  createCustomTag?: (placement: ChartTagPlacement) => ChartCustomTag | null
 }
 
 const EMPTY_TOOL_IDS: string[] = []
@@ -57,7 +65,13 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   onToolbarPositionChange,
   onAnnotationsChange,
   pointSelectors,
-  onPointSelectorsChange
+  onPointSelectorsChange,
+  customTags,
+  onCustomTagsChange,
+  enableCustomTagCreation,
+  customTagCreationDataKey,
+  onCustomTagPlacement,
+  createCustomTag
 }) => {
   const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
   const resolvedAxes = useMemo(() => {
@@ -296,6 +310,17 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             onAnnotationsChange={onAnnotationsChange}
             creatingType={activeAnnotationTool ?? undefined}
             onAnnotationComplete={handleAnnotationComplete}
+          />
+        ) : null}
+
+        {customTags && onCustomTagsChange ? (
+          <ChartCustomTagsLayer
+            tags={customTags}
+            onTagsChange={onCustomTagsChange}
+            enableTagCreation={enableCustomTagCreation}
+            creationDataKey={customTagCreationDataKey}
+            onTagPlacement={onCustomTagPlacement}
+            createTag={createCustomTag}
           />
         ) : null}
 

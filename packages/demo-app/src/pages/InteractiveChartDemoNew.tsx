@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react'
 import { ZoomIn, ZoomOut, Type, Minus, Circle, Pen } from 'lucide-react'
 import {
   type DataPoint,
@@ -15,15 +15,80 @@ import {
   InteractiveChartCodePreview,
   InteractiveChartControlPanel
 } from '../ExampleComponents/InteractiveChart'
+import { createChartCustomTag } from 'react-canvas-charts'
 import type {
   ChartSelectionResult,
   ChartSelectionSeriesRange,
   ChartToolbarPosition,
   ChartAnnotation,
-  ChartPointSelector
+  ChartCustomTag,
+  ChartPointSelector,
+  ChartTagPlacement
 } from 'react-canvas-charts'
 
 const SERIES_COLOR_PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316']
+
+type CustomTagTemplateId = 'tag' | 'note' | 'stat' | 'mini-chart'
+
+type CustomTagTemplate = {
+  id: CustomTagTemplateId
+  label: string
+  description: string
+  offsetY: number
+  buildContent: (placement: ChartTagPlacement) => ReactNode
+}
+
+const CUSTOM_TAG_TEMPLATES: CustomTagTemplate[] = [
+  {
+    id: 'tag',
+    label: 'Tag',
+    description: 'Simple pill label',
+    offsetY: -24,
+    buildContent: (placement) => (
+      <div className="rounded-full bg-blue-600 text-white text-xs font-semibold px-3 py-1 shadow-md">
+        {placement.label}
+      </div>
+    )
+  },
+  {
+    id: 'note',
+    label: 'Note',
+    description: 'Description card',
+    offsetY: -44,
+    buildContent: (placement) => (
+      <div className="w-48 rounded-lg border border-amber-200 bg-amber-50 p-2 shadow-lg">
+        <div className="text-[11px] uppercase tracking-wide text-amber-700 font-bold">Note</div>
+        <div className="mt-1 text-xs text-gray-800">{placement.label}: custom context here.</div>
+      </div>
+    )
+  },
+  {
+    id: 'stat',
+    label: 'Stat',
+    description: 'KPI style badge',
+    offsetY: -30,
+    buildContent: (placement) => (
+      <div className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 shadow-sm">
+        <div className="text-[10px] uppercase text-emerald-700 font-semibold">Value</div>
+        <div className="text-sm font-bold text-emerald-900">{placement.yValue.toFixed(1)}</div>
+      </div>
+    )
+  },
+  {
+    id: 'mini-chart',
+    label: 'Mini Chart',
+    description: 'Tiny sparkline card',
+    offsetY: -46,
+    buildContent: (placement) => (
+      <div className="w-36 rounded-lg border border-slate-300 bg-white p-2 shadow-lg">
+        <div className="text-[11px] text-slate-700 font-semibold mb-1">{placement.label}</div>
+        <svg viewBox="0 0 120 32" className="w-full h-8" aria-hidden="true">
+          <path d="M2 25 L18 20 L34 23 L50 12 L66 16 L82 10 L98 14 L116 8" fill="none" stroke="#2563eb" strokeWidth="2" />
+        </svg>
+      </div>
+    )
+  }
+]
 
 const INITIAL_CONFIG: InteractiveChartConfig = {
   title: 'Interactive Line Chart',
@@ -120,6 +185,10 @@ export const InteractiveChartDemoNew: FC = () => {
   )
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([])
   const [pointSelectors, setPointSelectors] = useState<ChartPointSelector[]>([])
+  const [customTags, setCustomTags] = useState<ChartCustomTag[]>([])
+  const [selectedCustomTagTemplate, setSelectedCustomTagTemplate] = useState<CustomTagTemplateId>('tag')
+  const [customTagPlacementEnabled, setCustomTagPlacementEnabled] = useState(false)
+  const [lastCustomTagPlacement, setLastCustomTagPlacement] = useState<ChartTagPlacement | null>(null)
   const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
     const initialLength = initialDataRef.current?.length ?? 0
     return [
@@ -156,6 +225,7 @@ export const InteractiveChartDemoNew: FC = () => {
   }, [])
 
   const seriesIds = useMemo(() => config.series.map((series) => series.id), [config.series])
+  const customTagSeriesId = seriesIds[0]
 
   const axisSummaries = useMemo(
     () =>
@@ -731,6 +801,35 @@ export const InteractiveChartDemoNew: FC = () => {
     setSelection(nextSelection)
   }, [])
 
+  const selectedCustomTagTemplateConfig = useMemo(
+    () => CUSTOM_TAG_TEMPLATES.find((template) => template.id === selectedCustomTagTemplate) ?? CUSTOM_TAG_TEMPLATES[0],
+    [selectedCustomTagTemplate]
+  )
+
+  const handleCreateCustomTag = useCallback(
+    (placement: ChartTagPlacement): ChartCustomTag | null => {
+      if (!selectedCustomTagTemplateConfig) {
+        return null
+      }
+
+      return createChartCustomTag(
+        selectedCustomTagTemplateConfig.buildContent(placement),
+        placement.dataIndex,
+        placement.yValue,
+        {
+          dataKey: placement.dataKey,
+          scaleId: placement.scaleId,
+          offsetY: selectedCustomTagTemplateConfig.offsetY
+        }
+      )
+    },
+    [selectedCustomTagTemplateConfig]
+  )
+
+  const handleCustomTagPlacement = useCallback((placement: ChartTagPlacement) => {
+    setLastCustomTagPlacement(placement)
+  }, [])
+
   return (
     <div className="p-3 md:p-5 font-sans bg-gray-50 min-h-screen">
       <div className="w-full mx-auto">
@@ -757,7 +856,87 @@ export const InteractiveChartDemoNew: FC = () => {
                 onAnnotationsChange={setAnnotations}
                 pointSelectors={pointSelectors}
                 onPointSelectorsChange={setPointSelectors}
+                customTags={customTags}
+                onCustomTagsChange={setCustomTags}
+                enableCustomTagCreation={customTagPlacementEnabled}
+                customTagCreationDataKey={customTagSeriesId}
+                onCustomTagPlacement={handleCustomTagPlacement}
+                createCustomTag={handleCreateCustomTag}
               />
+            </div>
+
+            <div className="mt-4 p-4 bg-emerald-50 rounded-lg text-sm text-gray-900">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="font-semibold">Custom Tags ({customTags.length})</div>
+                  <div className="text-xs text-gray-700">
+                    Pick a template, enable placement, then click the chart to add it at that point.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCustomTagPlacementEnabled((previous) => !previous)}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold ${
+                      customTagPlacementEnabled
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {customTagPlacementEnabled ? 'Placement On' : 'Placement Off'}
+                  </button>
+                  <button
+                    onClick={() => setCustomTags([])}
+                    className="px-3 py-1.5 rounded text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    disabled={customTags.length === 0}
+                  >
+                    Clear Tags
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {CUSTOM_TAG_TEMPLATES.map((template) => {
+                  const isSelected = template.id === selectedCustomTagTemplate
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => setSelectedCustomTagTemplate(template.id)}
+                      className={`rounded-md border px-2 py-2 text-left ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-100 text-emerald-900'
+                          : 'border-emerald-200 bg-white text-gray-800 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold">{template.label}</div>
+                      <div className="text-[11px] text-gray-600">{template.description}</div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {lastCustomTagPlacement ? (
+                <div className="mt-3 text-xs text-emerald-800">
+                  Last placed at {lastCustomTagPlacement.label} with value {lastCustomTagPlacement.yValue.toFixed(2)}.
+                </div>
+              ) : null}
+
+              {customTags.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {customTags.map((tag) => (
+                    <li key={tag.id} className="flex items-center justify-between text-xs">
+                      <span>
+                        {tag.dataKey ?? tag.scaleId ?? 'default'} @ index {tag.dataIndex} ({tag.yValue.toFixed(2)})
+                      </span>
+                      <button
+                        onClick={() => setCustomTags((previous) => previous.filter((item) => item.id !== tag.id))}
+                        className="px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
 
             {annotations.length > 0 ? (

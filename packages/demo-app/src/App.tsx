@@ -4,6 +4,7 @@ import { MainDemo } from './pages/MainDemo'
 import './App.css'
 import InteractiveChartDemoNew from './pages/InteractiveChartDemoNew'
 import { ChartExamples } from './pages/ChartExamples'
+import { BeatChartsPage } from './pages/BeatChartsPage'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/" element={<MainDemo />} />
         <Route path="/interactive" element={<InteractiveChartDemoNew />} />
         <Route path="/examples" element={<ChartExamples />} />
+        <Route path="/beat-charts" element={<BeatChartsPage />} />
       </Routes>
     </div>
   )

@@ -5,20 +5,41 @@ export const Navigation: React.FC = () => {
   const location = useLocation()
   const currentPath = location.pathname
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const isBeatChartsRoute = currentPath === '/beat-charts'
 
   const getLinkClass = (path: string) => {
+    if (isBeatChartsRoute) {
+      return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
+        currentPath === path
+          ? 'bg-lime-300 text-black shadow-md'
+          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-transparent hover:border-lime-700/40'
+      }`
+    }
+
     return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
       currentPath === path ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
     }`
   }
 
   const getMobileLinkClass = (path: string) => {
+    if (isBeatChartsRoute) {
+      return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+        currentPath === path
+          ? 'bg-lime-300 text-black shadow-md'
+          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-transparent hover:border-lime-700/40'
+      }`
+    }
+
     return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
       currentPath === path ? 'bg-blue-500 text-white shadow-md' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
     }`
   }
 
   const getInteractiveLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return getLinkClass('/interactive')
+    }
+
     return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
       currentPath === '/interactive'
         ? 'bg-purple-500 text-white shadow-md'
@@ -27,6 +48,10 @@ export const Navigation: React.FC = () => {
   }
 
   const getMobileInteractiveLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return getMobileLinkClass('/interactive')
+    }
+
     return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
       currentPath === '/interactive'
         ? 'bg-purple-500 text-white shadow-md'
@@ -35,6 +60,10 @@ export const Navigation: React.FC = () => {
   }
 
   const getExamplesLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return getLinkClass('/examples')
+    }
+
     return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
       currentPath === '/examples'
         ? 'bg-green-500 text-white shadow-md'
@@ -43,6 +72,10 @@ export const Navigation: React.FC = () => {
   }
 
   const getMobileExamplesLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return getMobileLinkClass('/examples')
+    }
+
     return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
       currentPath === '/examples'
         ? 'bg-green-500 text-white shadow-md'
@@ -50,11 +83,53 @@ export const Navigation: React.FC = () => {
     }`
   }
 
+  const getBeatChartsLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
+        currentPath === '/beat-charts'
+          ? 'bg-lime-300 text-black shadow-md border border-lime-200'
+          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-lime-700/40'
+      }`
+    }
+
+    return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
+      currentPath === '/beat-charts'
+        ? 'bg-black text-lime-300 shadow-md border border-lime-400'
+        : 'text-gray-600 hover:text-lime-700 hover:bg-lime-50'
+    }`
+  }
+
+  const getMobileBeatChartsLinkClass = () => {
+    if (isBeatChartsRoute) {
+      return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+        currentPath === '/beat-charts'
+          ? 'bg-lime-300 text-black shadow-md border border-lime-200'
+          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-lime-700/40'
+      }`
+    }
+
+    return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+      currentPath === '/beat-charts'
+        ? 'bg-black text-lime-300 shadow-md border border-lime-400'
+        : 'text-gray-600 hover:text-lime-700 hover:bg-lime-50'
+    }`
+  }
+
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 mb-4 md:mb-8 w-full">
+    <nav
+      className={`${
+        isBeatChartsRoute
+          ? 'bg-black/95 text-lime-300 border-b border-lime-700/40 shadow-[0_0_20px_rgba(89,255,47,0.2)]'
+          : 'bg-white shadow-sm border-b border-gray-200'
+      } w-full ${
+        isBeatChartsRoute ? 'mb-0' : 'mb-4 md:mb-8'
+      }`}
+    >
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-3 md:py-4">
-          <div className="font-bold text-black text-lg md:text-2xl">React Canvas Charts</div>
+          <div className={`font-bold text-lg md:text-2xl ${isBeatChartsRoute ? 'text-lime-300' : 'text-black'}`}>
+            React Canvas Charts
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
@@ -67,9 +142,14 @@ export const Navigation: React.FC = () => {
             <Link to="/interactive" className={getInteractiveLinkClass()}>
               🎮 Interactive Demo
             </Link>
+            <Link to="/beat-charts" className={getBeatChartsLinkClass()}>
+              🎵 Beat Charts
+            </Link>
             <a
               href="https://github.com/n8urm8/react-canvas-charts"
-              className="px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors inline-flex items-center gap-2"
+              className={`px-3 py-2 transition-colors inline-flex items-center gap-2 ${
+                isBeatChartsRoute ? 'text-lime-300 hover:text-lime-200' : 'text-gray-600 hover:text-gray-900'
+              }`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub Repository"
@@ -84,7 +164,11 @@ export const Navigation: React.FC = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            className={`md:hidden p-2 rounded-lg transition-colors ${
+              isBeatChartsRoute
+                ? 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f]'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,9 +197,16 @@ export const Navigation: React.FC = () => {
             >
               🎮 Interactive Demo
             </Link>
+            <Link to="/beat-charts" className={getMobileBeatChartsLinkClass()} onClick={() => setMobileMenuOpen(false)}>
+              🎵 Beat Charts
+            </Link>
             <a
               href="https://github.com/n8urm8/react-canvas-charts"
-              className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors rounded-lg"
+              className={`block px-4 py-3 transition-colors rounded-lg ${
+                isBeatChartsRoute
+                  ? 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-lime-700/40'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub Repository"

@@ -1,16 +1,26 @@
 import React from 'react'
-import { ChartCustomTagsLayer, ChartGridLayer, ChartSurface, ChartXAxis, ChartYAxis, type ChartCustomTag } from 'react-canvas-charts'
+import {
+  ChartCustomTagsLayer,
+  ChartGridLayer,
+  ChartSurface,
+  ChartXAxis,
+  ChartYAxis,
+  type ChartCustomTag,
+  type ChartTagPlacement
+} from 'react-canvas-charts'
 
 type BeatSequencerChartProps = {
   hostRef: React.RefObject<HTMLDivElement | null>
   data: Array<{ label: string; seqPitch: number }>
   noteTags: ChartCustomTag[]
   totalSteps: number
+  surfaceWidth: number
   pitchRowCount: number
   chartHeight: number
   margin: { top: number; right: number; bottom: number; left: number }
   formatPitchLabel: (value: number) => string
-  onCreateNote: (dataIndex: number, yValue: number) => void
+  onCreateNote: (placement: Pick<ChartTagPlacement, 'chartX' | 'chartY'>) => void
+  onPreviewNotePlacement: (placement: Pick<ChartTagPlacement, 'chartX' | 'chartY'> | null) => void
 }
 
 export const BeatSequencerChart: React.FC<BeatSequencerChartProps> = ({
@@ -18,15 +28,27 @@ export const BeatSequencerChart: React.FC<BeatSequencerChartProps> = ({
   data,
   noteTags,
   totalSteps,
+  surfaceWidth,
   pitchRowCount,
   chartHeight,
   margin,
   formatPitchLabel,
-  onCreateNote
+  onCreateNote,
+  onPreviewNotePlacement
 }) => {
   return (
-    <div className="beat-sequencer-scroll" ref={hostRef}>
-      <div className="beat-sequencer-chart-surface">
+    <div
+      className="beat-sequencer-scroll"
+      ref={hostRef}
+      onPointerMove={(event) => {
+        const hostRect = event.currentTarget.getBoundingClientRect()
+        const chartX = event.clientX - hostRect.left + event.currentTarget.scrollLeft
+        const chartY = event.clientY - hostRect.top
+        onPreviewNotePlacement({ chartX, chartY })
+      }}
+      onPointerLeave={() => onPreviewNotePlacement(null)}
+    >
+      <div className="beat-sequencer-chart-surface" style={{ width: `${surfaceWidth}px` }}>
         <ChartSurface
           data={data}
           xKey="label"
@@ -41,7 +63,7 @@ export const BeatSequencerChart: React.FC<BeatSequencerChartProps> = ({
               }
             }
           ]}
-          width="100%"
+          width={surfaceWidth}
           height={chartHeight}
           margin={margin}
           backgroundColor="#030b06"
@@ -75,7 +97,7 @@ export const BeatSequencerChart: React.FC<BeatSequencerChartProps> = ({
             enableTagCreation
             creationDataKey="seqPitch"
             createTag={(placement) => {
-              onCreateNote(placement.dataIndex, placement.yValue)
+              onCreateNote({ chartX: placement.chartX, chartY: placement.chartY })
               return null
             }}
           />

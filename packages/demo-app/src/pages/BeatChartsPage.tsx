@@ -1,103 +1,63 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { ChartCustomTagsLayer, ChartGridLayer, ChartSurface, createChartCustomTag, type ChartCustomTag } from 'react-canvas-charts'
 import './BeatChartsPage.css'
 import { BeatTransportHeader } from './BeatCharts/components/BeatTransportHeader'
 import { BeatFrequencyVisualizer } from './BeatCharts/components/BeatFrequencyVisualizer'
+import { BeatPresetControls } from './BeatCharts/components/BeatPresetControls.tsx'
 import { BeatSequencerChart } from './BeatCharts/components/BeatSequencerChart'
-import { formatBeatNoteLabel } from './BeatCharts/utils/noteLabel'
-import { useSound } from '../utils/soundUtils'
-
-const TOTAL_BEATS = 16
-const BEAT_GRID_POINTS = TOTAL_BEATS + 1
-const MAX_VISUALIZER_POINTS = 88
-const ROOT_LAYOUT_SCALE_ID = 'layout-scale'
-const SEQUENCER_CHART_HEIGHT = 320
-const SEQUENCER_MARGIN = {
-  top: 16,
-  right: 24,
-  bottom: 40,
-  left: 88
-}
-
-const PITCHES = [
-  { id: 'A', display: 'A', frequency: 220 },
-  { id: 'A#', display: 'A#/Bb', frequency: 233.08 },
-  { id: 'B', display: 'B', frequency: 246.94 },
-  { id: 'C', display: 'C', frequency: 261.63 },
-  { id: 'C#', display: 'C#/Db', frequency: 277.18 },
-  { id: 'D', display: 'D', frequency: 293.66 },
-  { id: 'D#', display: 'D#/Eb', frequency: 311.13 },
-  { id: 'E', display: 'E', frequency: 329.63 },
-  { id: 'F', display: 'F', frequency: 349.23 },
-  { id: 'F#', display: 'F#/Gb', frequency: 369.99 },
-  { id: 'G', display: 'G', frequency: 392 },
-  { id: 'G#', display: 'G#/Ab', frequency: 415.3 }
-] as const
-
-type PitchId = (typeof PITCHES)[number]['id']
-
-type SequencerNote = {
-  id: string
-  pitch: PitchId
-  startBeat: number
-  durationBeats: number
-}
-
-type VisualizerPoint = {
-  label: string
-  frequency: number
-}
-
-type DragState =
-  | {
-      mode: 'move'
-      noteId: string
-      startClientX: number
-      startClientY: number
-      originalStartBeat: number
-      originalPitchRow: number
-    }
-  | {
-      mode: 'resize'
-      noteId: string
-      startClientX: number
-      originalDuration: number
-      originalStartBeat: number
-    }
-
-const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
-
-const createNoteId = (): string => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return `beat-note-${Date.now()}-${Math.random().toString(16).slice(2)}`
-}
-
-const initialNotes: SequencerNote[] = [
-  { id: createNoteId(), pitch: 'A', startBeat: 0, durationBeats: 2 },
-  { id: createNoteId(), pitch: 'C#', startBeat: 4, durationBeats: 2 },
-  { id: createNoteId(), pitch: 'E', startBeat: 8, durationBeats: 3 },
-  { id: createNoteId(), pitch: 'G', startBeat: 12, durationBeats: 2 }
-]
+import {
+  DEFAULT_LOOP_BEATS,
+  SEQUENCER_CHART_HEIGHT,
+  SEQUENCER_MARGIN,
+  ROOT_LAYOUT_SCALE_ID,
+  PITCHES
+} from './BeatCharts/constants'
+import { useBeatSequencer } from './BeatCharts/useBeatSequencer'
+import { usePitchGrid } from './BeatCharts/usePitchGrid'
+import { createInitialNotes } from './BeatCharts/utils'
 
 export const BeatChartsPage: React.FC = () => {
+  const sequencer = useBeatSequencer()
+
+  const handleClearAllNotes = useCallback(() => {
+    sequencer.setIsPlaying(false)
+    sequencer.setCurrentBeat(0)
+    sequencer.setActivePitches([])
+    sequencer.setNotes([])
+  }, [sequencer])
+
+  const handleRestoreDefaults = useCallback(() => {
+    sequencer.setIsPlaying(false)
+    sequencer.setCurrentBeat(0)
+    sequencer.setActivePitches([])
+    sequencer.handleBpmChange(240)
+    sequencer.handleLoopBeatsChange(DEFAULT_LOOP_BEATS)
+    sequencer.setNotes(createInitialNotes())
+
+    window.setTimeout(() => {
+      sequencer.handlePanBeatChange(0)
+    }, 0)
+  }, [sequencer])
+
+  const handleApplyPreset = useCallback(
+    (preset: { bpm: number; loopBeats: number; panBeat: number; notes: ReturnType<typeof createInitialNotes> }) => {
+      sequencer.setIsPlaying(false)
+      sequencer.setCurrentBeat(0)
+      sequencer.setActivePitches([])
+      sequencer.handleBpmChange(preset.bpm)
+      sequencer.handleLoopBeatsChange(preset.loopBeats)
+      sequencer.setNotes(preset.notes.map((note) => ({ ...note })))
+
+      window.setTimeout(() => {
+        sequencer.handlePanBeatChange(preset.panBeat)
+      }, 0)
+    },
+    [sequencer]
+  )
+
+  // Pitch display configuration
   const displayPitches = useMemo(() => [...PITCHES].reverse(), [])
   const maxPitchRowIndex = displayPitches.length - 1
-
-  const rowIndexToChartY = useCallback(
-    (rowIndex: number) => {
-      return maxPitchRowIndex - rowIndex
-    },
-    [maxPitchRowIndex]
-  )
-
-  const chartYToRowIndex = useCallback(
-    (chartY: number) => {
-      return clamp(maxPitchRowIndex - Math.round(chartY), 0, maxPitchRowIndex)
-    },
-    [maxPitchRowIndex]
-  )
 
   const pitchDisplayRow = useMemo(() => {
     const map: Record<string, number> = {}
@@ -107,288 +67,36 @@ export const BeatChartsPage: React.FC = () => {
     return map
   }, [displayPitches])
 
-  const [bpm, setBpm] = useState(120)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentBeat, setCurrentBeat] = useState(0)
-  const [notes, setNotes] = useState<SequencerNote[]>(initialNotes)
-  const [activePitches, setActivePitches] = useState<PitchId[]>([])
-  const [dragState, setDragState] = useState<DragState | null>(null)
-  const [sequencerChartWidth, setSequencerChartWidth] = useState(760)
-  const [visualizerData, setVisualizerData] = useState<VisualizerPoint[]>(() =>
-    Array.from({ length: 48 }, (_, index) => ({
-      label: `${index}`,
-      frequency: 220
-    }))
-  )
+  // Pitch grid logic
+  const pitchGrid = usePitchGrid({
+    notes: sequencer.notes,
+    activePitches: sequencer.activePitches,
+    displayPitches,
+    currentBeat: sequencer.currentBeat,
+    loopBeats: sequencer.loopBeats,
+    beatWidth: sequencer.beatWidth,
+    pitchRowHeight: sequencer.pitchRowHeight,
+    sequencerPlotHeight: sequencer.sequencerPlotHeight,
+    dragState: sequencer.dragState,
+    sequencerChartHostRef: sequencer.sequencerChartHostRef,
+    suppressGridClickRef: sequencer.suppressGridClickRef,
+    dragMovedRef: sequencer.dragMovedRef,
+    pitchDisplayRow,
+    maxPitchRowIndex,
+    onSetNotes: sequencer.setNotes,
+    onSetDragState: sequencer.setDragState
+  })
 
-  const notesRef = useRef<SequencerNote[]>(initialNotes)
-  const sequencerChartHostRef = useRef<HTMLDivElement | null>(null)
-  const playbackTimerRef = useRef<number | null>(null)
-  const sampleIndexRef = useRef(48)
-  const lastFrequencyRef = useRef(220)
-  const suppressGridClickRef = useRef(false)
-  const dragMovedRef = useRef(false)
-
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const masterGainRef = useRef<GainNode | null>(null)
-
+  // Handle drag events globally
   useEffect(() => {
-    notesRef.current = notes
-  }, [notes])
-
-  useEffect(() => {
-    const host = sequencerChartHostRef.current
-    if (!host) {
-      return undefined
-    }
-
-    const updateWidth = () => {
-      const { width } = host.getBoundingClientRect()
-      if (width > 0) {
-        setSequencerChartWidth(width)
-      }
-    }
-
-    updateWidth()
-
-    const observer = new ResizeObserver(() => {
-      updateWidth()
-    })
-    observer.observe(host)
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
-
-  const sequencerPlotWidth = useMemo(
-    () => Math.max(140, sequencerChartWidth - SEQUENCER_MARGIN.left - SEQUENCER_MARGIN.right),
-    [sequencerChartWidth]
-  )
-
-  const sequencerPlotHeight = useMemo(
-    () => Math.max(120, SEQUENCER_CHART_HEIGHT - SEQUENCER_MARGIN.top - SEQUENCER_MARGIN.bottom),
-    []
-  )
-
-  const beatWidth = useMemo(
-    () => (BEAT_GRID_POINTS > 1 ? (sequencerPlotWidth / (BEAT_GRID_POINTS - 1)) * 2 : sequencerPlotWidth),
-    [sequencerPlotWidth]
-  )
-
-  const pitchRowHeight = useMemo(
-    () => (displayPitches.length > 1 ? sequencerPlotHeight / (displayPitches.length - 1) : sequencerPlotHeight),
-    [displayPitches.length, sequencerPlotHeight]
-  )
-
-  const ensureAudioGraph = useCallback(async (): Promise<AudioContext | null> => {
-    let context = audioContextRef.current
-
-    if (!context) {
-      context = new AudioContext()
-      const masterGain = context.createGain()
-      masterGain.gain.value = 0.1
-      masterGain.connect(context.destination)
-
-      audioContextRef.current = context
-      masterGainRef.current = masterGain
-    }
-
-    if (context.state === 'suspended') {
-      await context.resume()
-    }
-
-    return context
-  }, [])
-
-  const appendVisualizerSample = useCallback(
-    (notesForStep: SequencerNote[]) => {
-      const activeFrequencies = notesForStep.flatMap((note) => {
-        const frequency = PITCHES.find((pitch) => pitch.id === note.pitch)?.frequency
-        return frequency === undefined ? [] : [frequency]
-      })
-
-      const nextFrequency =
-        activeFrequencies.length > 0
-          ? activeFrequencies.reduce((sum, frequency) => sum + frequency, 0) / activeFrequencies.length
-          : lastFrequencyRef.current
-
-      lastFrequencyRef.current = nextFrequency
-
-      setVisualizerData((previous) => {
-        const next = [
-          ...previous,
-          {
-            label: `${sampleIndexRef.current}`,
-            frequency: nextFrequency
-          }
-        ]
-
-        sampleIndexRef.current += 1
-        if (next.length <= MAX_VISUALIZER_POINTS) {
-          return next
-        }
-
-        return next.slice(next.length - MAX_VISUALIZER_POINTS)
-      })
-    },
-    []
-  )
-
-  const { playPitch } = useSound();
-
-  const triggerBeat = useCallback(
-    (beatIndex: number) => {
-      const beatDurationMs = 60000 / bpm
-      const notesForBeat = notesRef.current.filter((note) => note.startBeat === beatIndex)
-
-      setActivePitches(notesForBeat.map((note) => note.pitch))
-
-      notesForBeat.forEach((note) => {
-        void playPitch(note.pitch, beatDurationMs * note.durationBeats)
-      })
-
-      appendVisualizerSample(notesForBeat)
-    },
-    [appendVisualizerSample, bpm, playPitch]
-  )
-
-  useEffect(() => {
-    if (!isPlaying) {
-      if (playbackTimerRef.current !== null) {
-        window.clearInterval(playbackTimerRef.current)
-        playbackTimerRef.current = null
-      }
-
-      setActivePitches([])
-      return undefined
-    }
-
-    const beatIntervalMs = Math.max(24, Math.round(60000 / bpm))
-    triggerBeat(currentBeat)
-
-    const timerId = window.setInterval(() => {
-      setCurrentBeat((previous) => {
-        const nextBeat = (previous + 1) % TOTAL_BEATS
-        triggerBeat(nextBeat)
-        return nextBeat
-      })
-    }, beatIntervalMs)
-
-    playbackTimerRef.current = timerId
-
-    return () => {
-      window.clearInterval(timerId)
-      if (playbackTimerRef.current === timerId) {
-        playbackTimerRef.current = null
-      }
-    }
-  }, [bpm, currentBeat, isPlaying, triggerBeat])
-
-  useEffect(
-    () => () => {
-      if (playbackTimerRef.current !== null) {
-        window.clearInterval(playbackTimerRef.current)
-        playbackTimerRef.current = null
-      }
-
-      const context = audioContextRef.current
-      if (context) {
-        void context.close()
-      }
-
-      audioContextRef.current = null
-      masterGainRef.current = null
-    },
-    []
-  )
-
-  useEffect(() => {
-    if (!dragState) {
-      return undefined
-    }
+    if (!sequencer.dragState) return
 
     const handlePointerMove = (event: PointerEvent) => {
-      if (dragState.mode === 'move') {
-        const hostRect = sequencerChartHostRef.current?.getBoundingClientRect()
-
-        let nextBeat = dragState.originalStartBeat
-        let nextRow = dragState.originalPitchRow
-
-        if (hostRect) {
-          const plotLeft = hostRect.left + SEQUENCER_MARGIN.left
-          const plotTop = hostRect.top + SEQUENCER_MARGIN.top
-
-          // Convert both drag start and current mouse position to chart coordinates
-          const startChartX = (dragState.startClientX - plotLeft) / beatWidth
-          const startChartY = (dragState.startClientY - plotTop) / pitchRowHeight
-          const currentChartX = (event.clientX - plotLeft) / beatWidth
-          const currentChartY = (event.clientY - plotTop) / pitchRowHeight
-
-          // Calculate delta in chart units and apply to original position
-          const deltaBeats = currentChartX - startChartX
-          const deltaRows = currentChartY - startChartY
-
-          nextBeat = Math.round(dragState.originalStartBeat + deltaBeats)
-          nextRow = Math.round(dragState.originalPitchRow + deltaRows)
-        } else {
-          const deltaBeats = Math.round((event.clientX - dragState.startClientX) / beatWidth)
-          const deltaRows = Math.round((event.clientY - dragState.startClientY) / pitchRowHeight)
-          nextBeat = dragState.originalStartBeat + deltaBeats
-          nextRow = dragState.originalPitchRow + deltaRows
-        }
-
-        if (nextBeat !== dragState.originalStartBeat || nextRow !== dragState.originalPitchRow) {
-          dragMovedRef.current = true
-        }
-
-        setNotes((previous) =>
-          previous.map((note) => {
-            if (note.id !== dragState.noteId) {
-              return note
-            }
-
-            const clampedRow = clamp(nextRow, 0, displayPitches.length - 1)
-            const nextPitch = displayPitches[clampedRow]?.id ?? note.pitch
-            const maxStart = TOTAL_BEATS - note.durationBeats
-
-            return {
-              ...note,
-              pitch: nextPitch,
-              startBeat: clamp(nextBeat, 0, Math.max(0, maxStart))
-            }
-          })
-        )
-      }
-
-      if (dragState.mode === 'resize') {
-        const deltaBeats = Math.round((event.clientX - dragState.startClientX) / beatWidth)
-        if (deltaBeats !== 0) {
-          dragMovedRef.current = true
-        }
-
-        setNotes((previous) =>
-          previous.map((note) => {
-            if (note.id !== dragState.noteId) {
-              return note
-            }
-
-            const maxDuration = TOTAL_BEATS - dragState.originalStartBeat
-            return {
-              ...note,
-              durationBeats: clamp(dragState.originalDuration + deltaBeats, 1, Math.max(1, maxDuration))
-            }
-          })
-        )
-      }
+      pitchGrid.handleDragPointer(event)
     }
 
     const handlePointerUp = () => {
-      if (dragMovedRef.current) {
-        suppressGridClickRef.current = true
-      }
-      dragMovedRef.current = false
-      setDragState(null)
+      pitchGrid.handleDragEnd()
     }
 
     window.addEventListener('pointermove', handlePointerMove)
@@ -398,97 +106,61 @@ export const BeatChartsPage: React.FC = () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [beatWidth, displayPitches, dragState, pitchRowHeight])
+  }, [sequencer.dragState, pitchGrid])
 
-  const handleSequencerTagPlacement = useCallback(
-    (dataIndex: number, yValue: number) => {
-      if (suppressGridClickRef.current) {
-        suppressGridClickRef.current = false
-        return
-      }
-
-      const beatIndex = clamp(dataIndex, 0, TOTAL_BEATS - 1)
-      const rowIndex = chartYToRowIndex(yValue)
-      const pitch = displayPitches[rowIndex]?.id ?? displayPitches[0].id
-
-      setNotes((previous) => {
-        const overlapping = previous.find(
-          (note) => note.pitch === pitch && beatIndex >= note.startBeat && beatIndex < note.startBeat + note.durationBeats
-        )
-
-        if (overlapping) {
-          return previous.filter((note) => note.id !== overlapping.id)
-        }
-
-        return [
-          ...previous,
-          {
-            id: createNoteId(),
-            pitch,
-            startBeat: beatIndex,
-            durationBeats: 1
-          }
-        ]
-      })
-    },
-    [chartYToRowIndex, displayPitches]
-  )
-
-  const removeNote = useCallback((noteId: string) => {
-    setNotes((previous) => previous.filter((note) => note.id !== noteId))
-  }, [])
-
-  const startNoteDrag = useCallback(
-    (event: ReactPointerEvent<HTMLElement>, note: SequencerNote, mode: 'move' | 'resize') => {
-      event.preventDefault()
-      event.stopPropagation()
-
-      dragMovedRef.current = false
-
-      if (mode === 'move') {
-        setDragState({
-          mode,
-          noteId: note.id,
-          startClientX: event.clientX,
-          startClientY: event.clientY,
-          originalStartBeat: note.startBeat,
-          originalPitchRow: pitchDisplayRow[note.pitch] ?? 0
-        })
-      } else {
-        setDragState({
-          mode,
-          noteId: note.id,
-          startClientX: event.clientX,
-          originalDuration: note.durationBeats,
-          originalStartBeat: note.startBeat
-        })
-      }
-    },
-    [pitchDisplayRow]
-  )
-
+  // Visualizer setup
   const visualizerChartRecords = useMemo(
-    () =>
-      visualizerData.map((point) => ({
-        label: point.label,
-        frequency: point.frequency
-      })),
-    [visualizerData]
+    () => sequencer.visualizerData.map((point) => ({
+      label: point.label,
+      frequency: point.frequency
+    })),
+    [sequencer.visualizerData]
   )
+
+  const visualizerPalette = useMemo(() => {
+    if (sequencer.activePitches.length === 0) {
+      return {
+        lineColor: '#7cff5f',
+        gridColor: 'rgba(57,255,20,0.16)'
+      }
+    }
+
+    const activeFrequencies = sequencer.activePitches.flatMap((pitchId) => {
+      const pitch = PITCHES.find((item) => item.id === pitchId)
+      return pitch ? [pitch.frequency] : []
+    })
+
+    const avgFrequency =
+      activeFrequencies.length > 0
+        ? activeFrequencies.reduce((sum, frequency) => sum + frequency, 0) / activeFrequencies.length
+        : 220
+
+    const normalized = Math.max(0, Math.min(1, (avgFrequency - 55) / (420 - 55)))
+    const hue = Math.round(120 + normalized * 220)
+
+    return {
+      lineColor: `hsl(${hue}, 100%, 64%)`,
+      gridColor: `hsla(${hue}, 100%, 52%, 0.24)`
+    }
+  }, [sequencer.activePitches])
 
   const visualizerMarkerTags = useMemo<ChartCustomTag[]>(() => {
-    const markerIndex = Math.max(0, visualizerData.length - 1)
+    const markerIndex = Math.max(0, sequencer.visualizerData.length - 1)
 
-    return activePitches.map((pitch, index) => {
+    return sequencer.activePitches.map((pitch, index) => {
       const pitchConfig = PITCHES.find((item) => item.id === pitch)
-      const pitchLabel = pitchConfig?.display ?? pitch
       const pitchFrequency = pitchConfig?.frequency ?? 220
 
       return createChartCustomTag(
-        <div className="beat-marker-pill">
-          <span className="beat-marker-dot" />
-          <span>{pitchLabel}</span>
-          <span>{`${pitchFrequency.toFixed(1)} Hz`}</span>
+        <div
+          className="beat-marker-orb"
+          style={{
+            animationDelay: `${index * 90}ms`
+          }}
+          aria-label={`${pitch} active`}
+          role="img"
+        >
+          <span className="beat-marker-orb__core" />
         </div>,
         markerIndex,
         pitchFrequency,
@@ -498,8 +170,9 @@ export const BeatChartsPage: React.FC = () => {
         }
       )
     })
-  }, [activePitches, visualizerData])
+  }, [sequencer.activePitches, sequencer.visualizerData])
 
+  // Layout data for outer canvas
   const layoutData = useMemo(
     () =>
       Array.from({ length: 64 }, (_, index) => ({
@@ -509,131 +182,130 @@ export const BeatChartsPage: React.FC = () => {
     []
   )
 
-  const beatDurationMs = 60000 / bpm
-  const noteVerticalPadding = Math.max(2, Math.round(pitchRowHeight * 0.12))
-  const noteHeight = Math.max(14, pitchRowHeight - noteVerticalPadding * 2)
-
+  const beatDurationMs = 60000 / sequencer.bpm
   const sequencerChartData = useMemo(
     () =>
-      Array.from({ length: BEAT_GRID_POINTS }, (_, index) => ({
+      Array.from({ length: sequencer.beatGridPoints }, (_, index) => ({
         label: `${index}`,
         seqPitch: 0
       })),
-    []
+    [sequencer.beatGridPoints]
   )
 
-  const sequencerNoteTags = useMemo<ChartCustomTag[]>(() => {
-    const playheadRow = Math.floor(maxPitchRowIndex / 2)
-
-    const playheadTag = createChartCustomTag(
-      <div className="beat-sequencer-playhead-line" style={{ height: `${sequencerPlotHeight}px` }} />,
-      currentBeat,
-      rowIndexToChartY(playheadRow),
-      {
-        id: 'sequencer-playhead',
-        dataKey: 'seqPitch',
-      }
-    )
-
-    const noteTags = notes.map((note) => {
-      const pitch = PITCHES.find((item) => item.id === note.pitch) ?? PITCHES[0]
-
-      return createChartCustomTag(
-        <div
-          className={`beat-note beat-note--chart ${activePitches.includes(note.pitch) ? 'beat-note--active' : ''}`}
-          style={{
-            width: `${note.durationBeats * beatWidth}px`,
-            height: `${noteHeight}px`,
-          }}
-          onPointerDown={(event) => startNoteDrag(event, note, 'move')}
-          onDoubleClick={() => removeNote(note.id)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === 'Backspace' || event.key === 'Delete') {
-              event.preventDefault()
-              removeNote(note.id)
-            }
-          }}
-        >
-          <span>{formatBeatNoteLabel(pitch.display, note.durationBeats)}</span>
-          <span
-            className="beat-note-resize-handle"
-            onPointerDown={(event) => startNoteDrag(event, note, 'resize')}
-            aria-hidden="true"
-          />
-        </div>,
-        note.startBeat,
-        rowIndexToChartY(pitchDisplayRow[note.pitch] ?? 0),
-        {
-          id: `sequencer-note-${note.id}`,
-          dataKey: 'seqPitch',
-          offsetX: 0,
-          offsetY: noteVerticalPadding,
-          style: {
-            transform: 'translate(0, -50%)'
-          }
-        }
-      )
-    })
-
-    return [playheadTag, ...noteTags]
-  }, [
-    activePitches,
-    beatWidth,
-    currentBeat,
-    maxPitchRowIndex,
-    notes,
-    pitchDisplayRow,
-    rowIndexToChartY,
-    sequencerPlotHeight,
-    noteHeight,
-    noteVerticalPadding,
-    removeNote,
-    startNoteDrag,
-  ])
-
+  // Main overlay panel
   const panelTags = useMemo<ChartCustomTag[]>(() => {
     const centerIndex = Math.floor(layoutData.length / 2)
 
     return [
       createChartCustomTag(
         <div className="beat-overlay-stack" role="region" aria-label="Beat visualizer and pitch sequencer">
-          <div className="beat-overlay-panel beat-overlay-panel--visualizer">
-            <BeatTransportHeader
-              bpm={bpm}
-              isPlaying={isPlaying}
-              currentStep={currentBeat}
-              stepDurationMs={beatDurationMs}
-              onTogglePlay={() => {
-                if (!isPlaying) {
-                  void ensureAudioGraph()
-                }
-                setIsPlaying((previous) => !previous)
-              }}
-              onBpmChange={(nextBpm) => setBpm(clamp(nextBpm || 60, 60, 190))}
+          <div className="beat-visualizer-wrapper">
+            <BeatFrequencyVisualizer
+              data={visualizerChartRecords}
+              markerTags={visualizerMarkerTags}
+              lineColor={visualizerPalette.lineColor}
+              gridColor={visualizerPalette.gridColor}
             />
-            <BeatFrequencyVisualizer data={visualizerChartRecords} markerTags={visualizerMarkerTags} />
           </div>
           <section className="beat-overlay-panel beat-overlay-panel--sequencer" aria-label="Pitch sequencer">
+            <div className="beat-overlay-header">
+              <div>
+                <p className="beat-kicker">Neon Sequencer Lab</p>
+                <h1 className="beat-title">Beat Charts</h1></div>
+              <div className="beat-transport-panel">
+                <BeatTransportHeader
+                  bpm={sequencer.bpm}
+                  isPlaying={sequencer.isPlaying}
+                  currentStep={sequencer.currentBeat}
+                  totalSteps={sequencer.loopBeats}
+                  stepDurationMs={beatDurationMs}
+                  onTogglePlay={() => {
+                    if (!sequencer.isPlaying) {
+                      void sequencer.ensureAudioGraph()
+                    }
+                    sequencer.setIsPlaying((previous) => !previous)
+                  }}
+                  onBpmChange={sequencer.handleBpmChange}
+                />
+              </div>
+            </div>
             <div className="beat-sequencer-header">
               <h2>Pitch Grid</h2>
               <p>Click chart cells to add or remove notes. Drag blocks to move. Drag right edge to resize duration.</p>
+              <div className="beat-sequencer-controls">
+                <label className="beat-slider-group" htmlFor="beat-loop-length">
+                  <span>Loop Beats</span>
+                  <input
+                    id="beat-loop-length"
+                    type="range"
+                    min={16}
+                    max={256}
+                    step={4}
+                    value={sequencer.loopBeats}
+                    onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
+                  />
+                  <input
+                    type="number"
+                    min={16}
+                    max={256}
+                    step={4}
+                    value={sequencer.loopBeats}
+                    onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
+                  />
+                </label>
+                <label className="beat-slider-group" htmlFor="beat-pan-start">
+                  <span>Pan Start Beat</span>
+                  <input
+                    id="beat-pan-start"
+                    type="range"
+                    min={0}
+                    max={sequencer.maxPanBeat}
+                    value={sequencer.panBeat}
+                    onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={sequencer.maxPanBeat}
+                    value={sequencer.panBeat}
+                    onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
+                  />
+                </label>
+
+                <BeatPresetControls
+                  notes={sequencer.notes}
+                  bpm={sequencer.bpm}
+                  loopBeats={sequencer.loopBeats}
+                  panBeat={sequencer.panBeat}
+                  onApplyPreset={handleApplyPreset}
+                />
+
+                <div className="beat-control-actions">
+                  <button type="button" className="beat-button" onClick={handleClearAllNotes}>
+                    Clear All
+                  </button>
+                  <button type="button" className="beat-button" onClick={handleRestoreDefaults}>
+                    Restore Defaults
+                  </button>
+                </div>
+              </div>
             </div>
             <BeatSequencerChart
-              hostRef={sequencerChartHostRef}
+              hostRef={sequencer.sequencerChartHostRef}
               data={sequencerChartData}
-              noteTags={sequencerNoteTags}
-              totalSteps={TOTAL_BEATS}
+              noteTags={pitchGrid.sequencerNoteTags}
+              totalSteps={sequencer.loopBeats}
+              surfaceWidth={sequencer.sequencerSurfaceWidth}
               pitchRowCount={displayPitches.length}
               chartHeight={SEQUENCER_CHART_HEIGHT}
               margin={SEQUENCER_MARGIN}
               formatPitchLabel={(value) => {
-                const rowIndex = chartYToRowIndex(value)
+                const rowIndex = pitchGrid.chartYToRowIndex(value)
                 const pitch = displayPitches[rowIndex]
                 return pitch ? `${pitch.display}` : ''
               }}
-              onCreateNote={handleSequencerTagPlacement}
+              onPreviewNotePlacement={pitchGrid.handleSequencerHoverPlacement}
+              onCreateNote={pitchGrid.handleSequencerTagPlacement}
             />
           </section>
         </div>,
@@ -645,20 +317,36 @@ export const BeatChartsPage: React.FC = () => {
         }
       )
     ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    bpm,
-    currentBeat,
-    ensureAudioGraph,
-    handleSequencerTagPlacement,
-    isPlaying,
     layoutData.length,
-    beatDurationMs,
     visualizerChartRecords,
+    visualizerPalette.lineColor,
+    visualizerPalette.gridColor,
     visualizerMarkerTags,
-    chartYToRowIndex,
-    displayPitches,
+    sequencer.bpm,
+    sequencer.isPlaying,
+    sequencer.currentBeat,
+    sequencer.loopBeats,
+    sequencer.beatGridPoints,
+    beatDurationMs,
+    sequencer.handleBpmChange,
+    sequencer.setIsPlaying,
+    sequencer.ensureAudioGraph,
+    sequencer.handleLoopBeatsChange,
+    sequencer.handlePanBeatChange,
+    sequencer.maxPanBeat,
+    sequencer.panBeat,
+    sequencer.sequencerChartHostRef,
     sequencerChartData,
-    sequencerNoteTags
+    pitchGrid.sequencerNoteTags,
+    handleApplyPreset,
+    handleClearAllNotes,
+    handleRestoreDefaults,
+    sequencer.sequencerSurfaceWidth,
+    displayPitches,
+    pitchGrid.chartYToRowIndex,
+    pitchGrid.handleSequencerTagPlacement
   ])
 
   return (

@@ -4,7 +4,6 @@ import {
   ChartGridLayer,
   ChartLineSeries,
   ChartSurface,
-  ChartTitleLayer,
   ChartXAxis,
   ChartYAxis,
   type ChartCustomTag
@@ -13,9 +12,16 @@ import {
 type BeatFrequencyVisualizerProps = {
   data: Array<{ label: string; frequency: number }>
   markerTags: ChartCustomTag[]
+  lineColor?: string
+  gridColor?: string
 }
 
-export const BeatFrequencyVisualizer: React.FC<BeatFrequencyVisualizerProps> = ({ data, markerTags }) => {
+export const BeatFrequencyVisualizer: React.FC<BeatFrequencyVisualizerProps> = ({
+  data,
+  markerTags,
+  lineColor = '#7cff5f',
+  gridColor = 'rgba(57,255,20,0.16)'
+}) => {
   return (
     <div className="beat-visualizer-panel">
       <ChartSurface
@@ -34,35 +40,22 @@ export const BeatFrequencyVisualizer: React.FC<BeatFrequencyVisualizerProps> = (
         ]}
         width="100%"
         height={240}
-        margin={{ top: 50, right: 24, bottom: 36, left: 50 }}
+        margin={{ top: 12, right: 16, bottom: 12, left: 16 }}
         backgroundColor="#040906"
-        defaultColors={['#39ff14']}
+        defaultColors={[lineColor]}
       >
-        <ChartTitleLayer title="Audio Frequency Visualizer" color="#8eff61" />
-        <ChartGridLayer show showVertical color="rgba(57,255,20,0.12)" lineWidth={1} />
-        <ChartXAxis
-          show
-          title="Realtime Samples"
-          showTitle
-          color="#39ff14"
-          tickColor="#1f6a1f"
-          labelColor="#7ef29b"
-          titleColor="#a5ff97"
-          maxTicks={8}
-        />
+        <ChartGridLayer show showVertical color={gridColor} lineWidth={1} />
+        <ChartXAxis show={false} />
         <ChartYAxis
-          show
-          title="Pitch Frequency"
-          showTitle
+          show={false}
           color="#39ff14"
           tickColor="#1f6a1f"
           labelColor="#7ef29b"
-          titleColor="#a5ff97"
           tickCount={5}
           scaleId="pitch-frequency-scale"
           formatLabel={(value) => `${value.toFixed(1)} Hz`}
         />
-        <ChartLineSeries dataKey="frequency" color="#61ff2b" lineWidth={2.3} smooth />
+        <ChartLineSeries dataKey="frequency" color={lineColor} lineWidth={3.2} smooth />
         <ChartCustomTagsLayer tags={markerTags} />
       </ChartSurface>
     </div>

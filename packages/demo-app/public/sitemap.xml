@@ -8,7 +8,7 @@
   
   <!-- Homepage / Main Demo -->
   <url>
-    <loc>https://react-canvas-charts.netlify.app/</loc>
+    <loc>https://reactcanvascharts.com/</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -16,7 +16,7 @@
   
   <!-- Examples Page -->
   <url>
-    <loc>https://react-canvas-charts.netlify.app/examples</loc>
+    <loc>https://reactcanvascharts.com/examples</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -24,7 +24,15 @@
   
   <!-- Interactive Chart Demo -->
   <url>
-    <loc>https://react-canvas-charts.netlify.app/interactive-chart</loc>
+    <loc>https://reactcanvascharts.com/interactive</loc>
+    <lastmod>2026-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Beat Charts Page -->
+  <url>
+    <loc>https://reactcanvascharts.com/beat-charts</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

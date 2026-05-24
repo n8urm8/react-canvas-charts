@@ -23,6 +23,9 @@ export const useBeatSequencer = () => {
   const [activePitches, setActivePitches] = useState<PitchId[]>([])
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [sequencerViewportWidth, setSequencerViewportWidth] = useState(760)
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight : 900
+  )
   const [panBeat, setPanBeat] = useState(0)
   const [visualizerData, setVisualizerData] = useState<VisualizerPoint[]>(() =>
     Array.from({ length: 48 }, (_, index) => ({
@@ -69,6 +72,17 @@ export const useBeatSequencer = () => {
     return () => observer.disconnect()
   }, [])
 
+  // Keep chart sizing in sync with viewport height so panels do not clip on shorter screens.
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      setViewportHeight(window.innerHeight)
+    }
+
+    updateViewportHeight()
+    window.addEventListener('resize', updateViewportHeight)
+    return () => window.removeEventListener('resize', updateViewportHeight)
+  }, [])
+
   // Constrain state when loop length changes
   useEffect(() => {
     setCurrentBeat((previous) => clamp(previous, 0, Math.max(0, loopBeats - 1)))
@@ -87,9 +101,13 @@ export const useBeatSequencer = () => {
     () => sequencerPlotWidth + SEQUENCER_MARGIN.left + SEQUENCER_MARGIN.right,
     [sequencerPlotWidth]
   )
+  const sequencerChartHeight = useMemo(() => {
+    const target = Math.round(viewportHeight * 0.34)
+    return clamp(target, 220, 320)
+  }, [viewportHeight])
   const sequencerPlotHeight = useMemo(
-    () => Math.max(120, 320 - SEQUENCER_MARGIN.top - SEQUENCER_MARGIN.bottom),
-    []
+    () => Math.max(120, sequencerChartHeight - SEQUENCER_MARGIN.top - SEQUENCER_MARGIN.bottom),
+    [sequencerChartHeight]
   )
   const beatWidth = useMemo(() => SEQUENCER_PIXELS_PER_BEAT, [])
   const visibleBeatCount = useMemo(
@@ -328,6 +346,7 @@ export const useBeatSequencer = () => {
     sequencerChartHostRef,
     sequencerPlotWidth,
     sequencerSurfaceWidth,
+    sequencerChartHeight,
     sequencerPlotHeight,
     beatWidth,
     visibleBeatCount,

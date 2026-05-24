@@ -1,17 +1,11 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { ChartCustomTagsLayer, ChartGridLayer, ChartSurface, createChartCustomTag, type ChartCustomTag } from 'react-canvas-charts'
+import { createChartCustomTag, type ChartCustomTag } from 'react-canvas-charts'
 import './BeatChartsPage.css'
 import { BeatTransportHeader } from './BeatCharts/components/BeatTransportHeader'
 import { BeatFrequencyVisualizer } from './BeatCharts/components/BeatFrequencyVisualizer'
 import { BeatPresetControls } from './BeatCharts/components/BeatPresetControls.tsx'
 import { BeatSequencerChart } from './BeatCharts/components/BeatSequencerChart'
-import {
-  DEFAULT_LOOP_BEATS,
-  SEQUENCER_CHART_HEIGHT,
-  SEQUENCER_MARGIN,
-  ROOT_LAYOUT_SCALE_ID,
-  PITCHES
-} from './BeatCharts/constants'
+import { DEFAULT_LOOP_BEATS, SEQUENCER_MARGIN, PITCHES } from './BeatCharts/constants'
 import { useBeatSequencer } from './BeatCharts/useBeatSequencer'
 import { usePitchGrid } from './BeatCharts/usePitchGrid'
 import { createInitialNotes } from './BeatCharts/utils'
@@ -172,17 +166,11 @@ export const BeatChartsPage: React.FC = () => {
     })
   }, [sequencer.activePitches, sequencer.visualizerData])
 
-  // Layout data for outer canvas
-  const layoutData = useMemo(
-    () =>
-      Array.from({ length: 64 }, (_, index) => ({
-        label: `${index + 1}`,
-        layout: index % 2 === 0 ? 0 : 100
-      })),
-    []
-  )
-
   const beatDurationMs = 60000 / sequencer.bpm
+  const visualizerChartHeight = useMemo(
+    () => Math.max(140, Math.round(sequencer.sequencerChartHeight * 0.62)),
+    [sequencer.sequencerChartHeight]
+  )
   const sequencerChartData = useMemo(
     () =>
       Array.from({ length: sequencer.beatGridPoints }, (_, index) => ({
@@ -192,188 +180,121 @@ export const BeatChartsPage: React.FC = () => {
     [sequencer.beatGridPoints]
   )
 
-  // Main overlay panel
-  const panelTags = useMemo<ChartCustomTag[]>(() => {
-    const centerIndex = Math.floor(layoutData.length / 2)
-
-    return [
-      createChartCustomTag(
-        <div className="beat-overlay-stack" role="region" aria-label="Beat visualizer and pitch sequencer">
-          <div className="beat-visualizer-wrapper">
-            <BeatFrequencyVisualizer
-              data={visualizerChartRecords}
-              markerTags={visualizerMarkerTags}
-              lineColor={visualizerPalette.lineColor}
-              gridColor={visualizerPalette.gridColor}
-            />
-          </div>
-          <section className="beat-overlay-panel beat-overlay-panel--sequencer" aria-label="Pitch sequencer">
-            <div className="beat-overlay-header">
-              <div>
-                <p className="beat-kicker">Neon Sequencer Lab</p>
-                <h1 className="beat-title">Beat Charts</h1></div>
-              <div className="beat-transport-panel">
-                <BeatTransportHeader
-                  bpm={sequencer.bpm}
-                  isPlaying={sequencer.isPlaying}
-                  currentStep={sequencer.currentBeat}
-                  totalSteps={sequencer.loopBeats}
-                  stepDurationMs={beatDurationMs}
-                  onTogglePlay={() => {
-                    if (!sequencer.isPlaying) {
-                      void sequencer.ensureAudioGraph()
-                    }
-                    sequencer.setIsPlaying((previous) => !previous)
-                  }}
-                  onBpmChange={sequencer.handleBpmChange}
-                />
-              </div>
-            </div>
-            <div className="beat-sequencer-header">
-              <h2>Pitch Grid</h2>
-              <p>Click chart cells to add or remove notes. Drag blocks to move. Drag right edge to resize duration.</p>
-              <div className="beat-sequencer-controls">
-                <label className="beat-slider-group" htmlFor="beat-loop-length">
-                  <span>Loop Beats</span>
-                  <input
-                    id="beat-loop-length"
-                    type="range"
-                    min={16}
-                    max={256}
-                    step={4}
-                    value={sequencer.loopBeats}
-                    onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
-                  />
-                  <input
-                    type="number"
-                    min={16}
-                    max={256}
-                    step={4}
-                    value={sequencer.loopBeats}
-                    onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
-                  />
-                </label>
-                <label className="beat-slider-group" htmlFor="beat-pan-start">
-                  <span>Pan Start Beat</span>
-                  <input
-                    id="beat-pan-start"
-                    type="range"
-                    min={0}
-                    max={sequencer.maxPanBeat}
-                    value={sequencer.panBeat}
-                    onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    max={sequencer.maxPanBeat}
-                    value={sequencer.panBeat}
-                    onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
-                  />
-                </label>
-
-                <BeatPresetControls
-                  notes={sequencer.notes}
-                  bpm={sequencer.bpm}
-                  loopBeats={sequencer.loopBeats}
-                  panBeat={sequencer.panBeat}
-                  onApplyPreset={handleApplyPreset}
-                />
-
-                <div className="beat-control-actions">
-                  <button type="button" className="beat-button" onClick={handleClearAllNotes}>
-                    Clear All
-                  </button>
-                  <button type="button" className="beat-button" onClick={handleRestoreDefaults}>
-                    Restore Defaults
-                  </button>
-                </div>
-              </div>
-            </div>
-            <BeatSequencerChart
-              hostRef={sequencer.sequencerChartHostRef}
-              data={sequencerChartData}
-              noteTags={pitchGrid.sequencerNoteTags}
-              totalSteps={sequencer.loopBeats}
-              surfaceWidth={sequencer.sequencerSurfaceWidth}
-              pitchRowCount={displayPitches.length}
-              chartHeight={SEQUENCER_CHART_HEIGHT}
-              margin={SEQUENCER_MARGIN}
-              formatPitchLabel={(value) => {
-                const rowIndex = pitchGrid.chartYToRowIndex(value)
-                const pitch = displayPitches[rowIndex]
-                return pitch ? `${pitch.display}` : ''
-              }}
-              onPreviewNotePlacement={pitchGrid.handleSequencerHoverPlacement}
-              onCreateNote={pitchGrid.handleSequencerTagPlacement}
-            />
-          </section>
-        </div>,
-        centerIndex,
-        55,
-        {
-          id: 'beat-overlay-stack',
-          scaleId: ROOT_LAYOUT_SCALE_ID
-        }
-      )
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    layoutData.length,
-    visualizerChartRecords,
-    visualizerPalette.lineColor,
-    visualizerPalette.gridColor,
-    visualizerMarkerTags,
-    sequencer.bpm,
-    sequencer.isPlaying,
-    sequencer.currentBeat,
-    sequencer.loopBeats,
-    sequencer.beatGridPoints,
-    beatDurationMs,
-    sequencer.handleBpmChange,
-    sequencer.setIsPlaying,
-    sequencer.ensureAudioGraph,
-    sequencer.handleLoopBeatsChange,
-    sequencer.handlePanBeatChange,
-    sequencer.maxPanBeat,
-    sequencer.panBeat,
-    sequencer.sequencerChartHostRef,
-    sequencerChartData,
-    pitchGrid.sequencerNoteTags,
-    handleApplyPreset,
-    handleClearAllNotes,
-    handleRestoreDefaults,
-    sequencer.sequencerSurfaceWidth,
-    displayPitches,
-    pitchGrid.chartYToRowIndex,
-    pitchGrid.handleSequencerTagPlacement
-  ])
-
   return (
     <div className="beat-charts-page">
-      <ChartSurface
-        data={layoutData}
-        xKey="label"
-        yKeys={['layout']}
-        valueScales={[
-          {
-            id: ROOT_LAYOUT_SCALE_ID,
-            dataKeys: ['layout'],
-            domain: {
-              min: 0,
-              max: 100
-            }
-          }
-        ]}
-        width="100%"
-        height="100%"
-        margin={{ top: 56, right: 36, bottom: 42, left: 46 }}
-        backgroundColor="#010401"
-        defaultColors={['#39ff14']}
-      >
-        <ChartGridLayer show showVertical color="rgba(57,255,20,0.12)" lineWidth={1} />
-        <ChartCustomTagsLayer tags={panelTags} />
-      </ChartSurface>
+      <div className="beat-overlay-stack" role="region" aria-label="Beat visualizer and pitch sequencer">
+        <div className="beat-visualizer-wrapper">
+          <BeatFrequencyVisualizer
+            data={visualizerChartRecords}
+            markerTags={visualizerMarkerTags}
+            lineColor={visualizerPalette.lineColor}
+            gridColor={visualizerPalette.gridColor}
+            chartHeight={visualizerChartHeight}
+          />
+        </div>
+        <section className="beat-overlay-panel beat-overlay-panel--sequencer" aria-label="Pitch sequencer">
+          <div className="beat-overlay-header">
+            <div>
+              <p className="beat-kicker">Neon Sequencer Lab</p>
+              <h1 className="beat-title">Beat Charts</h1>
+            </div>
+            <div className="beat-transport-panel">
+              <BeatTransportHeader
+                bpm={sequencer.bpm}
+                isPlaying={sequencer.isPlaying}
+                currentStep={sequencer.currentBeat}
+                totalSteps={sequencer.loopBeats}
+                stepDurationMs={beatDurationMs}
+                onTogglePlay={() => {
+                  if (!sequencer.isPlaying) {
+                    void sequencer.ensureAudioGraph()
+                  }
+                  sequencer.setIsPlaying((previous) => !previous)
+                }}
+                onBpmChange={sequencer.handleBpmChange}
+              />
+            </div>
+          </div>
+          <div className="beat-sequencer-header">
+            <h2>Pitch Grid</h2>
+            <p>Click chart cells to add or remove notes. Drag blocks to move. Drag right edge to resize duration.</p>
+            <div className="beat-sequencer-controls">
+              <label className="beat-slider-group" htmlFor="beat-loop-length">
+                <span>Loop Beats</span>
+                <input
+                  id="beat-loop-length"
+                  type="range"
+                  min={16}
+                  max={256}
+                  step={4}
+                  value={sequencer.loopBeats}
+                  onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
+                />
+                <input
+                  type="number"
+                  min={16}
+                  max={256}
+                  step={4}
+                  value={sequencer.loopBeats}
+                  onChange={(event) => sequencer.handleLoopBeatsChange(Number(event.target.value))}
+                />
+              </label>
+              <label className="beat-slider-group" htmlFor="beat-pan-start">
+                <span>Pan Start Beat</span>
+                <input
+                  id="beat-pan-start"
+                  type="range"
+                  min={0}
+                  max={sequencer.maxPanBeat}
+                  value={sequencer.panBeat}
+                  onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={sequencer.maxPanBeat}
+                  value={sequencer.panBeat}
+                  onChange={(event) => sequencer.handlePanBeatChange(Number(event.target.value))}
+                />
+              </label>
+
+              <BeatPresetControls
+                notes={sequencer.notes}
+                bpm={sequencer.bpm}
+                loopBeats={sequencer.loopBeats}
+                panBeat={sequencer.panBeat}
+                onApplyPreset={handleApplyPreset}
+              />
+
+              <div className="beat-control-actions">
+                <button type="button" className="beat-button" onClick={handleClearAllNotes}>
+                  Clear All
+                </button>
+                <button type="button" className="beat-button" onClick={handleRestoreDefaults}>
+                  Restore Defaults
+                </button>
+              </div>
+            </div>
+          </div>
+          <BeatSequencerChart
+            hostRef={sequencer.sequencerChartHostRef}
+            data={sequencerChartData}
+            noteTags={pitchGrid.sequencerNoteTags}
+            totalSteps={sequencer.loopBeats}
+            surfaceWidth={sequencer.sequencerSurfaceWidth}
+            pitchRowCount={displayPitches.length}
+            chartHeight={sequencer.sequencerChartHeight}
+            margin={SEQUENCER_MARGIN}
+            formatPitchLabel={(value) => {
+              const rowIndex = pitchGrid.chartYToRowIndex(value)
+              const pitch = displayPitches[rowIndex]
+              return pitch ? `${pitch.display}` : ''
+            }}
+            onPreviewNotePlacement={pitchGrid.handleSequencerHoverPlacement}
+            onCreateNote={pitchGrid.handleSequencerTagPlacement}
+          />
+        </section>
+      </div>
     </div>
   )
 }

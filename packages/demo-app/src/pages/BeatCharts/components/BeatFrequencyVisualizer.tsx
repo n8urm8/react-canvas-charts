@@ -14,13 +14,15 @@ type BeatFrequencyVisualizerProps = {
   markerTags: ChartCustomTag[]
   lineColor?: string
   gridColor?: string
+  chartHeight?: number
 }
 
 export const BeatFrequencyVisualizer: React.FC<BeatFrequencyVisualizerProps> = ({
   data,
   markerTags,
   lineColor = '#7cff5f',
-  gridColor = 'rgba(57,255,20,0.16)'
+  gridColor = 'rgba(57,255,20,0.16)',
+  chartHeight = 240
 }) => {
   return (
     <div className="beat-visualizer-panel">
@@ -39,7 +41,7 @@ export const BeatFrequencyVisualizer: React.FC<BeatFrequencyVisualizerProps> = (
           }
         ]}
         width="100%"
-        height={240}
+        height={chartHeight}
         margin={{ top: 12, right: 16, bottom: 12, left: 16 }}
         backgroundColor="#040906"
         defaultColors={[lineColor]}

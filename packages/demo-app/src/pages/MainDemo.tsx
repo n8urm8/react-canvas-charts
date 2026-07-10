@@ -64,12 +64,12 @@ export const MainDemo = () => {
               Annotations
             </a>
             <span className="text-xs text-gray-500 block mt-1">Interactive drawing tools</span>
-                    <li>
-                      <a href="#custom-tags-selectors" className="text-blue-600 hover:text-blue-800 hover:underline block">
-                        Point Selectors &amp; Custom Tags
-                      </a>
-                      <span className="text-xs text-gray-500 block mt-1">Interactive overlays and annotations</span>
-                    </li>
+          </li>
+          <li>
+            <a href="#custom-tags-selectors" className="text-blue-600 hover:text-blue-800 hover:underline block">
+              Point Selectors &amp; Custom Tags
+            </a>
+            <span className="text-xs text-gray-500 block mt-1">Interactive overlays and annotations</span>
           </li>
         </ul>
       </nav>

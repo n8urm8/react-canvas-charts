@@ -1239,7 +1239,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
             height={height}
             className="chart-base-layer"
             onDraw={drawBase}
-            debugLabel="chart-base"
             canvasStyle={{ pointerEvents: 'none' }}
           />
           <CanvasWrapper
@@ -1247,7 +1246,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
             height={height}
             className="chart-overlay-layer"
             onDraw={drawOverlay}
-            debugLabel="chart-overlay"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}

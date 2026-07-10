@@ -306,7 +306,6 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
           height={chartSurface.canvasSize.height}
           className="chart-annotations-layer"
           onDraw={draw}
-          debugLabel="annotations"
           canvasStyle={{
             position: 'absolute',
             top: 0,

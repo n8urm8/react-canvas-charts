@@ -80,6 +80,7 @@ export const MainDemo = () => {
           <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
             React Canvas Charts API Documentation
           </h1>
+          <p className="text-sm font-mono text-gray-500 mb-3 md:mb-4">react-canvas-charts v{__LIB_VERSION__}</p>
           <p className="text-base md:text-lg text-gray-600">
             High-performance canvas-based charting components for React applications. Built with TypeScript and
             optimized for real-time data visualization.

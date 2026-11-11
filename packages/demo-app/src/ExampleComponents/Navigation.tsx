@@ -83,38 +83,6 @@ export const Navigation: React.FC = () => {
     }`
   }
 
-  const getBeatChartsLinkClass = () => {
-    if (isBeatChartsRoute) {
-      return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
-        currentPath === '/beat-charts'
-          ? 'bg-lime-300 text-black shadow-md border border-lime-200'
-          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-lime-700/40'
-      }`
-    }
-
-    return `px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
-      currentPath === '/beat-charts'
-        ? 'bg-black text-lime-300 shadow-md border border-lime-400'
-        : 'text-gray-600 hover:text-lime-700 hover:bg-lime-50'
-    }`
-  }
-
-  const getMobileBeatChartsLinkClass = () => {
-    if (isBeatChartsRoute) {
-      return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
-        currentPath === '/beat-charts'
-          ? 'bg-lime-300 text-black shadow-md border border-lime-200'
-          : 'text-lime-300 hover:text-lime-200 hover:bg-[#0b1b0f] border border-lime-700/40'
-      }`
-    }
-
-    return `block px-4 py-3 text-base font-medium rounded-lg transition-colors ${
-      currentPath === '/beat-charts'
-        ? 'bg-black text-lime-300 shadow-md border border-lime-400'
-        : 'text-gray-600 hover:text-lime-700 hover:bg-lime-50'
-    }`
-  }
-
   return (
     <nav
       className={`${
@@ -141,9 +109,6 @@ export const Navigation: React.FC = () => {
             </Link>
             <Link to="/interactive" className={getInteractiveLinkClass()}>
               🎮 Interactive Demo
-            </Link>
-            <Link to="/beat-charts" className={getBeatChartsLinkClass()}>
-              🎵 Beat Charts
             </Link>
             <a
               href="https://github.com/n8urm8/react-canvas-charts"
@@ -196,9 +161,6 @@ export const Navigation: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               🎮 Interactive Demo
-            </Link>
-            <Link to="/beat-charts" className={getMobileBeatChartsLinkClass()} onClick={() => setMobileMenuOpen(false)}>
-              🎵 Beat Charts
             </Link>
             <a
               href="https://github.com/n8urm8/react-canvas-charts"

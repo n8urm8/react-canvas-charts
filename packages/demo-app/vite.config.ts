@@ -1,6 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { readFileSync } from "node:fs";
+
+const libVersion: string = JSON.parse(
+  readFileSync(new URL("../chart-components/package.json", import.meta.url), "utf-8")
+).version;
 
 // https://vite.dev/config/
 export default defineConfig(() => {
@@ -12,6 +17,7 @@ export default defineConfig(() => {
 
   return {
     envPrefix: ['VITE_', 'CHART_'],
+    define: { __LIB_VERSION__: JSON.stringify(libVersion) },
     plugins
   };
 });

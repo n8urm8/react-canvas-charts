@@ -60,6 +60,9 @@ type InteractiveChartCanvasProps = {
 
 const EMPTY_TOOL_IDS: string[] = []
 
+/** AI analysis is hidden in the demo for now; set to true to show the toolbar button and assistant. */
+const AI_ANALYSIS_ENABLED = false
+
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   columns,
   viewRange,
@@ -166,7 +169,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   }, [defaultToolbarTools, toolbarConfig?.tools, toolbarToolsOverride])
 
   const toolbarToolsWithAi = useMemo(() => {
-    if (!chartAiApiKey) {
+    if (!AI_ANALYSIS_ENABLED || !chartAiApiKey) {
       return resolvedToolbarTools
     }
 
@@ -408,7 +411,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
           />
         ) : null}
 
-        {chartAiApiKey ? (
+        {AI_ANALYSIS_ENABLED && chartAiApiKey ? (
           <ChartAIAnalysisAssistant
             apiKey={chartAiApiKey}
             model={config.ai?.model}

@@ -8,12 +8,6 @@ import type {
   AnnotationType
 } from 'react-canvas-charts'
 
-export interface DataPoint {
-  id: string
-  label: string
-  values: Record<string, number>
-}
-
 export type PointShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'star'
 
 export type TooltipPosition = 'follow' | 'top' | 'bottom' | 'left' | 'right' | 'fixed'

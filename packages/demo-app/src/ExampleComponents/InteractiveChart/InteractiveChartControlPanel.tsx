@@ -40,6 +40,8 @@ type InteractiveChartControlPanelProps = {
   setConfig: React.Dispatch<React.SetStateAction<InteractiveChartConfig>>;
   pointSelectors?: ChartPointSelector[];
   onPointSelectorsChange?: (selectors: ChartPointSelector[]) => void;
+  /** Absolute data index for newly added point selectors. */
+  newSelectorIndex?: number;
 };
 
 export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanelProps> = ({
@@ -57,6 +59,7 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
   setConfig,
   pointSelectors,
   onPointSelectorsChange,
+  newSelectorIndex,
 }) => {
   const legendPlacement = config.legend?.placement ?? { mode: 'anchor', position: 'top-right' as const };
   const isCoordinatePlacement = legendPlacement.mode === 'coordinate';
@@ -905,6 +908,7 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
           selectors={pointSelectors}
           series={config.series}
           onSelectorsChange={onPointSelectorsChange}
+          newSelectorIndex={newSelectorIndex}
         />
       </section>
     ) : null}

@@ -2,7 +2,6 @@ import React, { useMemo, useCallback, useEffect } from 'react'
 import {
   renderChartCursor,
   defaultChartCursorProps,
-  findNearestDataPoint,
   type ChartCursorHoverPoint,
   type ChartCursorProps,
   type DataPoint
@@ -40,7 +39,7 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         return
       }
 
-      let nearest: { point: DataPoint; distance: number } | null = null
+      let nearest: { point: DataPoint } | null = null
       let snappedCategoryY: number | undefined
       let snappedCategoryIndex: number | undefined
 
@@ -52,9 +51,10 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
         }
       } else {
         // For vertical bars, use the standard dataPoint snapping
-        nearest = snapToDataPoints
-          ? findNearestDataPoint(helpers.pointer.x, helpers.pointer.y, helpers.dataPoints, snapRadius, snapAlongYAxis)
+        const point = snapToDataPoints
+          ? helpers.findNearestPoint(helpers.pointer.x, helpers.pointer.y, snapRadius, snapAlongYAxis)
           : null
+        nearest = point ? { point } : null
       }
 
       const showHoverPoints = cursorProps.showHoverPoints ?? defaultChartCursorProps.showHoverPoints
@@ -86,7 +86,7 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
 
         if (barOrientation === 'horizontal' && snappedCategoryIndex !== undefined) {
           // For horizontal bars, show all series at the snapped category
-          const candidatePoints = helpers.dataPoints.filter((point) => point.dataIndex === snappedCategoryIndex)
+          const candidatePoints = helpers.getPointsAtIndex(snappedCategoryIndex)
 
           const seenSeries = new Set<string>()
           hoverPoints = candidatePoints.reduce<ChartCursorHoverPoint[]>((accumulator, point) => {
@@ -103,16 +103,8 @@ export const ChartCursorLayer: React.FC<ChartCursorLayerProps> = ({
           hoverPoints = [mapHoverPoint(nearest.point)]
         } else if (nearest) {
           const targetDataIndex = nearest.point.dataIndex
-          const targetX = nearest.point.x
-
-          const candidatePoints = helpers.dataPoints
-            .filter((point) => {
-              if (typeof targetDataIndex === 'number' && typeof point.dataIndex === 'number') {
-                return point.dataIndex === targetDataIndex
-              }
-              return Math.abs(point.x - targetX) <= 0.5
-            })
-            .sort((a, b) => (a.seriesIndex ?? 0) - (b.seriesIndex ?? 0))
+          const candidatePoints =
+            typeof targetDataIndex === 'number' ? helpers.getPointsAtIndex(targetDataIndex) : [nearest.point]
 
           const seenSeries = new Set<string>()
           hoverPoints = candidatePoints.reduce<ChartCursorHoverPoint[]>((accumulator, point) => {

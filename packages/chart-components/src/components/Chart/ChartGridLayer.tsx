@@ -20,8 +20,14 @@ export const ChartGridLayer: React.FC<ChartGridLayerProps> = ({
 
   const draw = useCallback<ChartLayerRenderer>(
     (context, helpers) => {
+      const visibleCount = helpers.viewRange.end - helpers.viewRange.start + 1
+      // Fall back to one line per point only for small ranges; dense ranges would fill the chart.
       const verticalLines =
-        alignWithXAxisTicks && helpers.axisTicks.x ? helpers.axisTicks.x.positions : helpers.labelPositions
+        alignWithXAxisTicks && helpers.axisTicks.x
+          ? helpers.axisTicks.x.positions
+          : visibleCount <= helpers.chartArea.width / 2
+            ? helpers.labelPositions
+            : (helpers.axisTicks.x?.positions ?? [])
 
       const horizontalLines = (() => {
         if (alignWithYAxisTicks && helpers.axisTicks.y) {

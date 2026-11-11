@@ -17,35 +17,48 @@ export interface ChartXAxisProps extends ChartAxisProps {
   scaleId?: string
 }
 
+/**
+ * Picks tick indices over the visible range only, so cost is O(ticks), not O(data length).
+ * Always includes the first and last visible index.
+ */
 const computeTickDescriptor = (
-  labelCount: number,
-  labelPositions: number[],
-  labels: string[],
+  viewStart: number,
+  viewEnd: number,
+  getXPosition: (index: number) => number,
+  getLabel: (index: number) => string,
+  chartWidth: number,
   tickStep?: number,
   maxTicks?: number
 ) => {
-  if (labelCount === 0) {
+  const count = viewEnd - viewStart + 1
+  if (count <= 0) {
     return { indices: [] as number[], positions: [] as number[], labels: [] as string[] }
   }
 
   const normalizedStep = Math.max(1, Math.round(tickStep ?? defaultChartAxisProps.tickStep) || 1)
-  const normalizedMaxTicks = maxTicks ?? defaultChartAxisProps.maxTicks
-  const autoStep =
-    Number.isFinite(normalizedMaxTicks) && normalizedMaxTicks > 0
-      ? Math.max(1, Math.ceil(labelCount / normalizedMaxTicks))
-      : 1
+  const requestedMaxTicks = maxTicks ?? defaultChartAxisProps.maxTicks
+  // Without an explicit limit, never place more than one tick per pixel.
+  const normalizedMaxTicks =
+    Number.isFinite(requestedMaxTicks) && requestedMaxTicks > 0
+      ? requestedMaxTicks
+      : Math.max(1, Math.floor(chartWidth))
+  const autoStep = Math.max(1, Math.ceil(count / normalizedMaxTicks))
   const effectiveStep = Math.max(normalizedStep, autoStep)
 
   const indices: number[] = []
-  for (let index = 0; index < labelCount; index += 1) {
-    const isEdge = index === 0 || index === labelCount - 1
-    if (isEdge || index % effectiveStep === 0) {
-      indices.push(index)
-    }
+  for (let offset = 0; offset < count; offset += effectiveStep) {
+    indices.push(viewStart + offset)
+  }
+  if (indices[indices.length - 1] !== viewEnd) {
+    indices.push(viewEnd)
   }
 
-  const positions = indices.map((index) => labelPositions[index])
-  const tickLabels = indices.map((index) => labels[index] ?? '')
+  const positions: number[] = new Array(indices.length)
+  const tickLabels: string[] = new Array(indices.length)
+  for (let i = 0; i < indices.length; i += 1) {
+    positions[i] = getXPosition(indices[i])
+    tickLabels[i] = getLabel(indices[i])
+  }
 
   return { indices, positions, labels: tickLabels }
 }
@@ -58,8 +71,16 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
   scaleId,
   ...axisProps
 }) => {
-  const { labels, labelPositions, chartArea, canvasSize, setAxisTicks, getScaleDomain, defaultScaleId } =
-    useChartSurface()
+  const {
+    viewRange,
+    getXPosition,
+    getLabel,
+    chartArea,
+    canvasSize,
+    setAxisTicks,
+    getScaleDomain,
+    defaultScaleId
+  } = useChartSurface()
 
   const resolvedScaleId = useMemo(() => scaleId ?? defaultScaleId, [scaleId, defaultScaleId])
 
@@ -119,14 +140,25 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
         labels: valueTickLabels
       }
     }
-    return computeTickDescriptor(labels.length, labelPositions, labels, axisProps.tickStep, axisProps.maxTicks)
+    return computeTickDescriptor(
+      viewRange.start,
+      viewRange.end,
+      getXPosition,
+      getLabel,
+      chartArea.width,
+      axisProps.tickStep,
+      axisProps.maxTicks
+    )
   }, [
     valueScale,
     valueTickValues,
     valueTickPositions,
     valueTickLabels,
-    labels,
-    labelPositions,
+    viewRange.start,
+    viewRange.end,
+    getXPosition,
+    getLabel,
+    chartArea.width,
     axisProps.tickStep,
     axisProps.maxTicks
   ])
@@ -147,8 +179,9 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
       const isBottom = position === 'bottom'
       const startY = isBottom ? chartArea.y + chartArea.height : chartArea.y
 
-      const displayLabels = valueScale ? valueTickLabels : labels
-      const displayPositions = valueScale ? valueTickPositions : labelPositions
+      // Tick selection already happened in tickDescriptor; render every descriptor entry.
+      const displayLabels = tickDescriptor.labels
+      const displayPositions = tickDescriptor.positions
 
       renderChartAxis({
         context,
@@ -162,7 +195,9 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
         canvasWidth: canvasSize.width,
         canvasHeight: canvasSize.height,
         orientation: position === 'bottom' ? 'bottom' : 'top',
-        ...axisProps
+        ...axisProps,
+        tickStep: 1,
+        maxTicks: Number.POSITIVE_INFINITY
       })
     },
     [
@@ -173,12 +208,8 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
       chartArea.width,
       chartArea.x,
       chartArea.y,
-      labelPositions,
-      labels,
       position,
-      valueScale,
-      valueTickLabels,
-      valueTickPositions
+      tickDescriptor
     ]
   )
 

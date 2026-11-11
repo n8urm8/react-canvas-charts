@@ -34,30 +34,8 @@ const defaultFormatLabel = (args: { xLabel: string; yValue: number; dataKey: str
   return `${args.xLabel} · ${args.yValue}`
 }
 
-function clampIndex(index: number, length: number): number {
-  if (length <= 0) {
-    return 0
-  }
-  return Math.max(0, Math.min(index, length - 1))
-}
-
-function closestIndexByChartX(chartX: number, labelPositions: number[]): number | null {
-  if (labelPositions.length === 0) {
-    return null
-  }
-
-  let closestIndex = 0
-  let closestDistance = Math.abs(chartX - labelPositions[0])
-
-  for (let index = 1; index < labelPositions.length; index += 1) {
-    const distance = Math.abs(chartX - labelPositions[index])
-    if (distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = index
-    }
-  }
-
-  return closestIndex
+function clampIndex(index: number, start: number, end: number): number {
+  return Math.max(start, Math.min(index, end))
 }
 
 function chartXFromClient(clientX: number, container: HTMLElement, canvasWidth: number): number {
@@ -69,26 +47,37 @@ function chartXFromClient(clientX: number, container: HTMLElement, canvasWidth: 
   return ((clientX - rect.left) / rect.width) * canvasWidth
 }
 
+type SelectorGeometrySource = Pick<
+  ChartSurfaceRenderHelpers,
+  'viewRange' | 'getValue' | 'getLabel' | 'getXPosition' | 'getYPositionForKey'
+>
+
+/** Geometry for a selector, or null when its index is outside the view or has no value. */
 function resolveSelectorGeometry(
-  helpers: ChartSurfaceRenderHelpers,
+  source: SelectorGeometrySource,
   selector: ChartPointSelector
-): { x: number; y: number; xLabel: string; yValue: number } | null {
-  const dataIndex = clampIndex(selector.dataIndex, helpers.normalizedData.length)
-  const datum = helpers.normalizedData[dataIndex]
-  if (!datum) {
+): { x: number; y: number; xLabel: string; yValue: number; dataIndex: number } | null {
+  const { viewRange } = source
+  if (viewRange.end < viewRange.start) {
     return null
   }
 
-  const value = datum.values[selector.dataKey]
-  if (value === null || !Number.isFinite(value)) {
+  const dataIndex = selector.dataIndex
+  if (dataIndex < viewRange.start || dataIndex > viewRange.end) {
+    return null
+  }
+
+  const value = source.getValue(selector.dataKey, dataIndex)
+  if (Number.isNaN(value)) {
     return null
   }
 
   return {
-    x: datum.x,
-    y: helpers.getYPositionForKey(selector.dataKey, value),
-    xLabel: datum.label,
-    yValue: value
+    x: source.getXPosition(dataIndex),
+    y: source.getYPositionForKey(selector.dataKey, value),
+    xLabel: source.getLabel(dataIndex),
+    yValue: value,
+    dataIndex
   }
 }
 
@@ -156,7 +145,8 @@ export const ChartPointSelectorsLayer: React.FC<ChartPointSelectorsLayerProps> =
   className,
   labelClassName
 }) => {
-  const { normalizedData, labelPositions, canvasSize, barOrientation, getYPositionForKey } = useChartSurface()
+  const surface = useChartSurface()
+  const { canvasSize, barOrientation, viewRange, getIndexAtPosition } = surface
 
   const isControlled = selectorsProp !== undefined
   const [uncontrolledSelectors, setUncontrolledSelectors] = useState<ChartPointSelector[]>(
@@ -255,24 +245,23 @@ export const ChartPointSelectorsLayer: React.FC<ChartPointSelectorsLayerProps> =
       }
 
       const chartX = chartXFromClient(event.clientX, container, canvasSize.width)
-      const nextIndex = closestIndexByChartX(chartX, labelPositions)
-      if (nextIndex === null) {
+      if (viewRange.end < viewRange.start) {
         return
       }
+      const nextIndex = clampIndex(Math.round(getIndexAtPosition(chartX)), viewRange.start, viewRange.end)
 
       const selector = selectors.find((entry) => entry.id === drag.id)
       if (!selector) {
         return
       }
 
-      const clampedCurrent = clampIndex(selector.dataIndex, normalizedData.length)
-      if (clampedCurrent === nextIndex) {
+      if (selector.dataIndex === nextIndex) {
         return
       }
 
       updateSelectorIndex(drag.id, nextIndex)
     },
-    [canvasSize.width, labelPositions, normalizedData.length, selectors, updateSelectorIndex]
+    [canvasSize.width, getIndexAtPosition, selectors, updateSelectorIndex, viewRange.end, viewRange.start]
   )
 
   const handlePointerUp = useCallback((event: React.PointerEvent) => {
@@ -301,22 +290,15 @@ export const ChartPointSelectorsLayer: React.FC<ChartPointSelectorsLayerProps> =
         }}
       >
         {selectors.map((selector) => {
-          const dataIndex = clampIndex(selector.dataIndex, normalizedData.length)
-          const datum = normalizedData[dataIndex]
-          if (!datum) {
+          const geometry = resolveSelectorGeometry(surface, selector)
+          if (!geometry) {
             return null
           }
 
-          const value = datum.values[selector.dataKey]
-          if (value === null || !Number.isFinite(value)) {
-            return null
-          }
-
-          const x = datum.x
-          const y = getYPositionForKey(selector.dataKey, value)
+          const { x, y, dataIndex } = geometry
           const label = formatLabel({
-            xLabel: datum.label,
-            yValue: value,
+            xLabel: geometry.xLabel,
+            yValue: geometry.yValue,
             dataKey: selector.dataKey
           })
           const selectorSvg = getSelectorSvgMarkup(selector)
@@ -407,8 +389,8 @@ export const ChartPointSelectorsLayer: React.FC<ChartPointSelectorsLayerProps> =
               <div
                 data-selector-id={selector.id}
                 role="slider"
-                aria-valuemin={0}
-                aria-valuemax={Math.max(0, normalizedData.length - 1)}
+                aria-valuemin={viewRange.start}
+                aria-valuemax={Math.max(viewRange.start, viewRange.end)}
                 aria-valuenow={dataIndex}
                 aria-label={`Point selector for ${selector.dataKey}`}
                 onPointerDown={(event) => handlePointerDown(event, selector.id)}

@@ -83,10 +83,16 @@ export const CanvasWrapper: React.FC<CanvasWrapperProps> = ({
     // Set up high DPI rendering
     const devicePixelRatio = window.devicePixelRatio || 1;
     
-    canvas.width = dimensions.width * devicePixelRatio;
-    canvas.height = dimensions.height * devicePixelRatio;
-    
-    context.scale(devicePixelRatio, devicePixelRatio);
+    const targetWidth = Math.max(0, Math.round(dimensions.width * devicePixelRatio));
+    const targetHeight = Math.max(0, Math.round(dimensions.height * devicePixelRatio));
+
+    // Assigning canvas.width/height reallocates the backing store, so only do it on resize.
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
+
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     
     // Clear the canvas
     context.clearRect(0, 0, dimensions.width, dimensions.height);

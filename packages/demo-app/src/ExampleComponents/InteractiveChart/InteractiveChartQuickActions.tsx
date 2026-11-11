@@ -1,7 +1,93 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+
+const DATASET_PRESETS = [100_000, 1_000_000, 10_000_000, 20_000_000]
+
+const formatCount = (value: number) =>
+  value >= 1_000_000 ? `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M` : value >= 1000 ? `${Math.round(value / 1000)}k` : `${value}`
+
+const formatMegabytes = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`
+
+/** Chrome-only `performance.memory`; returns null elsewhere. */
+const readJsHeap = (): number | null => {
+  const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
+  return memory ? memory.usedJSHeapSize : null
+}
+
+const DatasetControls: React.FC<{
+  dataPointsCount: number
+  visiblePointsCount: number
+  dataBytes: number
+  generationStatus: string | null
+  onGenerateDataset: (count: number) => void
+}> = ({ dataPointsCount, visiblePointsCount, dataBytes, generationStatus, onGenerateDataset }) => {
+  const [customCount, setCustomCount] = useState(5_000_000)
+  const [jsHeap, setJsHeap] = useState<number | null>(() => readJsHeap())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setJsHeap(readJsHeap()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const busy = generationStatus !== null
+
+  return (
+    <div className="mb-4 pb-4 border-b border-gray-100">
+      <h4 className="font-semibold text-gray-700">Dataset Size</h4>
+      <p className="text-xs text-gray-500">
+        {dataPointsCount.toLocaleString()} points per series • {visiblePointsCount.toLocaleString()} in view • data
+        buffers {formatMegabytes(dataBytes)}
+        {jsHeap !== null ? ` • JS heap ${formatMegabytes(jsHeap)}` : ''}
+      </p>
+      <p className="text-xs text-gray-500 mt-1">
+        Samples live in typed arrays; lines are decimated per pixel, so render cost does not grow with point count.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {DATASET_PRESETS.map((count) => (
+          <button
+            key={count}
+            type="button"
+            disabled={busy}
+            onClick={() => onGenerateDataset(count)}
+            className="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            {formatCount(count)}
+          </button>
+        ))}
+        <input
+          type="number"
+          min="1"
+          step="100000"
+          value={customCount}
+          onChange={(event) => {
+            const parsed = Number.parseInt(event.target.value, 10)
+            if (!Number.isNaN(parsed)) {
+              setCustomCount(Math.max(1, parsed))
+            }
+          }}
+          className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+          aria-label="Custom dataset size"
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onGenerateDataset(customCount)}
+          className="px-3 py-1.5 text-sm font-medium rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+        >
+          Generate
+        </button>
+      </div>
+      {generationStatus ? <p className="text-xs text-blue-600 mt-2">{generationStatus}</p> : null}
+    </div>
+  )
+}
 
 type InteractiveChartQuickActionsProps = {
   dataPointsCount: number
+  visiblePointsCount: number
+  /** Bytes held by the sample buffers. */
+  dataBytes: number
+  generationStatus: string | null
+  onGenerateDataset: (count: number) => void
   isStreaming: boolean
   streamingHz: number
   streamingPointsPerTick: number
@@ -17,6 +103,10 @@ type InteractiveChartQuickActionsProps = {
 
 export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActionsProps> = ({
   dataPointsCount,
+  visiblePointsCount,
+  dataBytes,
+  generationStatus,
+  onGenerateDataset,
   isStreaming,
   streamingHz,
   streamingPointsPerTick,
@@ -30,6 +120,13 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
   onBulkAddPoints
 }) => (
   <div className="mt-4 bg-white rounded-lg shadow p-4">
+    <DatasetControls
+      dataPointsCount={dataPointsCount}
+      visiblePointsCount={visiblePointsCount}
+      dataBytes={dataBytes}
+      generationStatus={generationStatus}
+      onGenerateDataset={onGenerateDataset}
+    />
     <div className="">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -37,7 +134,7 @@ export const InteractiveChartQuickActions: React.FC<InteractiveChartQuickActions
           <p className="text-xs text-gray-500">
             {isStreaming ? `Streaming at ${streamingHz.toFixed(1)} Hz` : 'Stream is paused'}
             {streamingMaxPoints > 0 ? ` • Max ${streamingMaxPoints} pts` : ' • Unlimited points'}
-            {` • ${dataPointsCount} total points`}
+            {` • ${dataPointsCount.toLocaleString()} total points`}
           </p>
           <p className="text-xs text-gray-500 mt-1">{`Points per update: ${streamingPointsPerTick}`}</p>
         </div>

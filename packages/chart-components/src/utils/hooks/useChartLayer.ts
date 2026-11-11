@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useChartSurface } from '../context/ChartSurfaceContext'
+import { useChartSurfaceStable } from '../context/ChartSurfaceContext'
 import type {
   ChartLayerRenderer,
   ChartLayerOptions,
@@ -12,7 +12,7 @@ import type {
  * @param options - Optional configuration for the layer (e.g., order)
  */
 export const useChartLayer = (draw: ChartLayerRenderer, options?: ChartLayerOptions): void => {
-  const { registerLayer } = useChartSurface()
+  const { registerLayer } = useChartSurfaceStable()
   const drawRef = useRef(draw)
   const optionsRef = useRef(options)
   const handleRef = useRef<ChartLayerHandle | null>(null)

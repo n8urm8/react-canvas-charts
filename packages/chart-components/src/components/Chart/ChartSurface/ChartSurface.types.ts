@@ -1,3 +1,12 @@
+import type { ChartColumnarData, ChartDataStore, ChartViewRange } from '../../../utils/data/chartData.types'
+
+export type {
+  ChartColumnarData,
+  ChartDataStore,
+  ChartViewRange,
+  NumericColumn
+} from '../../../utils/data/chartData.types'
+
 // Core domain types
 export interface ValueDomain {
   min: number
@@ -106,13 +115,48 @@ export interface ChartLayer {
 }
 
 // Render helper types
-export interface ChartSurfaceRenderHelpers {
+/**
+ * Accessors shared by the context value and render helpers for reading data without
+ * materialising per-point objects.
+ */
+export interface ChartDataAccessors {
+  /** Column-backed data accessor (works for both row and columnar input). */
+  dataStore: ChartDataStore
+  /** Total number of samples. */
+  dataLength: number
+  /** Inclusive range of indices currently in view. */
+  viewRange: ChartViewRange
+  /** Fractional data index at a pixel x (inverse of getXPosition). */
+  getIndexAtPosition: (x: number) => number
+  /** X label for an absolute data index. */
+  getLabel: (index: number) => string
+  /** Series value at an absolute data index, or NaN when missing. */
+  getValue: (dataKey: string, index: number) => number
+  /** Nearest data point to a pixel position within `snapRadius`, honouring the view range. */
+  findNearestPoint: (x: number, y: number, snapRadius: number, snapAlongYAxis: boolean) => CursorDataPoint | null
+  /** One point per series with a finite value at the given index, in series order. */
+  getPointsAtIndex: (index: number) => CursorDataPoint[]
+}
+
+/**
+ * Per-point arrays kept for backwards compatibility. They cover the visible range only and are
+ * built lazily on first access, so avoid them for large datasets.
+ */
+export interface ChartLegacyPointArrays {
+  /** @deprecated Use getLabel(index). Materialises one string per visible point. */
+  labels: string[]
+  /** @deprecated Use getXPosition(index). Materialises one number per visible point. */
+  labelPositions: number[]
+  /** @deprecated Use getValue/getLabel/getXPosition. Materialises one object per visible point. */
+  normalizedData: NormalizedDatum[]
+  /** @deprecated Use findNearestPoint/getPointsAtIndex. Materialises one object per visible point and series. */
+  dataPoints: CursorDataPoint[]
+}
+
+export interface ChartSurfaceRenderHelpers extends ChartDataAccessors, ChartLegacyPointArrays {
   canvasWidth: number
   canvasHeight: number
   chartArea: ChartArea
-  labels: string[]
-  labelPositions: number[]
-  normalizedData: NormalizedDatum[]
   getXPosition: (index: number) => number
   getYPosition: (value: number) => number
   getYPositionForScale: (scaleId: string, value: number) => number
@@ -122,7 +166,6 @@ export interface ChartSurfaceRenderHelpers {
   defaultScaleId: string
   colorForKey: (dataKey: string, fallback?: string) => string
   pointer: ChartPointer | null
-  dataPoints: CursorDataPoint[]
   axisTicks: AxisTickState
   valueDomain: ValueDomain
   valueDomainsByScale: Record<string, ValueDomain>
@@ -134,12 +177,25 @@ export interface ChartSurfaceRenderHelpers {
 export type ChartLayerRenderer = (context: CanvasRenderingContext2D, helpers: ChartSurfaceRenderHelpers) => void
 
 // Context value type
-export interface ChartSurfaceContextValue {
+/** Registration functions; their identities never change for the lifetime of a ChartSurface. */
+export interface ChartSurfaceStableContextValue {
+  registerLayer: (draw: ChartLayerRenderer, options?: ChartLayerOptions) => ChartLayerHandle
+  setAxisTicks: (axis: 'x' | 'y', descriptor: AxisTickDescriptor | null) => void
+  registerCursorOptions: (options: Partial<CursorOptions>) => () => void
+  requestRender: () => void
+  registerYAxis: (side: 'left' | 'right') => { id: string; unregister: () => void }
+  getYAxisIndex: (id: string, side: 'left' | 'right') => number
+  registerHorizontalBars: () => () => void
+}
+
+export interface ChartSurfaceContextValue
+  extends ChartDataAccessors,
+    ChartLegacyPointArrays,
+    ChartSurfaceStableContextValue {
+  /** Row data as passed in (empty when `columns` is used). */
   data: Record<string, unknown>[]
   xKey: string
   yKeys: string[]
-  labels: string[]
-  labelPositions: number[]
   chartArea: ChartArea
   canvasSize: { width: number; height: number }
   valueDomain: ValueDomain
@@ -151,20 +207,11 @@ export interface ChartSurfaceContextValue {
   getScaleDomain: (scaleId: string) => ValueDomain
   getScaleIdForKey: (dataKey: string) => string
   defaultScaleId: string
-  normalizedData: NormalizedDatum[]
-  dataPoints: CursorDataPoint[]
   axisTicks: AxisTickState
-  registerLayer: (draw: ChartLayerRenderer, options?: ChartLayerOptions) => ChartLayerHandle
-  setAxisTicks: (axis: 'x' | 'y', descriptor: AxisTickDescriptor | null) => void
   getColorForKey: (dataKey: string, fallback?: string) => string
-  registerCursorOptions: (options: Partial<CursorOptions>) => () => void
-  requestRender: () => void
-  registerYAxis: (side: 'left' | 'right') => { id: string; unregister: () => void }
-  getYAxisIndex: (id: string, side: 'left' | 'right') => number
   yAxisCounts: { left: number; right: number }
   yAxisSpacing: number
   barOrientation: 'vertical' | 'horizontal'
-  registerHorizontalBars: () => () => void
 }
 
 // Cursor types
@@ -176,7 +223,19 @@ export interface CursorOptions {
 
 // Component props
 export interface ChartSurfaceProps {
-  data: Record<string, unknown>[]
+  /** Row data. For large datasets (100k+ points) prefer `columns`. */
+  data?: Record<string, unknown>[]
+  /**
+   * Column-oriented data (typed arrays). Takes precedence over `data`. Handles 10M+ points:
+   * lines and areas are decimated per pixel and hit testing never scans the full dataset.
+   */
+  columns?: ChartColumnarData
+  /**
+   * Inclusive range of indices to display (zooming). Defaults to all data. Indices reported by
+   * hover, click and selection callbacks are absolute, not relative to the range.
+   */
+  viewRange?: ChartViewRange
+  /** Name of the x label field (row data) or of the synthesised label field (columnar data). */
   xKey: string
   yKeys?: string[]
   xAxisType?: 'linear' | 'categorical'

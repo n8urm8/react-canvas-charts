@@ -46,15 +46,70 @@ export interface ChartAIAnalysisAssistantProps {
 
 const DEFAULT_MODEL = 'openrouter/free'
 
-const buildSnapshot = (context: ReturnType<typeof useChartSurface>): ChartAISnapshot => ({
-  labels: context.labels,
-  yKeys: context.yKeys,
-  points: context.normalizedData.map((datum) => ({
-    index: datum.index,
-    label: datum.label,
-    values: datum.values,
-  })),
-})
+/**
+ * Maximum points handed to the analysis helpers. Larger visible ranges are sampled with a fixed
+ * stride so a question never materialises millions of objects.
+ */
+const MAX_SNAPSHOT_POINTS = 50_000
+
+type ChartSurfaceValue = ReturnType<typeof useChartSurface>
+
+interface SnapshotMapping {
+  snapshot: ChartAISnapshot
+  /** Absolute index of snapshot point i is `start + i * stride`. */
+  start: number
+  stride: number
+}
+
+/** Builds the analysis snapshot from the visible range on demand (only when a question is sent). */
+const buildSnapshot = (surface: ChartSurfaceValue): SnapshotMapping => {
+  const { viewRange, dataStore, yKeys } = surface
+  const visibleCount = Math.max(0, viewRange.end - viewRange.start + 1)
+  const stride = Math.max(1, Math.ceil(visibleCount / MAX_SNAPSHOT_POINTS))
+  const count = Math.ceil(visibleCount / stride)
+  const labels: string[] = new Array(count)
+  const points: ChartAISnapshot['points'] = new Array(count)
+
+  for (let position = 0; position < count; position += 1) {
+    const index = viewRange.start + position * stride
+    const values: Record<string, number | null> = {}
+    yKeys.forEach((key) => {
+      const value = dataStore.value(key, index)
+      values[key] = Number.isNaN(value) ? null : value
+    })
+    labels[position] = dataStore.label(index)
+    points[position] = { index: position, label: labels[position], values }
+  }
+
+  return { snapshot: { labels, yKeys, points }, start: viewRange.start, stride }
+}
+
+/** Converts snapshot-relative data-space x coordinates in annotations to absolute data indices. */
+const mapAnnotationsToDataIndices = (
+  annotations: ChartAnnotation[],
+  mapping: Pick<SnapshotMapping, 'start' | 'stride'>
+): ChartAnnotation[] => {
+  if (mapping.start === 0 && mapping.stride === 1) {
+    return annotations
+  }
+
+  const mapCoordinate = <T extends { x: number; dataSpace?: boolean }>(coordinate: T): T =>
+    coordinate.dataSpace ? { ...coordinate, x: mapping.start + coordinate.x * mapping.stride } : coordinate
+
+  return annotations.map((annotation) => {
+    const next: Record<string, unknown> = { ...annotation }
+    ;(['position', 'start', 'end', 'center'] as const).forEach((field) => {
+      const value = next[field] as { x: number; dataSpace?: boolean } | undefined
+      if (value && typeof value === 'object' && typeof value.x === 'number') {
+        next[field] = mapCoordinate(value)
+      }
+    })
+    if (Array.isArray(next.points)) {
+      next.points = (next.points as Array<{ x: number; dataSpace?: boolean }>).map(mapCoordinate)
+    }
+    return next as unknown as ChartAnnotation
+  })
+}
 
 const extractResponseText = (completion: unknown): string => {
   const typedCompletion = completion as { choices?: Array<{ message?: { content?: string | null } }> }
@@ -77,18 +132,32 @@ export const ChartAIAnalysisAssistant = ({
   annotationStyleConfig,
 }: ChartAIAnalysisAssistantProps) => {
   const chartSurface = useChartSurface()
-  const analysisContext = useMemo<ChartAIAnalysisContext>(
-    () => ({
-      snapshot: buildSnapshot(chartSurface),
-      selection,
-      getXPosition: chartSurface.getXPosition,
-      getYPosition: chartSurface.getYPosition,
-      chartArea: chartSurface.chartArea,
-      canvasSize: chartSurface.canvasSize,
-      annotationStyleConfig,
-    }),
-    [annotationStyleConfig, chartSurface, selection]
-  )
+  // Built lazily per question: building it on every render would copy the whole dataset.
+  const buildAnalysisContext = (): { context: ChartAIAnalysisContext; mapping: SnapshotMapping } => {
+    const mapping = buildSnapshot(chartSurface)
+    const { start, stride } = mapping
+    const toSnapshotIndex = (index: number) => Math.max(0, Math.round((index - start) / stride))
+    const mappedSelection = selection
+      ? {
+          ...selection,
+          minIndex: toSnapshotIndex(selection.minIndex),
+          maxIndex: toSnapshotIndex(selection.maxIndex),
+        }
+      : selection
+
+    return {
+      mapping,
+      context: {
+        snapshot: mapping.snapshot,
+        selection: mappedSelection,
+        getXPosition: (index: number) => chartSurface.getXPosition(start + index * stride),
+        getYPosition: chartSurface.getYPosition,
+        chartArea: chartSurface.chartArea,
+        canvasSize: chartSurface.canvasSize,
+        annotationStyleConfig,
+      },
+    }
+  }
 
   const client = useMemo(
     () =>
@@ -119,6 +188,7 @@ export const ChartAIAnalysisAssistant = ({
     setMessages(nextMessages)
 
     try {
+      const { context: analysisContext, mapping } = buildAnalysisContext()
       const completion = await client.chat.send({
         chatRequest: {
           model,
@@ -141,6 +211,7 @@ export const ChartAIAnalysisAssistant = ({
       const actions = resolved.actions
         .map((action) => buildChartAIActionAnnotations(analysisContext, action))
         .filter((action): action is ChartAIAnalysisAction => action !== null)
+        .map((action) => ({ ...action, annotations: mapAnnotationsToDataIndices(action.annotations, mapping) }))
 
       setMessages((previous) => [
         ...previous,

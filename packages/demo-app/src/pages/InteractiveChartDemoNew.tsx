@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react'
 import { ZoomIn, ZoomOut, Type, Minus, Circle, Pen } from 'lucide-react'
 import {
-  type DataPoint,
   type ChartRecord,
   type InteractiveChartAxisConfig,
   type InteractiveChartConfig,
   type InteractiveChartSeriesConfig,
   type InteractiveChartToolbarTool,
-  createInitialTimeSeries,
-  generateNewPoints,
+  type GeneratedChunk,
+  type TimeSeriesBuffer,
+  appendChunk,
+  applyMaxPoints,
+  bufferByteSize,
+  bufferFromChunk,
+  compactTimeSeries,
+  continuationRequest,
+  freshRequest,
+  generateRandomWalk,
+  generateTimeSeries,
+  sampleRecords,
+  toChartColumns,
   buildInteractiveChartCodePreview,
   InteractiveChartCanvas,
   InteractiveChartQuickActions,
@@ -150,7 +160,10 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
   }
 }
 
+/** Absolute (buffer) index range. The first zoom stack entry stands for "everything live". */
 type ZoomRange = { start: number; end: number }
+
+const INITIAL_POINT_COUNT = 1200
 
 const positionsEqual = (a?: ChartToolbarPosition, b?: ChartToolbarPosition): boolean => {
   const keys: Array<keyof ChartToolbarPosition> = ['top', 'right', 'bottom', 'left']
@@ -171,33 +184,23 @@ const getNextSeriesIndex = (series: InteractiveChartSeriesConfig[]): number => {
 }
 
 export const InteractiveChartDemoNew: FC = () => {
-  const initialDataRef = useRef<DataPoint[] | null>(null)
-  if (!initialDataRef.current) {
-    initialDataRef.current = createInitialTimeSeries(
-      INITIAL_CONFIG.series.map((series) => series.id),
-      1200
-    )
-  }
-
   const [config, setConfig] = useState<InteractiveChartConfig>(INITIAL_CONFIG)
-  const [dataPoints, setDataPoints] = useState<DataPoint[]>(() =>
-    initialDataRef.current ? [...initialDataRef.current] : []
-  )
+  // Typed-array time series. Arrays are appended in place; each update commits a new buffer
+  // object so React (and the React Compiler) see a change.
+  const [timeSeries, setTimeSeries] = useState<TimeSeriesBuffer>(() => {
+    const ids = INITIAL_CONFIG.series.map((series) => series.id)
+    return bufferFromChunk(generateRandomWalk(freshRequest(ids, INITIAL_POINT_COUNT)), ids)
+  })
+  const timeSeriesRef = useRef(timeSeries)
+  const [generationStatus, setGenerationStatus] = useState<string | null>(null)
+  const generationTokenRef = useRef(0)
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([])
   const [pointSelectors, setPointSelectors] = useState<ChartPointSelector[]>([])
   const [customTags, setCustomTags] = useState<ChartCustomTag[]>([])
   const [selectedCustomTagTemplate, setSelectedCustomTagTemplate] = useState<CustomTagTemplateId>('tag')
   const [customTagPlacementEnabled, setCustomTagPlacementEnabled] = useState(false)
   const [lastCustomTagPlacement, setLastCustomTagPlacement] = useState<ChartTagPlacement | null>(null)
-  const [zoomStack, setZoomStack] = useState<ZoomRange[]>(() => {
-    const initialLength = initialDataRef.current?.length ?? 0
-    return [
-      {
-        start: 0,
-        end: initialLength > 0 ? initialLength - 1 : 0
-      }
-    ]
-  })
+  const [zoomStack, setZoomStack] = useState<ZoomRange[]>([{ start: 0, end: INITIAL_POINT_COUNT - 1 }])
   const [selectionResetKey, setSelectionResetKey] = useState(0)
   const [selection, setSelection] = useState<ChartSelectionResult | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -236,126 +239,136 @@ export const InteractiveChartDemoNew: FC = () => {
     [config.axes, config.series]
   )
 
-  const clampZoomRanges = useCallback(
-    (ranges: ZoomRange[], dropCount: number, previousLength: number, nextLength: number): ZoomRange[] => {
-      if (nextLength <= 0) {
-        return [{ start: 0, end: -1 }]
-      }
+  const commitTimeSeries = useCallback((next: TimeSeriesBuffer) => {
+    timeSeriesRef.current = next
+    setTimeSeries(next)
+  }, [])
 
-      if (ranges.length === 0) {
-        return [{ start: 0, end: nextLength - 1 }]
-      }
-
-      const maxIndex = nextLength - 1
-      const previousMaxIndex = previousLength > 0 ? previousLength - 1 : -1
-
-      return ranges.map(({ start, end }) => {
-        const span = Math.max(0, end - start)
-        let nextStart = start - dropCount
-        let nextEnd = nextStart + span
-        const wasAnchoredToEnd = previousLength > 0 && end >= previousMaxIndex
-        const anchoredAtStart = start <= 0
-
-        if (nextStart < 0) {
-          const offset = -nextStart
-          nextStart = 0
-          nextEnd += offset
-        }
-
-        if (dropCount === 0 && nextLength > previousLength) {
-          if (anchoredAtStart) {
-            nextStart = 0
-            nextEnd = maxIndex
-          } else if (wasAnchoredToEnd) {
-            nextEnd = maxIndex
-            nextStart = Math.max(0, nextEnd - span)
-          }
-        }
-
-        if (nextEnd > maxIndex) {
-          const overflow = nextEnd - maxIndex
-          nextEnd = maxIndex
-          nextStart = Math.max(0, nextStart - overflow)
-        }
-
-        if (nextEnd < nextStart) {
-          nextEnd = nextStart
-        }
-
-        return { start: nextStart, end: nextEnd }
-      })
-    },
-    []
-  )
-
-  const adjustZoomStack = useCallback(
-    (dropCount: number, previousLength: number, nextLength: number) => {
-      setZoomStack((previous) => clampZoomRanges(previous, dropCount, previousLength, nextLength))
-    },
-    [clampZoomRanges]
-  )
-
-  const resetZoomToFull = useCallback((pointCount: number) => {
-    const safeLength = Math.max(0, pointCount)
-    setZoomStack([{ start: 0, end: safeLength > 0 ? safeLength - 1 : 0 }])
+  const resetZoomToFull = useCallback((buffer: TimeSeriesBuffer) => {
+    setZoomStack([{ start: buffer.offset, end: Math.max(buffer.offset, buffer.length - 1) }])
     setSelection(null)
     setSelectionResetKey((key) => key + 1)
   }, [])
 
-  const regenerateDataForSeries = useCallback(
-    (nextSeries: InteractiveChartSeriesConfig[], options?: { pointCount?: number }) => {
-      const nextSeriesIds = nextSeries.map((series) => series.id)
-      setDataPoints((previous) => {
-        const targetCount =
-          options?.pointCount !== undefined
-            ? Math.max(1, Math.floor(options.pointCount))
-            : previous.length > 0
-              ? previous.length
-              : 12
-        const nextData = createInitialTimeSeries(nextSeriesIds, targetCount)
-        resetZoomToFull(nextData.length)
-        return nextData
+  /** Re-bases stored absolute indices after the buffer was compacted by `shift` samples. */
+  const shiftStoredIndices = useCallback((shift: number) => {
+    if (shift === 0) {
+      return
+    }
+    // Anything that only referenced dropped samples is discarded rather than clamped.
+    setZoomStack((previous) =>
+      previous
+        .filter((range, position) => position === 0 || range.end >= shift)
+        .map(({ start, end }) => ({ start: Math.max(0, start - shift), end: Math.max(0, end - shift) }))
+    )
+    setPointSelectors((previous) =>
+      previous
+        .filter((selector) => selector.dataIndex >= shift)
+        .map((selector) => ({ ...selector, dataIndex: selector.dataIndex - shift }))
+    )
+    setCustomTags((previous) =>
+      previous.filter((tag) => tag.dataIndex >= shift).map((tag) => ({ ...tag, dataIndex: tag.dataIndex - shift }))
+    )
+    setSelection(null)
+    setSelectionResetKey((key) => key + 1)
+  }, [])
+
+  /** Appends generated samples, applies the max-points window and compacts when worthwhile. */
+  const appendSamples = useCallback(
+    (chunk: GeneratedChunk) => {
+      const current = timeSeriesRef.current
+      const added = chunk.x.length
+      if (added === 0) {
+        return
+      }
+
+      // Async chunks may have been requested before other appends landed: keep time monotonic.
+      const timeDelta = current.nextTimestamp - chunk.x[0]
+      if (timeDelta !== 0) {
+        for (let index = 0; index < added; index += 1) chunk.x[index] += timeDelta
+        chunk.nextTimestamp += timeDelta
+      }
+
+      const previousLength = current.length
+      const windowed = applyMaxPoints(appendChunk(current, chunk), streamingMaxPoints)
+      const { buffer, shift } = compactTimeSeries(windowed)
+      commitTimeSeries(buffer)
+
+      // Zoomed ranges that ended at the newest sample keep following the stream.
+      setZoomStack((previous) =>
+        previous.map((range, position) =>
+          position > 0 && range.end >= previousLength - 1
+            ? { start: range.start + added, end: range.end + added }
+            : range
+        )
+      )
+      shiftStoredIndices(shift)
+    },
+    [commitTimeSeries, shiftStoredIndices, streamingMaxPoints]
+  )
+
+  /** Replaces the dataset. Large datasets are generated in a Web Worker. */
+  const regenerateData = useCallback(
+    (seriesIds: string[], pointCount: number) => {
+      const count = Math.max(1, Math.floor(pointCount))
+      const token = ++generationTokenRef.current
+      setGenerationStatus(`Generating ${count.toLocaleString()} points…`)
+      void generateTimeSeries(freshRequest(seriesIds, count)).then((chunk) => {
+        if (token !== generationTokenRef.current) {
+          return
+        }
+        const buffer = bufferFromChunk(chunk, seriesIds)
+        commitTimeSeries(buffer)
+        resetZoomToFull(buffer)
+        setPointSelectors([])
+        setCustomTags([])
+        setGenerationStatus(null)
       })
     },
-    [resetZoomToFull]
+    [commitTimeSeries, resetZoomToFull]
+  )
+
+  const regenerateDataForSeries = useCallback(
+    (nextSeries: InteractiveChartSeriesConfig[], options?: { pointCount?: number }) => {
+      const current = timeSeriesRef.current
+      const liveCount = current.length - current.offset
+      regenerateData(
+        nextSeries.map((series) => series.id),
+        options?.pointCount ?? (liveCount > 0 ? liveCount : 12)
+      )
+    },
+    [regenerateData]
+  )
+
+  const generateDataset = useCallback(
+    (pointCount: number) => {
+      // Keep the whole dataset when streaming afterwards (the window slides at this size).
+      setStreamingMaxPoints((previous) => (previous > 0 && previous < pointCount ? pointCount : previous))
+      regenerateData(seriesIds, pointCount)
+    },
+    [regenerateData, seriesIds]
   )
 
   const appendStreamingPoint = useCallback(() => {
-    setDataPoints((previous) => {
-      const previousLength = previous.length
-      const additions = generateNewPoints(previous, Math.max(1, streamingPointsPerTick), seriesIds)
-      let nextData = [...previous, ...additions]
-      let dropCount = 0
-
-      if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
-        dropCount = nextData.length - streamingMaxPoints
-        nextData = nextData.slice(dropCount)
-      }
-
-      adjustZoomStack(dropCount, previousLength, nextData.length)
-      return nextData
-    })
-  }, [adjustZoomStack, seriesIds, streamingMaxPoints, streamingPointsPerTick])
+    const current = timeSeriesRef.current
+    appendSamples(generateRandomWalk(continuationRequest(current, Math.max(1, streamingPointsPerTick))))
+  }, [appendSamples, streamingPointsPerTick])
 
   const addBulkPoints = useCallback(() => {
     if (bulkAddCount <= 0) {
       return
     }
 
-    setDataPoints((previous) => {
-      const previousLength = previous.length
-      let nextData = [...previous, ...generateNewPoints(previous, bulkAddCount, seriesIds)]
-      let dropCount = 0
-
-      if (streamingMaxPoints > 0 && nextData.length > streamingMaxPoints) {
-        dropCount = nextData.length - streamingMaxPoints
-        nextData = nextData.slice(dropCount)
+    const token = generationTokenRef.current
+    setGenerationStatus(`Generating ${bulkAddCount.toLocaleString()} points…`)
+    void generateTimeSeries(continuationRequest(timeSeriesRef.current, bulkAddCount)).then((chunk) => {
+      if (token !== generationTokenRef.current) {
+        return
       }
-
-      adjustZoomStack(dropCount, previousLength, nextData.length)
-      return nextData
+      appendSamples(chunk)
+      setGenerationStatus(null)
     })
-  }, [adjustZoomStack, bulkAddCount, seriesIds, streamingMaxPoints])
+  }, [appendSamples, bulkAddCount])
 
   useEffect(() => {
     if (!isStreaming) {
@@ -389,68 +402,53 @@ export const InteractiveChartDemoNew: FC = () => {
     []
   )
 
+  // Apply a lowered max-points limit immediately.
   useEffect(() => {
-    setDataPoints((previous) => {
-      const previousLength = previous.length
-      if (streamingMaxPoints <= 0 || previous.length <= streamingMaxPoints) {
-        adjustZoomStack(0, previousLength, previousLength)
-        return previous
-      }
-
-      const dropCount = previous.length - streamingMaxPoints
-      const nextData = previous.slice(dropCount)
-      adjustZoomStack(dropCount, previousLength, nextData.length)
-      return nextData
-    })
-  }, [adjustZoomStack, streamingMaxPoints])
+    const current = timeSeriesRef.current
+    const windowed = applyMaxPoints(current, streamingMaxPoints)
+    if (windowed === current) {
+      return
+    }
+    const { buffer, shift } = compactTimeSeries(windowed)
+    commitTimeSeries(buffer)
+    shiftStoredIndices(shift)
+  }, [commitTimeSeries, shiftStoredIndices, streamingMaxPoints])
 
   const toggleStreaming = useCallback(() => {
     setIsStreaming((previous) => !previous)
   }, [])
 
+  const liveStart = timeSeries.offset
+  const liveEnd = timeSeries.length - 1
+
   const visibleRange = useMemo(() => {
-    if (dataPoints.length === 0) {
+    if (liveEnd < liveStart) {
       return { start: 0, end: -1 }
     }
+    if (zoomStack.length <= 1) {
+      return { start: liveStart, end: liveEnd }
+    }
 
-    const maxIndex = dataPoints.length - 1
-    const currentRange = zoomStack[zoomStack.length - 1] ?? { start: 0, end: maxIndex }
-    const start = Math.max(0, Math.min(currentRange.start, maxIndex))
-    const end = Math.max(start, Math.min(currentRange.end, maxIndex))
-
+    const currentRange = zoomStack[zoomStack.length - 1]
+    if (currentRange.end < liveStart || currentRange.start > liveEnd) {
+      // The zoomed window was dropped by the max-points limit.
+      return { start: liveStart, end: liveEnd }
+    }
+    const start = clamp(currentRange.start, liveStart, liveEnd)
+    const end = clamp(currentRange.end, start, liveEnd)
     return { start, end }
-  }, [dataPoints.length, zoomStack])
+  }, [liveEnd, liveStart, zoomStack])
 
-  const visibleDataPoints = useMemo(() => {
-    if (dataPoints.length === 0) {
-      return [] as DataPoint[]
-    }
+  const visibleCount = Math.max(0, visibleRange.end - visibleRange.start + 1)
+  const liveCount = Math.max(0, liveEnd - liveStart + 1)
 
-    const { start, end } = visibleRange
-    if (end < start) {
-      return [] as DataPoint[]
-    }
+  // Columnar view over the typed buffers; no per-point objects are created.
+  const chartColumns = useMemo(() => toChartColumns(timeSeries), [timeSeries])
 
-    return dataPoints.slice(start, end + 1)
-  }, [dataPoints, visibleRange])
+  const previewRecords = useMemo(() => sampleRecords(timeSeries, 2) as ChartRecord[], [timeSeries])
 
-  const chartRecords = useMemo<ChartRecord[]>(() => {
-    if (visibleDataPoints.length === 0) {
-      return []
-    }
-
-    return visibleDataPoints.map(({ label, values }) => {
-      const record: ChartRecord = { label } as ChartRecord
-      seriesIds.forEach((seriesId) => {
-        record[seriesId] = values[seriesId] ?? 0
-      })
-      return record
-    })
-  }, [seriesIds, visibleDataPoints])
-
-  const canZoomIn = Boolean(selection && selection.minIndex <= selection.maxIndex && visibleDataPoints.length > 0)
+  const canZoomIn = Boolean(selection && selection.minIndex < selection.maxIndex && visibleCount > 0)
   const canZoomOut = zoomStack.length > 1
-  const visibleStartIndex = visibleRange.start
 
   const toolbarTools = useMemo<InteractiveChartToolbarTool[]>(
     () => [
@@ -520,8 +518,9 @@ export const InteractiveChartDemoNew: FC = () => {
           return
         }
 
-        const nextStart = visibleStartIndex + selection.minIndex
-        const nextEnd = visibleStartIndex + selection.maxIndex
+        // Selection indices are absolute data indices.
+        const nextStart = selection.minIndex
+        const nextEnd = selection.maxIndex
 
         setZoomStack((previous) => {
           const current = previous[previous.length - 1]
@@ -547,10 +546,13 @@ export const InteractiveChartDemoNew: FC = () => {
 
       // Annotation tools
     },
-    [canZoomIn, canZoomOut, selection, setSelectionResetKey, visibleStartIndex]
+    [canZoomIn, canZoomOut, selection, setSelectionResetKey]
   )
 
-  const codePreview = useMemo(() => buildInteractiveChartCodePreview(config, chartRecords), [chartRecords, config])
+  const codePreview = useMemo(
+    () => buildInteractiveChartCodePreview(config, previewRecords),
+    [config, previewRecords]
+  )
 
   const handleStreamingHzChange = useCallback((value: number) => {
     setStreamingHz(clamp(value, 0.1, 100))
@@ -846,7 +848,8 @@ export const InteractiveChartDemoNew: FC = () => {
           <div className="flex-1 lg:col-span-2 space-y-4 md:space-y-8">
             <div className="relative">
               <InteractiveChartCanvas
-                data={chartRecords}
+                columns={chartColumns}
+                viewRange={visibleRange}
                 config={{ ...config, annotations }}
                 selection={selection}
                 onSelectionChange={handleSelectionChange}
@@ -1006,7 +1009,11 @@ export const InteractiveChartDemoNew: FC = () => {
             ) : null}
 
             <InteractiveChartQuickActions
-              dataPointsCount={dataPoints.length}
+              dataPointsCount={liveCount}
+              visiblePointsCount={visibleCount}
+              dataBytes={bufferByteSize(timeSeries)}
+              generationStatus={generationStatus}
+              onGenerateDataset={generateDataset}
               isStreaming={isStreaming}
               streamingHz={streamingHz}
               streamingPointsPerTick={streamingPointsPerTick}
@@ -1025,7 +1032,8 @@ export const InteractiveChartDemoNew: FC = () => {
 
           <div className="lg:col-span-1">
             <InteractiveChartControlPanel
-              dataPointsCount={dataPoints.length}
+              dataPointsCount={liveCount}
+              newSelectorIndex={visibleRange.start}
               config={config}
               axisSummaries={axisSummaries}
               onSetAxisCount={handleSetAxisCount}

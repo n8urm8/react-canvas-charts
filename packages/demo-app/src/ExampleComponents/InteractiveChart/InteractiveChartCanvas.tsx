@@ -24,12 +24,17 @@ import {
   type ChartPointSelector,
   type ChartTagPlacement,
   type ChartToolbarPosition,
-  type ChartSelectionResult
+  type ChartSelectionResult,
+  type ChartColumnarData,
+  type ChartViewRange
 } from 'react-canvas-charts'
-import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
+import type { InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
 type InteractiveChartCanvasProps = {
-  data: ChartRecord[]
+  /** Column-oriented samples (typed arrays). */
+  columns: ChartColumnarData
+  /** Inclusive absolute index range to display (zoom). */
+  viewRange?: ChartViewRange
   config: InteractiveChartConfig
   selection?: ChartSelectionResult | null
   onSelectionChange?: (selection: ChartSelectionResult | null) => void
@@ -56,7 +61,8 @@ type InteractiveChartCanvasProps = {
 const EMPTY_TOOL_IDS: string[] = []
 
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
-  data,
+  columns,
+  viewRange,
   config,
   selection,
   onSelectionChange,
@@ -242,7 +248,8 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <ChartSurface
-        data={data}
+        columns={columns}
+        viewRange={viewRange}
         xKey="label"
         yKeys={yKeys}
         width="100%"

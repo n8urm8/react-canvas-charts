@@ -1,8 +1,8 @@
 import type {
   ChartSelectionResult,
-  NormalizedDatum,
   ChartSelectionSeriesRange
 } from '../components/Chart/ChartSurface/ChartSurface.types'
+import type { ChartDataStore, ChartViewRange } from './data/chartData.types'
 import { clampXToChart } from './chartCalculations'
 
 const MIN_SELECTION_WIDTH = 4
@@ -38,18 +38,19 @@ export const findClosestIndex = (target: number, labelPositions: number[]): numb
 }
 
 /**
- * Computes a selection result from raw start and end X coordinates
+ * Computes a selection result from raw start and end X coordinates.
+ * Indices in the result are absolute data indices (they include the view range offset).
  */
 export const computeSelectionResult = (
   rawStartX: number,
   rawEndX: number,
-  labelPositions: number[],
-  labels: string[],
-  normalizedData: NormalizedDatum[],
+  getIndexAt: (x: number) => number,
+  view: ChartViewRange,
+  store: ChartDataStore,
   resolvedYKeys: string[],
   chartArea: { x: number; width: number }
 ): ChartSelectionResult | null => {
-  if (labelPositions.length === 0) {
+  if (view.end < view.start) {
     return null
   }
 
@@ -62,36 +63,31 @@ export const computeSelectionResult = (
     return null
   }
 
-  const startIndex = findClosestIndex(startX, labelPositions)
-  const endIndex = findClosestIndex(endX, labelPositions)
-  const minIndex = Math.min(startIndex, endIndex)
-  const maxIndex = Math.max(startIndex, endIndex)
+  const toIndex = (x: number) => Math.max(view.start, Math.min(view.end, Math.round(getIndexAt(x))))
+  const minIndex = toIndex(startX)
+  const maxIndex = toIndex(endX)
 
-  const startDatum = normalizedData[minIndex]
-  const endDatum = normalizedData[maxIndex]
+  const minLabel = store.label(minIndex)
+  const maxLabel = store.label(maxIndex)
+  const toValue = (key: string, index: number) => {
+    const value = store.value(key, index)
+    return Number.isNaN(value) ? null : value
+  }
 
   const seriesSelections: Record<string, ChartSelectionSeriesRange> = {}
 
   resolvedYKeys.forEach((key) => {
     seriesSelections[key] = {
-      min: {
-        index: minIndex,
-        label: startDatum?.label ?? labels[minIndex] ?? '',
-        value: startDatum?.values[key] ?? null
-      },
-      max: {
-        index: maxIndex,
-        label: endDatum?.label ?? labels[maxIndex] ?? '',
-        value: endDatum?.values[key] ?? null
-      }
+      min: { index: minIndex, label: minLabel, value: toValue(key, minIndex) },
+      max: { index: maxIndex, label: maxLabel, value: toValue(key, maxIndex) }
     }
   })
 
   return {
     minIndex,
     maxIndex,
-    minLabel: labels[minIndex] ?? '',
-    maxLabel: labels[maxIndex] ?? '',
+    minLabel,
+    maxLabel,
     series: seriesSelections,
     rangePixels: { start: startX, end: endX }
   }

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DataPoint as CursorDataPoint } from '../InternalComponents/ChartCursor'
-import { defaultChartCursorProps, findNearestDataPoint } from '../InternalComponents/ChartCursor'
+import { defaultChartCursorProps } from '../InternalComponents/ChartCursor'
 import { CanvasWrapper } from '../CanvasWrapper/CanvasWrapper'
 import {
   shallowEqualArray,
@@ -11,7 +10,10 @@ import {
   getRelativePosition
 } from '../../../utils/chartCalculations'
 import { computeSelectionResult, MIN_SELECTION_WIDTH } from '../../../utils/chartSelection'
-import { ChartSurfaceContext } from '../../../utils/context/ChartSurfaceContext'
+import { ChartSurfaceContext, ChartSurfaceStableContext } from '../../../utils/context/ChartSurfaceContext'
+import { createColumnarDataStore, createRowDataStore } from '../../../utils/data/chartDataStore'
+import { findNearestIndexedPoint, type HitTestGeometry } from '../../../utils/data/hitTest'
+import { attachLegacyPointArrays, createLegacyPointArrays } from '../../../utils/data/legacyPointArrays'
 import { ChartOverlayContainerContext } from '../../../utils/context/ChartOverlayContext'
 import {
   DEFAULT_COLORS,
@@ -22,7 +24,6 @@ import {
 } from './ChartSurface.constants'
 import type {
   ValueDomain,
-  NormalizedDatum,
   ChartArea,
   ChartSurfaceProps,
   ChartLayerRenderer,
@@ -30,7 +31,11 @@ import type {
   ChartLayer,
   ChartLayerHandle,
   ChartSurfaceContextValue,
+  ChartSurfaceStableContextValue,
   ChartSurfaceRenderHelpers,
+  ChartDataAccessors,
+  ChartViewRange,
+  CursorDataPoint,
   ValueScaleDefinition,
   AxisTickDescriptor,
   AxisTickState,
@@ -40,6 +45,51 @@ import type {
 } from './ChartSurface.types'
 import './ChartSurface.css'
 
+const EMPTY_ROWS: Record<string, unknown>[] = []
+
+/*
+ * Layer bookkeeping lives in module-level helpers on purpose.
+ *
+ * V8 gives all closures created during one render a single shared context, so any closure that
+ * survives a render keeps every variable that any closure of that render captured. If a closure
+ * in ChartSurface captured the layer list, an old render would keep old layer draw functions
+ * alive; layers that capture surface accessors would in turn keep the render before that, and
+ * so on: an unbounded chain that retained every dataset ever shown. Keeping layers out of
+ * ChartSurface closures (they are read through a ref at draw time) breaks that chain.
+ */
+const byLayerOrder = (a: ChartLayer, b: ChartLayer) => a.order - b.order
+const sortLayers = (layers: ChartLayer[]) => [...layers].sort(byLayerOrder)
+const appendLayer = (layer: ChartLayer) => (previous: ChartLayer[]) => [...previous, layer]
+const replaceLayer = (id: string, draw: ChartLayerRenderer, order: number | undefined) => (previous: ChartLayer[]) =>
+  previous.map((layer) => (layer.id === id ? { id, order: order ?? layer.order, draw } : layer))
+const removeLayer = (id: string) => (previous: ChartLayer[]) => previous.filter((layer) => layer.id !== id)
+
+const createLayerHandle = (
+  id: string,
+  setLayers: React.Dispatch<React.SetStateAction<ChartLayer[]>>
+): ChartLayerHandle => ({
+  update: (nextDraw, nextOptions) => setLayers(replaceLayer(id, nextDraw, nextOptions?.order)),
+  unregister: () => setLayers(removeLayer(id))
+})
+
+/** Draws the layers whose order is in `[minOrder, maxOrder)`; layers are already sorted. */
+const drawLayerRange = (
+  layers: ChartLayer[],
+  minOrder: number,
+  maxOrder: number,
+  context: CanvasRenderingContext2D,
+  helpers: ChartSurfaceRenderHelpers
+) => {
+  for (const layer of layers) {
+    if (layer.order >= minOrder && layer.order < maxOrder) {
+      layer.draw(context, helpers)
+    }
+  }
+}
+
+const hasLayerInRange = (layers: ChartLayer[], minOrder: number, maxOrder: number) =>
+  layers.some((layer) => layer.order >= minOrder && layer.order < maxOrder)
+
 const defaultCursorOptions: CursorOptions = {
   snapRadius: defaultChartCursorProps.snapRadius,
   snapToDataPoints: defaultChartCursorProps.snapToDataPoints,
@@ -47,7 +97,9 @@ const defaultCursorOptions: CursorOptions = {
 }
 
 export const ChartSurface: React.FC<ChartSurfaceProps> = ({
-  data,
+  data = EMPTY_ROWS,
+  columns,
+  viewRange,
   xKey,
   yKeys: yKeysProp,
   xAxisType = 'linear',
@@ -67,24 +119,29 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 }) => {
   const resolvedMargin = useMemo(() => mergeMarginUtil(margin, DEFAULT_MARGIN), [margin])
 
-  const resolvedYKeys = useMemo(() => {
-    if (yKeysProp && yKeysProp.length > 0) {
-      return yKeysProp
+  const dataStore = useMemo(
+    () => (columns ? createColumnarDataStore(columns, xKey, yKeysProp) : createRowDataStore(data, xKey, yKeysProp)),
+    [columns, data, xKey, yKeysProp]
+  )
+
+  // Keep the key list referentially stable while its contents are unchanged (e.g. while streaming).
+  const resolvedYKeysSignature = dataStore.keys.join('\u0000')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const resolvedYKeys = useMemo(() => dataStore.keys, [resolvedYKeysSignature])
+
+  const dataLength = dataStore.length
+  const viewStartProp = viewRange?.start
+  const viewEndProp = viewRange?.end
+  const resolvedView = useMemo<ChartViewRange>(() => {
+    if (dataLength === 0) {
+      return { start: 0, end: -1 }
     }
-
-    const numericKeys = new Set<string>()
-
-    data.forEach((datum) => {
-      Object.entries(datum).forEach(([key, value]) => {
-        if (key === xKey) return
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          numericKeys.add(key)
-        }
-      })
-    })
-
-    return Array.from(numericKeys)
-  }, [data, xKey, yKeysProp])
+    const maxIndex = dataLength - 1
+    const start = Math.max(0, Math.min(maxIndex, Math.floor(viewStartProp ?? 0)))
+    const end = Math.max(start, Math.min(maxIndex, Math.floor(viewEndProp ?? maxIndex)))
+    return { start, end }
+  }, [dataLength, viewEndProp, viewStartProp])
+  const viewCount = Math.max(0, resolvedView.end - resolvedView.start + 1)
 
   const [layers, setLayers] = useState<ChartLayer[]>([])
   const layerIdRef = useRef(0)
@@ -180,29 +237,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const registerLayer = useCallback((draw: ChartLayerRenderer, options: ChartLayerOptions = {}) => {
     const id = `layer-${(layerIdRef.current += 1)}`
-    const order = options.order ?? 0
-
-    setLayers((prev) => [...prev, { id, order, draw }])
-
-    const update: ChartLayerHandle['update'] = (nextDraw, nextOptions) => {
-      setLayers((prev) =>
-        prev.map((layer) =>
-          layer.id === id
-            ? {
-                id,
-                order: nextOptions?.order ?? layer.order,
-                draw: nextDraw
-              }
-            : layer
-        )
-      )
-    }
-
-    const unregister = () => {
-      setLayers((prev) => prev.filter((layer) => layer.id !== id))
-    }
-
-    return { update, unregister }
+    setLayers(appendLayer({ id, order: options.order ?? 0, draw }))
+    return createLayerHandle(id, setLayers)
   }, [])
 
   const setAxisTicks = useCallback((axis: 'x' | 'y', descriptor: AxisTickDescriptor | null) => {
@@ -241,8 +277,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     cursorOptionsRef.current = cursorOptions
   }, [cursorOptions])
 
-  const labels = useMemo(() => data.map((datum) => String(datum[xKey] ?? '')), [data, xKey])
-
   const chartArea = useMemo<ChartArea>(() => {
     const leftOffset = Math.max(0, yAxisCounts.left - 1) * Y_AXIS_BAND_WIDTH
     const rightOffset = Math.max(0, yAxisCounts.right - 1) * Y_AXIS_BAND_WIDTH
@@ -267,25 +301,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
   const perKeyStats = useMemo(() => {
     const stats = new Map<string, { min: number; max: number }>()
 
+    // Exact min/max over the visible range, answered from the min/max pyramid in O(log n).
     resolvedYKeys.forEach((key) => {
-      stats.set(key, {
-        min: Number.POSITIVE_INFINITY,
-        max: Number.NEGATIVE_INFINITY
-      })
-    })
-
-    data.forEach((datum) => {
-      resolvedYKeys.forEach((key) => {
-        const rawValue = datum[key]
-        const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue)
-        if (Number.isFinite(numeric)) {
-          const entry = stats.get(key)
-          if (entry) {
-            entry.min = Math.min(entry.min, numeric)
-            entry.max = Math.max(entry.max, numeric)
-          }
-        }
-      })
+      stats.set(key, dataStore.extent(key, resolvedView.start, resolvedView.end + 1))
     })
 
     const finalized = new Map<string, { min: number; max: number }>()
@@ -308,7 +326,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     })
 
     return finalized
-  }, [data, resolvedYKeys])
+  }, [dataStore, resolvedView.end, resolvedView.start, resolvedYKeys])
 
   const valueScaleState = useMemo<{
     scales: Array<{
@@ -436,78 +454,125 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const valueDomain = defaultValueDomain
 
+  // X positions are a linear function of the (absolute) data index over the visible range.
   const getXPosition = useCallback(
     (index: number) => {
-      if (labels.length <= 1) {
+      if (viewCount <= 1) {
         return chartArea.x + chartArea.width / 2
       }
 
+      const offset = index - resolvedView.start
       if (xAxisType === 'categorical') {
         // For categorical data (bar charts), center points in equal-width bands with padding
-        // Divide width into (labels.length + 1) segments to create padding on both sides
-        const segmentWidth = chartArea.width / (labels.length + 1)
+        // Divide width into (count + 1) segments to create padding on both sides
+        const segmentWidth = chartArea.width / (viewCount + 1)
         // Position bars starting at segment 1 (leaving segment 0 as left padding)
-        return chartArea.x + (index + 1) * segmentWidth
-      } else {
-        // For linear data (line charts), spread points evenly from edge to edge
-        const spacing = chartArea.width / Math.max(1, labels.length - 1)
-        return chartArea.x + index * spacing
+        return chartArea.x + (offset + 1) * segmentWidth
       }
+
+      // For linear data (line charts), spread points evenly from edge to edge
+      const spacing = chartArea.width / (viewCount - 1)
+      return chartArea.x + offset * spacing
     },
-    [chartArea.width, chartArea.x, labels.length, xAxisType]
+    [chartArea.width, chartArea.x, resolvedView.start, viewCount, xAxisType]
   )
 
-  const labelPositions = useMemo(() => labels.map((_, index) => getXPosition(index)), [getXPosition, labels])
+  const getIndexAtPosition = useCallback(
+    (x: number) => {
+      if (viewCount <= 1 || chartArea.width <= 0) {
+        return resolvedView.start
+      }
 
-  const normalizedData = useMemo<NormalizedDatum[]>(
-    () =>
-      data.map((datum, index) => {
-        const values: Record<string, number | null> = {}
+      if (xAxisType === 'categorical') {
+        const segmentWidth = chartArea.width / (viewCount + 1)
+        return resolvedView.start + (x - chartArea.x) / segmentWidth - 1
+      }
 
-        resolvedYKeys.forEach((key) => {
-          const rawValue = datum[key]
-          const numeric = typeof rawValue === 'number' ? rawValue : Number(rawValue)
-          values[key] = Number.isFinite(numeric) ? numeric : null
-        })
-
-        return {
-          index,
-          label: labels[index] ?? '',
-          x: labelPositions[index] ?? chartArea.x,
-          values,
-          raw: datum
-        }
-      }),
-    [chartArea.x, data, labelPositions, labels, resolvedYKeys]
+      const spacing = chartArea.width / (viewCount - 1)
+      return resolvedView.start + (x - chartArea.x) / spacing
+    },
+    [chartArea.width, chartArea.x, resolvedView.start, viewCount, xAxisType]
   )
 
-  const dataPoints = useMemo<CursorDataPoint[]>(() => {
-    const points: CursorDataPoint[] = []
+  const getLabel = useCallback((index: number) => dataStore.label(index), [dataStore])
+  const getValue = useCallback((dataKey: string, index: number) => dataStore.value(dataKey, index), [dataStore])
 
-    normalizedData.forEach((datum) => {
+  const makeDataPoint = useCallback(
+    (index: number, key: string, seriesIndex: number, value: number, x?: number, y?: number): CursorDataPoint => ({
+      x: x ?? getXPosition(index),
+      y: y ?? getYPositionForKey(key, value),
+      value,
+      label: dataStore.label(index),
+      seriesIndex,
+      dataIndex: index,
+      originalData: { ...dataStore.row(index), dataKey: key }
+    }),
+    [dataStore, getXPosition, getYPositionForKey]
+  )
+
+  const hitTestGeometry = useMemo<HitTestGeometry>(
+    () => ({
+      store: dataStore,
+      keys: resolvedYKeys,
+      start: resolvedView.start,
+      end: resolvedView.end,
+      getX: getXPosition,
+      getIndexAt: getIndexAtPosition,
+      getYForKey: getYPositionForKey
+    }),
+    [dataStore, getIndexAtPosition, getXPosition, getYPositionForKey, resolvedView.end, resolvedView.start, resolvedYKeys]
+  )
+
+  const findNearestPoint = useCallback(
+    (x: number, y: number, snapRadius: number, snapAlongYAxis: boolean): CursorDataPoint | null => {
+      const hit = findNearestIndexedPoint(hitTestGeometry, x, y, snapRadius, snapAlongYAxis)
+      return hit ? makeDataPoint(hit.index, hit.key, hit.seriesIndex, hit.value, hit.x, hit.y) : null
+    },
+    [hitTestGeometry, makeDataPoint]
+  )
+
+  const getPointsAtIndex = useCallback(
+    (index: number): CursorDataPoint[] => {
+      if (index < resolvedView.start || index > resolvedView.end) {
+        return []
+      }
+      const points: CursorDataPoint[] = []
       resolvedYKeys.forEach((key, seriesIndex) => {
-        const value = datum.values[key]
-        if (value === null || !Number.isFinite(value)) {
-          return
+        const value = dataStore.value(key, index)
+        if (!Number.isNaN(value)) {
+          points.push(makeDataPoint(index, key, seriesIndex, value))
         }
-
-        points.push({
-          x: datum.x,
-          y: getYPositionForKey(key, value),
-          value,
-          label: datum.label,
-          seriesIndex,
-          dataIndex: datum.index,
-          originalData: {
-            ...datum.raw,
-            dataKey: key
-          }
-        })
       })
-    })
+      return points
+    },
+    [dataStore, makeDataPoint, resolvedView.end, resolvedView.start, resolvedYKeys]
+  )
 
-    return points
-  }, [getYPositionForKey, normalizedData, resolvedYKeys])
+  const dataAccessors = useMemo<ChartDataAccessors>(
+    () => ({
+      dataStore,
+      dataLength,
+      viewRange: resolvedView,
+      getIndexAtPosition,
+      getLabel,
+      getValue,
+      findNearestPoint,
+      getPointsAtIndex
+    }),
+    [dataLength, dataStore, findNearestPoint, getIndexAtPosition, getLabel, getPointsAtIndex, getValue, resolvedView]
+  )
+
+  const legacyArrays = useMemo(
+    () =>
+      createLegacyPointArrays({
+        store: dataStore,
+        keys: resolvedYKeys,
+        view: resolvedView,
+        getXPosition,
+        getYPositionForKey
+      }),
+    [dataStore, getXPosition, getYPositionForKey, resolvedView, resolvedYKeys]
+  )
 
   const colorPalette = useMemo(() => (defaultColors.length > 0 ? defaultColors : DEFAULT_COLORS), [defaultColors])
 
@@ -535,19 +600,17 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     [colorPalette]
   )
 
-  const layersSorted = useMemo(() => [...layers].sort((a, b) => a.order - b.order), [layers])
+  // Sorted layers are only reachable through this ref (see the note on the layer helpers above).
+  const sortedLayersRef = useRef<ChartLayer[]>([])
+  // `bind` (not an inline arrow) so no ChartSurface closure captures the layer list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sortedLayers = useMemo(sortLayers.bind(null, layers), [layers])
+  sortedLayersRef.current = sortedLayers
 
-  const baseLayers = useMemo(() => layersSorted.filter((layer) => layer.order < LayerOrder.overlays), [layersSorted])
-
-  const overlayLayers = useMemo(
-    () => layersSorted.filter((layer) => layer.order >= LayerOrder.overlays),
-    [layersSorted]
-  )
-
-  const dataPointsRef = useRef<CursorDataPoint[]>(dataPoints)
+  const findNearestPointRef = useRef(findNearestPoint)
   useEffect(() => {
-    dataPointsRef.current = dataPoints
-  }, [dataPoints])
+    findNearestPointRef.current = findNearestPoint
+  }, [findNearestPoint])
 
   const hoverHandlerRef = useRef(onHover)
   useEffect(() => {
@@ -654,15 +717,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
     const cursorOpts = cursorOptionsRef.current
     if (hoverHandlerRef.current) {
-      const nearest = findNearestDataPoint(
-        x,
-        y,
-        dataPointsRef.current,
-        cursorOpts.snapRadius,
-        cursorOpts.snapAlongYAxis
-      )
+      const nearest = findNearestPointRef.current(x, y, cursorOpts.snapRadius, cursorOpts.snapAlongYAxis)
 
-      hoverHandlerRef.current(nearest?.point ?? null)
+      hoverHandlerRef.current(nearest)
     }
   }, [updatePointer])
 
@@ -703,14 +760,14 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       return computeSelectionResult(
         rawStartX,
         rawEndX,
-        labelPositions,
-        labels,
-        normalizedData,
+        getIndexAtPosition,
+        resolvedView,
+        dataStore,
         resolvedYKeys,
         chartArea
       )
     },
-    [labelPositions, labels, normalizedData, resolvedYKeys, chartArea]
+    [getIndexAtPosition, resolvedView, dataStore, resolvedYKeys, chartArea]
   )
 
   const updateSelectionDuringDrag = useCallback(
@@ -915,15 +972,9 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       }
 
       const cursorOpts = cursorOptionsRef.current
-      const nearest = findNearestDataPoint(
-        x,
-        y,
-        dataPointsRef.current,
-        cursorOpts.snapRadius,
-        cursorOpts.snapAlongYAxis
-      )
+      const nearest = findNearestPointRef.current(x, y, cursorOpts.snapRadius, cursorOpts.snapAlongYAxis)
 
-      clickHandlerRef.current(nearest?.point ?? null)
+      clickHandlerRef.current(nearest)
     },
     [chartArea, getRelativePointerPosition]
   )
@@ -1022,17 +1073,17 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       context.fillRect(0, 0, canvasWidth, canvasHeight)
       context.restore()
 
-      if (baseLayers.length === 0) {
+      const currentLayers = sortedLayersRef.current
+      if (!hasLayerInRange(currentLayers, Number.NEGATIVE_INFINITY, LayerOrder.overlays)) {
         return
       }
 
-      const helpers: ChartSurfaceRenderHelpers = {
+      const helpers: ChartSurfaceRenderHelpers = attachLegacyPointArrays(
+        {
+        ...dataAccessors,
         canvasWidth,
         canvasHeight,
         chartArea,
-        labels,
-        labelPositions,
-        normalizedData,
         getXPosition,
         getYPosition,
         getYPositionForScale,
@@ -1042,26 +1093,28 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         defaultScaleId,
         colorForKey: getColorForKey,
         pointer: pointerRef.current,
-        dataPoints,
         axisTicks: axisTickStateRef.current,
         valueDomain,
         valueDomainsByScale,
         renderCycle: baseRenderVersion,
         yAxisCounts,
         barOrientation
-      }
+        },
+        legacyArrays
+      )
 
-      baseLayers.forEach((layer) => {
-        layer.draw(context, helpers)
-      })
+      drawLayerRange(currentLayers, Number.NEGATIVE_INFINITY, LayerOrder.overlays, context, helpers)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sortedLayers triggers redraws
     [
       backgroundColor,
-      baseLayers,
+      // Redraw when the layer list changes; the list itself is read from sortedLayersRef.
+      sortedLayers,
       canvasSize.height,
       canvasSize.width,
       chartArea,
-      dataPoints,
+      dataAccessors,
+      legacyArrays,
       getColorForKey,
       getScaleDomain,
       getScaleIdForKey,
@@ -1069,9 +1122,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       getYPosition,
       getYPositionForKey,
       getYPositionForScale,
-      labelPositions,
-      labels,
-      normalizedData,
       baseRenderVersion,
       valueDomain,
       valueDomainsByScale,
@@ -1109,17 +1159,17 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         }
       }
 
-      if (overlayLayers.length === 0) {
+      const currentLayers = sortedLayersRef.current
+      if (!hasLayerInRange(currentLayers, LayerOrder.overlays, Number.POSITIVE_INFINITY)) {
         return
       }
 
-      const helpers: ChartSurfaceRenderHelpers = {
+      const helpers: ChartSurfaceRenderHelpers = attachLegacyPointArrays(
+        {
+        ...dataAccessors,
         canvasWidth,
         canvasHeight,
         chartArea,
-        labels,
-        labelPositions,
-        normalizedData,
         getXPosition,
         getYPosition,
         getYPositionForScale,
@@ -1129,22 +1179,23 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         defaultScaleId,
         colorForKey: getColorForKey,
         pointer: pointerRef.current,
-        dataPoints,
         axisTicks: axisTickStateRef.current,
         valueDomain,
         valueDomainsByScale,
         renderCycle: overlayRenderCycleRef.current,
         yAxisCounts,
         barOrientation
-      }
+        },
+        legacyArrays
+      )
 
-      overlayLayers.forEach((layer) => {
-        layer.draw(context, helpers)
-      })
+      drawLayerRange(currentLayers, LayerOrder.overlays, Number.POSITIVE_INFINITY, context, helpers)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sortedLayers triggers redraws
     [
       chartArea,
-      dataPoints,
+      dataAccessors,
+      legacyArrays,
       getColorForKey,
       getScaleDomain,
       getScaleIdForKey,
@@ -1152,10 +1203,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       getYPosition,
       getYPositionForKey,
       getYPositionForScale,
-      labelPositions,
-      labels,
-      normalizedData,
-      overlayLayers,
+      sortedLayers,
       valueDomain,
       valueDomainsByScale,
       yAxisCounts,
@@ -1164,45 +1212,55 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     ]
   )
 
-  const contextValue = useMemo<ChartSurfaceContextValue>(
+  const stableContextValue = useMemo<ChartSurfaceStableContextValue>(
     () => ({
-      data,
-      xKey,
-      yKeys: resolvedYKeys,
-      labels,
-      labelPositions,
-      chartArea,
-      canvasSize,
-      valueDomain,
-      defaultScaleId,
-      valueDomainsByScale,
-      getXPosition,
-      getYPosition,
-      getYPositionForScale,
-      getYPositionForKey,
-      getScaleDomain,
-      getScaleIdForKey,
-      normalizedData,
-      dataPoints,
-      axisTicks,
       registerLayer,
       setAxisTicks,
-      getColorForKey,
       registerCursorOptions,
       requestRender,
       registerYAxis,
       getYAxisIndex,
-      yAxisCounts,
-      yAxisSpacing: Y_AXIS_BAND_WIDTH,
-      barOrientation,
       registerHorizontalBars
     }),
+    [registerCursorOptions, registerHorizontalBars, registerLayer, registerYAxis, getYAxisIndex, requestRender, setAxisTicks]
+  )
+
+  const contextValue = useMemo<ChartSurfaceContextValue>(
+    () =>
+      attachLegacyPointArrays(
+        {
+          ...stableContextValue,
+          ...dataAccessors,
+          data: columns ? EMPTY_ROWS : data,
+          xKey,
+          yKeys: resolvedYKeys,
+          chartArea,
+          canvasSize,
+          valueDomain,
+          defaultScaleId,
+          valueDomainsByScale,
+          getXPosition,
+          getYPosition,
+          getYPositionForScale,
+          getYPositionForKey,
+          getScaleDomain,
+          getScaleIdForKey,
+          axisTicks,
+          getColorForKey,
+          yAxisCounts,
+          yAxisSpacing: Y_AXIS_BAND_WIDTH,
+          barOrientation
+        },
+        legacyArrays
+      ),
     [
       axisTicks,
+      barOrientation,
       canvasSize,
       chartArea,
+      columns,
       data,
-      dataPoints,
+      dataAccessors,
       defaultScaleId,
       getColorForKey,
       getScaleDomain,
@@ -1211,26 +1269,18 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       getYPosition,
       getYPositionForKey,
       getYPositionForScale,
-      getYAxisIndex,
-      labelPositions,
-      labels,
-      normalizedData,
-      registerCursorOptions,
-      registerLayer,
-      registerYAxis,
-      requestRender,
+      legacyArrays,
       resolvedYKeys,
-      setAxisTicks,
+      stableContextValue,
       valueDomain,
       valueDomainsByScale,
       xKey,
-      yAxisCounts,
-      barOrientation,
-      registerHorizontalBars
+      yAxisCounts
     ]
   )
 
   return (
+    <ChartSurfaceStableContext.Provider value={stableContextValue}>
     <ChartSurfaceContext.Provider value={contextValue}>
       <ChartOverlayContainerContext.Provider value={overlayContainer}>
         <div className={`chart-surface-container ${className || ''}`} style={style}>
@@ -1262,5 +1312,6 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         </div>
       </ChartOverlayContainerContext.Provider>
     </ChartSurfaceContext.Provider>
+    </ChartSurfaceStableContext.Provider>
   )
 }

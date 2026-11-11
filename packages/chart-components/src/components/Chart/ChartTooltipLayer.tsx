@@ -8,7 +8,7 @@ import {
 import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
-import { findNearestDataPoint, defaultChartCursorProps, type DataPoint } from './InternalComponents/ChartCursor'
+import { defaultChartCursorProps, type DataPoint } from './InternalComponents/ChartCursor'
 import { findHorizontalBarHoverMatch } from '../../utils/horizontalBarHoverMatch'
 
 export interface ChartTooltipLayerProps extends ChartTooltipProps {
@@ -40,7 +40,7 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
         const match = findHorizontalBarHoverMatch(helpers, helpers.pointer.x, helpers.pointer.y, snapRadius)
         if (match) {
           activeIndex = match.index
-          const basePoint = helpers.dataPoints.find((p) => p.dataIndex === match.index)
+          const basePoint = helpers.getPointsAtIndex(match.index)[0]
           const tooltipPosition = tooltipProps.position ?? defaultChartTooltipProps.position
 
           // For non-follow positions, anchor to the horizontal bar row geometry.
@@ -53,21 +53,15 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
             : ({ x: anchorX, y: anchorY, value: 0, dataIndex: match.index } as DataPoint)
         }
       } else if (snapToDataPoints) {
-        const nearest = findNearestDataPoint(
-          helpers.pointer.x,
-          helpers.pointer.y,
-          helpers.dataPoints,
-          snapRadius,
-          snapAlongYAxis
-        )
-        activePoint = nearest?.point ?? null
+        activePoint = helpers.findNearestPoint(helpers.pointer.x, helpers.pointer.y, snapRadius, snapAlongYAxis)
         activeIndex = activePoint?.dataIndex
-      } else if (helpers.normalizedData.length > 0) {
-        const closest = findClosestIndexByX(helpers.pointer.x, helpers.labelPositions)
-        if (closest !== null) {
-          activeIndex = closest
-          activePoint = helpers.dataPoints.find((point) => point.dataIndex === closest) ?? null
-        }
+      } else if (helpers.viewRange.end >= helpers.viewRange.start) {
+        const closest = Math.max(
+          helpers.viewRange.start,
+          Math.min(helpers.viewRange.end, Math.round(helpers.getIndexAtPosition(helpers.pointer.x)))
+        )
+        activeIndex = closest
+        activePoint = helpers.getPointsAtIndex(closest)[0] ?? null
       }
 
       if (!activePoint) {
@@ -107,25 +101,6 @@ export const ChartTooltipLayer: React.FC<ChartTooltipLayerProps> = ({
   return null
 }
 
-function findClosestIndexByX(cursorX: number, labelPositions: number[]): number | null {
-  if (labelPositions.length === 0) {
-    return null
-  }
-
-  let closestIndex = 0
-  let closestDistance = Math.abs(cursorX - labelPositions[0])
-
-  for (let index = 1; index < labelPositions.length; index += 1) {
-    const distance = Math.abs(cursorX - labelPositions[index])
-    if (distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = index
-    }
-  }
-
-  return closestIndex
-}
-
 function buildSeriesEntries(
   helpers: Parameters<ChartLayerRenderer>[1],
   dataIndex: number | undefined,
@@ -135,7 +110,7 @@ function buildSeriesEntries(
     return []
   }
 
-  const matchingPoints = helpers.dataPoints.filter((point) => point.dataIndex === dataIndex)
+  const matchingPoints = helpers.getPointsAtIndex(dataIndex)
 
   if (matchingPoints.length === 0) {
     return []
@@ -187,11 +162,7 @@ function resolveLabel(
   dataIndex: number | undefined
 ): string {
   if (dataIndex !== undefined && dataIndex >= 0) {
-    const normalized = helpers.normalizedData[dataIndex]
-    if (normalized?.label) {
-      return normalized.label
-    }
-    const label = helpers.labels?.[dataIndex]
+    const label = helpers.getLabel(dataIndex)
     if (label) {
       return label
     }

@@ -232,8 +232,13 @@ const buildPromptSnapshot = (context: ChartAIAnalysisContext) => {
       .filter((point): point is { index: number; label: string; value: number } => isFiniteNumber(point.value))
 
     const values = seriesPoints.map((point) => point.value)
-    const min = values.length > 0 ? Math.min(...values) : null
-    const max = values.length > 0 ? Math.max(...values) : null
+    // Loop instead of Math.min(...values): spreading large arrays overflows the call stack.
+    let min: number | null = null
+    let max: number | null = null
+    for (const value of values) {
+      if (min === null || value < min) min = value
+      if (max === null || value > max) max = value
+    }
     const average = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 
     return {

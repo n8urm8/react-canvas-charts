@@ -59,7 +59,8 @@ export function findHorizontalBarHoverMatch(
     }
 
     if (pointerX >= helpers.chartArea.x - snapRadius && pointerX <= maxBarTipX + snapRadius) {
-      return { index, categoryY, maxBarTipX }
+      // `datum.index` is the absolute data index (positions are relative to the visible range).
+      return { index: datum.index, categoryY, maxBarTipX }
     }
   }
 

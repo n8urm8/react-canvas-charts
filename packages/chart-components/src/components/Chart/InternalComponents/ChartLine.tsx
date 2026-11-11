@@ -20,9 +20,20 @@ export interface ChartLineProps {
   tension?: number; // For smooth curves (0-1)
 }
 
+export interface ChartLinePath {
+  xs: ArrayLike<number>;
+  ys: ArrayLike<number>;
+  count: number;
+  /** When true the path is a decimated envelope and smoothing is skipped. */
+  decimated?: boolean;
+}
+
 export interface ChartLineRenderProps extends ChartLineProps {
   context: CanvasRenderingContext2D;
-  points: Array<{ x: number; y: number }>;
+  /** Vertices as objects. Ignored when `path` is provided. */
+  points?: Array<{ x: number; y: number }>;
+  /** Vertices as parallel coordinate arrays (preferred for large series). */
+  path?: ChartLinePath;
   index: number;
 }
 
@@ -51,7 +62,8 @@ export const defaultChartLineProps: Required<Omit<ChartLineProps, 'gradient'>> &
 export const renderChartLine = (props: ChartLineRenderProps): void => {
   const {
     context,
-    points,
+    points = [],
+    path,
     show = defaultChartLineProps.show,
     color = defaultChartLineProps.color,
     lineWidth = defaultChartLineProps.lineWidth,
@@ -69,7 +81,11 @@ export const renderChartLine = (props: ChartLineRenderProps): void => {
     gradient = defaultChartLineProps.gradient,
   } = props;
 
-  if (!show || points.length < 2) return;
+  const vertexCount = path ? path.count : points.length;
+  if (!show || vertexCount < 2) return;
+
+  const xAt = path ? (i: number) => path.xs[i] : (i: number) => points[i].x;
+  const yAt = path ? (i: number) => path.ys[i] : (i: number) => points[i].y;
 
   // Save current context state
   context.save();
@@ -92,13 +108,10 @@ export const renderChartLine = (props: ChartLineRenderProps): void => {
   // Create stroke style
   let strokeStyle: string | CanvasGradient = color;
   
-  if (gradient?.enabled && points.length > 1) {
-    const firstPoint = points[0];
-    const lastPoint = points[points.length - 1];
-    
+  if (gradient?.enabled && vertexCount > 1) {
     const canvasGradient = context.createLinearGradient(
-      firstPoint.x, firstPoint.y,
-      lastPoint.x, lastPoint.y
+      xAt(0), yAt(0),
+      xAt(vertexCount - 1), yAt(vertexCount - 1)
     );
     
     canvasGradient.addColorStop(0, gradient.startColor || color);
@@ -111,14 +124,17 @@ export const renderChartLine = (props: ChartLineRenderProps): void => {
   // Draw the line
   context.beginPath();
   
-  if (smooth && points.length > 2) {
+  if (smooth && vertexCount > 2 && !path?.decimated) {
     // Draw smooth curves using Catmull-Rom splines
-    drawSmoothCurve(context, points, tension);
+    const smoothPoints = path
+      ? Array.from({ length: vertexCount }, (_, i) => ({ x: xAt(i), y: yAt(i) }))
+      : points;
+    drawSmoothCurve(context, smoothPoints, tension);
   } else {
     // Draw straight lines
-    context.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      context.lineTo(points[i].x, points[i].y);
+    context.moveTo(xAt(0), yAt(0));
+    for (let i = 1; i < vertexCount; i++) {
+      context.lineTo(xAt(i), yAt(i));
     }
   }
 

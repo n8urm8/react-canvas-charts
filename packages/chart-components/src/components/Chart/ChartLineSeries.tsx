@@ -2,47 +2,42 @@ import React, { useMemo, useCallback } from 'react'
 import { renderChartLine, type ChartLineProps } from './InternalComponents/ChartLine'
 import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
-import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { buildSeriesPath } from '../../utils/data/decimation'
 
 export interface ChartLineSeriesProps extends ChartLineProps {
   dataKey: string
   seriesIndex?: number
 }
 
+/**
+ * Draws one series as a line. Data is read at draw time, so this component does not re-render
+ * when data changes. Dense ranges are M4-decimated per pixel column, which keeps the exact
+ * rendered shape (every spike and dip) while bounding work to ~4 vertices per pixel.
+ */
 export const ChartLineSeries: React.FC<ChartLineSeriesProps> = ({ dataKey, color, seriesIndex = 0, ...lineProps }) => {
-  const { normalizedData, getYPositionForKey, getColorForKey } = useChartSurface()
-
-  const points = useMemo(
-    () =>
-      normalizedData
-        .map((datum) => {
-          const value = datum.values[dataKey]
-          if (value === null || !Number.isFinite(value)) {
-            return null
-          }
-          return {
-            x: datum.x,
-            y: getYPositionForKey(dataKey, value)
-          }
-        })
-        .filter((point): point is { x: number; y: number } => point !== null),
-    [dataKey, getYPositionForKey, normalizedData]
-  )
-
-  const strokeColor = useMemo(() => color ?? getColorForKey(dataKey), [color, dataKey, getColorForKey])
-
   const draw = useCallback<ChartLayerRenderer>(
-    (context) => {
+    (context, helpers) => {
+      const { dataStore, viewRange, chartArea } = helpers
+      const path = buildSeriesPath(
+        dataStore,
+        dataKey,
+        viewRange.start,
+        viewRange.end,
+        chartArea.width,
+        helpers.getXPosition,
+        (value) => helpers.getYPositionForKey(dataKey, value)
+      )
+
       renderChartLine({
         context,
-        points,
-        color: strokeColor,
+        path,
+        color: color ?? helpers.colorForKey(dataKey),
         index: seriesIndex,
         ...lineProps
       })
     },
-    [lineProps, points, seriesIndex, strokeColor]
+    [color, dataKey, lineProps, seriesIndex]
   )
 
   const layerOptions = useMemo(() => ({ order: LayerOrder.series }), [])

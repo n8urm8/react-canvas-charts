@@ -29,32 +29,6 @@ export interface ChartCustomTagsLayerProps {
   tagStyle?: React.CSSProperties
 }
 
-function clampIndex(index: number, length: number): number {
-  if (length <= 0) {
-    return 0
-  }
-  return Math.max(0, Math.min(index, length - 1))
-}
-
-function closestIndexByChartX(chartX: number, xs: number[]): number | null {
-  if (xs.length === 0) {
-    return null
-  }
-
-  let closestIndex = 0
-  let closestDistance = Math.abs(chartX - xs[0])
-
-  for (let index = 1; index < xs.length; index += 1) {
-    const distance = Math.abs(chartX - xs[index])
-    if (distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = index
-    }
-  }
-
-  return closestIndex
-}
-
 function chartCoordinatesFromClient(
   clientX: number,
   clientY: number,
@@ -100,8 +74,10 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
   tagStyle
 }) => {
   const {
-    normalizedData,
-    labelPositions,
+    dataStore,
+    viewRange,
+    getIndexAtPosition,
+    getXPosition,
     chartArea,
     canvasSize,
     defaultScaleId,
@@ -142,16 +118,14 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
         return
       }
 
-      const dataIndex = closestIndexByChartX(coordinates.x, labelPositions)
-      if (dataIndex === null) {
+      if (viewRange.end < viewRange.start) {
         return
       }
 
-      const clampedIndex = clampIndex(dataIndex, normalizedData.length)
-      const datum = normalizedData[clampedIndex]
-      if (!datum) {
-        return
-      }
+      const clampedIndex = Math.max(
+        viewRange.start,
+        Math.min(viewRange.end, Math.round(getIndexAtPosition(coordinates.x)))
+      )
 
       const resolvedScaleId = creationDataKey
         ? getScaleIdForKey(creationDataKey)
@@ -165,10 +139,10 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
         chartY: coordinates.y,
         dataIndex: clampedIndex,
         yValue,
-        label: datum.label,
+        label: dataStore.label(clampedIndex),
         scaleId: resolvedScaleId,
         dataKey: creationDataKey,
-        originalData: datum.raw
+        originalData: dataStore.row(clampedIndex)
       }
 
       onTagPlacement?.(placement)
@@ -194,8 +168,9 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
       enableTagCreation,
       getScaleDomain,
       getScaleIdForKey,
-      labelPositions,
-      normalizedData,
+      getIndexAtPosition,
+      dataStore,
+      viewRange,
       onTagPlacement,
       setTags,
       tags
@@ -215,13 +190,12 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
         }}
       >
         {tags.map((tag) => {
-          const dataIndex = clampIndex(tag.dataIndex, normalizedData.length)
-          const datum = normalizedData[dataIndex]
-          if (!datum) {
+          // Tags are anchored to absolute data indices; hide those outside the visible range.
+          if (tag.dataIndex < viewRange.start || tag.dataIndex > viewRange.end) {
             return null
           }
 
-          const x = datum.x
+          const x = getXPosition(tag.dataIndex)
           const y = tag.dataKey
             ? getYPositionForKey(tag.dataKey, tag.yValue)
             : tag.scaleId

@@ -35,9 +35,10 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
     registerYAxis,
     getYAxisIndex,
     yAxisSpacing,
-    labels,
-    normalizedData
+    viewRange,
+    getLabel
   } = useChartSurface()
+  const categoryCount = Math.max(0, viewRange.end - viewRange.start + 1)
 
   const resolvedScaleId = useMemo(() => scaleId ?? defaultScaleId, [scaleId, defaultScaleId])
 
@@ -59,11 +60,11 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
 
   // For categorical mode, calculate positions based on data distribution along Y-axis
   const categoricalPositions = useMemo(() => {
-    if (!categorical || normalizedData.length === 0) {
+    if (!categorical || categoryCount === 0) {
       return []
     }
 
-    const dataCount = normalizedData.length
+    const dataCount = categoryCount
     const getCategoryYPosition = (index: number): number => {
       if (dataCount <= 1) {
         return chartArea.y + chartArea.height / 2
@@ -73,8 +74,8 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
       return chartArea.y + (index + 1) * segmentHeight
     }
 
-    return normalizedData.map((_, index) => getCategoryYPosition(index))
-  }, [categorical, normalizedData, chartArea.y, chartArea.height])
+    return Array.from({ length: dataCount }, (_, index) => getCategoryYPosition(index))
+  }, [categorical, categoryCount, chartArea.y, chartArea.height])
 
   const tickValues = useMemo(() => {
     if (categorical) {
@@ -113,10 +114,10 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
 
   const tickLabels = useMemo(() => {
     if (categorical) {
-      return labels
+      return Array.from({ length: categoryCount }, (_, offset) => getLabel(viewRange.start + offset))
     }
     return tickValues.map((value) => (formatLabel ? formatLabel(value) : Math.round(value).toString()))
-  }, [categorical, labels, formatLabel, tickValues])
+  }, [categorical, categoryCount, getLabel, viewRange.start, formatLabel, tickValues])
 
   const shouldRegisterTicks = registerTicks ?? resolvedScaleId === defaultScaleId
 

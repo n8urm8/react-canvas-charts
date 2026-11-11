@@ -6,6 +6,8 @@ export interface PointSelectorsControlProps {
   selectors: ChartPointSelector[]
   series: Array<{ id: string; name: string }>
   onSelectorsChange: (selectors: ChartPointSelector[]) => void
+  /** Absolute data index given to newly added selectors (e.g. the first visible point). */
+  newSelectorIndex?: number
 }
 
 // Design constants - keep in sync with ChartPointSelectorsLayer defaults
@@ -32,18 +34,19 @@ const DEFAULT_LABEL_COLORS = [
 export const PointSelectorsControl: FC<PointSelectorsControlProps> = ({
   selectors,
   series,
-  onSelectorsChange
+  onSelectorsChange,
+  newSelectorIndex = 0
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handleAddSelector = useCallback(() => {
     const firstSeriesId = series.length > 0 ? series[0].id : 'series-1'
-    const newSelector = createChartPointSelector(firstSeriesId, 0, {
+    const newSelector = createChartPointSelector(firstSeriesId, newSelectorIndex, {
       labelStyle: DEFAULT_LABEL_STYLE
     })
     onSelectorsChange([...selectors, newSelector])
     setExpandedId(newSelector.id)
-  }, [series, selectors, onSelectorsChange])
+  }, [series, selectors, onSelectorsChange, newSelectorIndex])
 
   const handleRemoveSelector = useCallback(
     (id: string) => {

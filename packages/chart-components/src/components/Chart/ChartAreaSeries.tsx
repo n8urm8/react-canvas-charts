@@ -1,8 +1,8 @@
 import React, { useMemo, useCallback } from 'react'
 import { LayerOrder } from './ChartSurface/ChartSurface.constants'
 import type { ChartLayerRenderer } from './ChartSurface/ChartSurface.types'
-import { useChartSurface } from '../../utils/context/ChartSurfaceContext'
 import { useChartLayer } from '../../utils/hooks/useChartLayer'
+import { buildSeriesPath } from '../../utils/data/decimation'
 
 export interface ChartAreaSeriesProps {
   dataKey: string
@@ -13,6 +13,10 @@ export interface ChartAreaSeriesProps {
   baseline?: number | string
 }
 
+/**
+ * Fills the area under a series. Uses the same M4-decimated path as ChartLineSeries so the
+ * filled outline matches the line exactly at any data size.
+ */
 export const ChartAreaSeries: React.FC<ChartAreaSeriesProps> = ({
   dataKey,
   color,
@@ -20,71 +24,62 @@ export const ChartAreaSeries: React.FC<ChartAreaSeriesProps> = ({
   show = true,
   baseline
 }) => {
-  const { normalizedData, getYPositionForKey, getColorForKey, chartArea } = useChartSurface()
-
-  const points = useMemo(
-    () =>
-      normalizedData
-        .map((datum) => {
-          const value = datum.values[dataKey]
-          if (value === null || !Number.isFinite(value)) {
-            return null
-          }
-
-          let baselineY: number
-          if (baseline === undefined) {
-            // Default: fill from bottom of chart
-            baselineY = chartArea.y + chartArea.height
-          } else if (typeof baseline === 'number') {
-            // Fixed baseline value
-            baselineY = getYPositionForKey(dataKey, baseline)
-          } else {
-            // Baseline from another dataKey (for stacking)
-            const baselineValue = datum.values[baseline]
-            if (baselineValue === null || !Number.isFinite(baselineValue)) {
-              return null
-            }
-            baselineY = getYPositionForKey(dataKey, baselineValue)
-          }
-
-          return {
-            x: datum.x,
-            y: getYPositionForKey(dataKey, value),
-            baselineY
-          }
-        })
-        .filter((point): point is { x: number; y: number; baselineY: number } => point !== null),
-    [baseline, chartArea, dataKey, getYPositionForKey, normalizedData]
-  )
-
-  const fillColor = useMemo(() => color ?? getColorForKey(dataKey), [color, dataKey, getColorForKey])
-
   const draw = useCallback<ChartLayerRenderer>(
-    (context, _helpers) => {
-      if (!show || points.length < 2) {
+    (context, helpers) => {
+      if (!show) {
+        return
+      }
+
+      const { dataStore, viewRange, chartArea } = helpers
+      const toY = (value: number) => helpers.getYPositionForKey(dataKey, value)
+      const top = buildSeriesPath(
+        dataStore,
+        dataKey,
+        viewRange.start,
+        viewRange.end,
+        chartArea.width,
+        helpers.getXPosition,
+        toY
+      )
+      if (top.count < 2) {
         return
       }
 
       context.save()
       context.globalAlpha = opacity
-      context.fillStyle = fillColor
-
+      context.fillStyle = color ?? helpers.colorForKey(dataKey)
       context.beginPath()
-      // Start at the first baseline point
-      context.moveTo(points[0].x, points[0].baselineY)
-      // Draw to the top line
-      points.forEach((point) => {
-        context.lineTo(point.x, point.y)
-      })
-      // Draw back along the baseline in reverse
-      for (let i = points.length - 1; i >= 0; i--) {
-        context.lineTo(points[i].x, points[i].baselineY)
+
+      if (typeof baseline === 'string') {
+        // Stacked: fill between this series and the baseline series (both in this series' scale).
+        const bottom = buildSeriesPath(
+          dataStore,
+          baseline,
+          viewRange.start,
+          viewRange.end,
+          chartArea.width,
+          helpers.getXPosition,
+          toY
+        )
+        if (bottom.count < 2) {
+          context.restore()
+          return
+        }
+        context.moveTo(top.xs[0], top.ys[0])
+        for (let i = 1; i < top.count; i += 1) context.lineTo(top.xs[i], top.ys[i])
+        for (let i = bottom.count - 1; i >= 0; i -= 1) context.lineTo(bottom.xs[i], bottom.ys[i])
+      } else {
+        const baselineY = baseline === undefined ? chartArea.y + chartArea.height : toY(baseline)
+        context.moveTo(top.xs[0], baselineY)
+        for (let i = 0; i < top.count; i += 1) context.lineTo(top.xs[i], top.ys[i])
+        context.lineTo(top.xs[top.count - 1], baselineY)
       }
+
       context.closePath()
       context.fill()
       context.restore()
     },
-    [fillColor, opacity, points, show]
+    [baseline, color, dataKey, opacity, show]
   )
 
   const layerOptions = useMemo(() => ({ order: LayerOrder.area }), [])

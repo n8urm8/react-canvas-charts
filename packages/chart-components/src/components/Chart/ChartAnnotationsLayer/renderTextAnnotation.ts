@@ -1,6 +1,31 @@
 import type { TextAnnotation } from './annotations.types'
 import { toPixelSpace } from './utils'
 
+const drawRoundedRectPath = (
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
+  const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2))
+  if (safeRadius === 0) {
+    context.rect(x, y, width, height)
+    return
+  }
+
+  context.moveTo(x + safeRadius, y)
+  context.lineTo(x + width - safeRadius, y)
+  context.arcTo(x + width, y, x + width, y + safeRadius, safeRadius)
+  context.lineTo(x + width, y + height - safeRadius)
+  context.arcTo(x + width, y + height, x + width - safeRadius, y + height, safeRadius)
+  context.lineTo(x + safeRadius, y + height)
+  context.arcTo(x, y + height, x, y + height - safeRadius, safeRadius)
+  context.lineTo(x, y + safeRadius)
+  context.arcTo(x, y, x + safeRadius, y, safeRadius)
+}
+
 /**
  * Render a text annotation on the canvas
  */
@@ -15,6 +40,7 @@ export const renderTextAnnotation = (
   const fontSize = annotation.fontSize ?? 14
   const fontWeight = annotation.fontWeight ?? 'normal'
   const padding = annotation.padding ?? 8
+  const borderRadius = annotation.borderRadius ?? 4
   const textAlign = 'left'
 
   // Get dimensions from metadata or calculate from text
@@ -66,7 +92,9 @@ export const renderTextAnnotation = (
   // Draw background if specified
   if (annotation.backgroundColor) {
     context.fillStyle = annotation.backgroundColor
-    context.fillRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
+    context.beginPath()
+    drawRoundedRectPath(context, pos.x - padding, pos.y - padding, boxWidth, boxHeight, borderRadius)
+    context.fill()
   }
 
   // Draw text (potentially multiple lines)
@@ -79,7 +107,9 @@ export const renderTextAnnotation = (
   if (annotation.selected) {
     context.strokeStyle = '#3b82f6'
     context.lineWidth = 2
-    context.strokeRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
+    context.beginPath()
+    drawRoundedRectPath(context, pos.x - padding, pos.y - padding, boxWidth, boxHeight, borderRadius)
+    context.stroke()
   }
 
   // Draw hover indicator
@@ -87,7 +117,9 @@ export const renderTextAnnotation = (
     context.strokeStyle = '#9ca3af'
     context.lineWidth = 1
     context.setLineDash([4, 4])
-    context.strokeRect(pos.x - padding, pos.y - padding, boxWidth, boxHeight)
+    context.beginPath()
+    drawRoundedRectPath(context, pos.x - padding, pos.y - padding, boxWidth, boxHeight, borderRadius)
+    context.stroke()
   }
 
   context.restore()

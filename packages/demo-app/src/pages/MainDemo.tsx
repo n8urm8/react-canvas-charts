@@ -114,7 +114,7 @@ export const MainDemo = () => {
           <h2 className="text-xl md:text-2xl font-bold mb-4">Additional Resources</h2>
           <ul className="space-y-2 text-gray-700">
             <li>
-              <a href="/interactive-chart" className="text-blue-600 hover:underline">
+              <a href="/interactive" className="text-blue-600 hover:underline">
                 Interactive Chart Demo
               </a>
               {' - '}Explore all features with live configuration

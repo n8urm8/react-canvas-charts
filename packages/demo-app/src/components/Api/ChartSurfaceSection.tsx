@@ -39,7 +39,7 @@ export const ChartSurfaceSection = () => {
             </dd>
           </div>
           <div>
-            <dt className="font-mono text-sm text-blue-600">colors?: string[]</dt>
+            <dt className="font-mono text-sm text-blue-600">defaultColors?: string[]</dt>
             <dd className="text-gray-700 ml-4">Color palette for series. Maps to yKeys in order.</dd>
           </div>
           <div>

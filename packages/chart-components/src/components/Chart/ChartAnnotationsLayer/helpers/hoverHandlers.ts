@@ -6,6 +6,7 @@ import type {
   CircleAnnotation,
   FreehandAnnotation
 } from '../annotations.types'
+import { toPixelSpace } from '../utils'
 import { checkLineHit, checkCircleHit, checkFreehandHit } from './hitDetection'
 
 export interface HoverState {
@@ -20,7 +21,9 @@ export function setupHoverHandlers(
   annotations: ChartAnnotation[],
   creatingType: AnnotationType | undefined,
   hoverState: HoverState,
-  isDraggingAnnotation: boolean
+  isDraggingAnnotation: boolean,
+  getXPosition?: (index: number) => number,
+  getYPosition?: (value: number) => number
 ) {
   return (e: MouseEvent) => {
     if (!chartContainerRef.current) return
@@ -45,7 +48,10 @@ export function setupHoverHandlers(
     for (const annotation of annotations) {
       if (annotation.type === 'text') {
         const textAnnotation = annotation as TextAnnotation
-        const pos = textAnnotation.position
+        const pos =
+          getXPosition && getYPosition
+            ? toPixelSpace(textAnnotation.position, getXPosition, getYPosition)
+            : { x: textAnnotation.position.x, y: textAnnotation.position.y }
         const fontSize = textAnnotation.fontSize ?? 14
         const padding = textAnnotation.padding ?? 8
 

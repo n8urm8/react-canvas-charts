@@ -114,4 +114,5 @@ const [annotations, setAnnotations] = useState<ChartAnnotation[]>([...])
 
 ## Documentation
 
-See `packages/chart-components/docs/annotations.md` for full API documentation.
+See [docs/annotations.md](../../docs/annotations.md) for full API documentation.
+

@@ -43,6 +43,8 @@ export interface TextAnnotation extends BaseAnnotation {
   backgroundColor?: string
   /** Padding around text */
   padding?: number
+  /** Background corner radius */
+  borderRadius?: number
 }
 
 export interface LineAnnotation extends BaseAnnotation {

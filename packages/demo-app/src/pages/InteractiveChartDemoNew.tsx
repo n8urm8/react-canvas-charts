@@ -830,6 +830,8 @@ export const InteractiveChartDemoNew: FC = () => {
     setLastCustomTagPlacement(placement)
   }, [])
 
+  const chartAiApiKey = import.meta.env.CHART_AI_API_KEY ?? ''
+
   return (
     <div className="p-3 md:p-5 font-sans bg-gray-50 min-h-screen">
       <div className="w-full mx-auto">
@@ -846,6 +848,7 @@ export const InteractiveChartDemoNew: FC = () => {
               <InteractiveChartCanvas
                 data={chartRecords}
                 config={{ ...config, annotations }}
+                selection={selection}
                 onSelectionChange={handleSelectionChange}
                 toolbarTools={toolbarTools}
                 toolbarEnabled={config.toolbar?.enabled !== false}
@@ -862,6 +865,7 @@ export const InteractiveChartDemoNew: FC = () => {
                 customTagCreationDataKey={customTagSeriesId}
                 onCustomTagPlacement={handleCustomTagPlacement}
                 createCustomTag={handleCreateCustomTag}
+                chartAiApiKey={chartAiApiKey}
               />
             </div>
 

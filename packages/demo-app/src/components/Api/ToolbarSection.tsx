@@ -83,21 +83,18 @@ const tools = [
     id: 'zoom-in', 
     label: 'Zoom In', 
     icon: <ZoomIn size={16} />,
-    type: 'action',
     tooltip: 'Zoom in on the chart'
   },
   { 
     id: 'zoom-out', 
     label: 'Zoom Out', 
     icon: <ZoomOut size={16} />,
-    type: 'action',
     tooltip: 'Zoom out of the chart'
   },
   { 
     id: 'reset', 
     label: 'Reset', 
     icon: <RotateCcw size={16} />,
-    type: 'action',
     tooltip: 'Reset zoom and pan'
   }
 ];
@@ -132,14 +129,12 @@ const tools = [
     id: 'pan', 
     label: 'Pan', 
     icon: <Hand size={16} />,
-    type: 'toggle',
     tooltip: 'Pan the chart'
   },
   { 
     id: 'select', 
     label: 'Select', 
     icon: <Move size={16} />,
-    type: 'toggle',
     tooltip: 'Select data range'
   }
 ];
@@ -175,35 +170,30 @@ const annotationTools = [
     id: 'text', 
     label: 'Text', 
     icon: <Type size={16} />,
-    type: 'toggle',
     tooltip: 'Add text annotation'
   },
   { 
     id: 'line', 
     label: 'Line', 
     icon: <Minus size={16} />,
-    type: 'toggle',
     tooltip: 'Draw line annotation'
   },
   { 
     id: 'circle', 
     label: 'Circle', 
     icon: <Circle size={16} />,
-    type: 'toggle',
     tooltip: 'Draw circle annotation'
   },
   { 
     id: 'freehand', 
     label: 'Draw', 
     icon: <Pencil size={16} />,
-    type: 'toggle',
     tooltip: 'Freehand drawing'
   },
   { 
     id: 'clear', 
     label: 'Clear All', 
     icon: <Trash2 size={16} />,
-    type: 'action',
     tooltip: 'Clear all annotations'
   }
 ];
@@ -291,10 +281,11 @@ const creatingType = activeTools[0] as AnnotationType | undefined;
   id: string;                    // Unique identifier
   label: string;                 // Display label
   icon?: React.ReactNode;        // Icon element (e.g., from lucide-react)
-  type?: 'toggle' | 'action';    // Toggle stays active, action fires once
-  tooltip?: string;              // Hover tooltip text
-  disabled?: boolean;            // Disable the tool
-  className?: string;            // Custom CSS class for the button
+      tooltip?: string;              // Hover tooltip text
+      disabled?: boolean;            // Disable the tool
+      ariaLabel?: string;            // Accessible label when needed
+      showLabel?: boolean;           // Show the text label on the button
+      className?: string;            // Custom CSS class for the button
 }`}
           </pre>
         </div>

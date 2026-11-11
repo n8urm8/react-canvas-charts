@@ -23,7 +23,7 @@ export const SeriesComponents = () => {
                 <dd className="text-gray-700 ml-4">Line stroke color. Falls back to ChartSurface color mapping.</dd>
               </div>
               <div>
-                <dt className="font-mono text-sm text-blue-600">width?: number</dt>
+                <dt className="font-mono text-sm text-blue-600">lineWidth?: number</dt>
                 <dd className="text-gray-700 ml-4">Line stroke width in pixels. Default: 2</dd>
               </div>
               <div>

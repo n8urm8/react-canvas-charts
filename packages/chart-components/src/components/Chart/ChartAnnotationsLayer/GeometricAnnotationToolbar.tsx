@@ -19,9 +19,14 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
   onDelete,
   position
 }) => {
-  const [localColor, setLocalColor] = useDebounce(annotation.color, 150, (color) =>
+  const [localColor, setLocalColor] = useDebounce(annotation.color ?? '#111827', 150, (color) => {
+    if (annotation.type === 'circle') {
+      onUpdate({ color, fillColor: color } as Partial<CircleAnnotation>)
+      return
+    }
+
     onUpdate({ color } as Partial<GeometricAnnotation>)
-  )
+  })
 
   const handleColorChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,7 +54,57 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
     }
   }, [annotation, onUpdate])
 
+  const handleLineDashChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      if (annotation.type !== 'line') {
+        return
+      }
+
+      const next = e.target.value
+      const dash =
+        next === 'solid'
+          ? undefined
+          : next === 'dashed'
+            ? [6, 4]
+            : [2, 3]
+
+      onUpdate({ dash } as Partial<LineAnnotation>)
+    },
+    [annotation.type, onUpdate]
+  )
+
+  const handleCircleRadiusChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      if (annotation.type !== 'circle') {
+        return
+      }
+
+      onUpdate({ radius: Number(e.target.value) } as Partial<CircleAnnotation>)
+    },
+    [annotation.type, onUpdate]
+  )
+
+  const handleCircleFillOpacityChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (annotation.type !== 'circle') {
+        return
+      }
+
+      onUpdate({ fillOpacity: Number(e.target.value) } as Partial<CircleAnnotation>)
+    },
+    [annotation.type, onUpdate]
+  )
+
   const isLineAnnotation = annotation.type === 'line'
+  const isCircleAnnotation = annotation.type === 'circle'
+  const lineDashValue =
+    annotation.type === 'line'
+      ? !annotation.dash || annotation.dash.length === 0
+        ? 'solid'
+        : annotation.dash[0] === 6
+          ? 'dashed'
+          : 'dotted'
+      : 'solid'
 
   return (
     <div
@@ -87,6 +142,25 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
 
       {isLineAnnotation && (
         <>
+          <select
+            value={lineDashValue}
+            onChange={handleLineDashChange}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontSize: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'white',
+              height: '28px'
+            }}
+            title="Line style"
+          >
+            <option value="solid">Solid</option>
+            <option value="dashed">Dashed</option>
+            <option value="dotted">Dotted</option>
+          </select>
+
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -112,6 +186,43 @@ export const GeometricAnnotationToolbar: React.FC<GeometricAnnotationToolbarProp
               <ArrowRight size={16} />
             </span>
           </button>
+        </>
+      )}
+
+      {isCircleAnnotation && (
+        <>
+          <select
+            value={annotation.radius}
+            onChange={handleCircleRadiusChange}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontSize: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              backgroundColor: 'white',
+              height: '28px'
+            }}
+            title="Point radius"
+          >
+            {[4, 6, 8, 10, 12, 14, 16, 20, 24].map((size) => (
+              <option key={size} value={size}>
+                Radius {size}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={annotation.fillOpacity ?? 0.2}
+            onChange={handleCircleFillOpacityChange}
+            onClick={(e) => e.stopPropagation()}
+            title="Fill opacity"
+            style={{ width: '90px' }}
+          />
         </>
       )}
 

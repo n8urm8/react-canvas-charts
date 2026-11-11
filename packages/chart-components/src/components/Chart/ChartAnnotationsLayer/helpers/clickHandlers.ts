@@ -6,6 +6,7 @@ import type {
   CircleAnnotation,
   FreehandAnnotation
 } from '../annotations.types'
+import { toPixelSpace } from '../utils'
 import { checkLineHit, checkCircleHit, checkFreehandHit } from './hitDetection'
 
 export interface SelectionState {
@@ -26,7 +27,9 @@ export function createClickHandler(
   enableCreation: boolean,
   selectionState: SelectionState,
   callbacks: ClickCallbacks,
-  buildNewAnnotation: (type: AnnotationType, x: number, y: number) => ChartAnnotation
+  buildNewAnnotation: (type: AnnotationType, x: number, y: number) => ChartAnnotation,
+  getXPosition?: (index: number) => number,
+  getYPosition?: (value: number) => number
 ) {
   return (e: MouseEvent) => {
     if (!chartContainerRef.current) return
@@ -65,7 +68,10 @@ export function createClickHandler(
     for (const annotation of annotations) {
       if (annotation.type === 'text') {
         const textAnnotation = annotation as TextAnnotation
-        const pos = textAnnotation.position
+        const pos =
+          getXPosition && getYPosition
+            ? toPixelSpace(textAnnotation.position, getXPosition, getYPosition)
+            : { x: textAnnotation.position.x, y: textAnnotation.position.y }
         const fontSize = textAnnotation.fontSize ?? 14
         const padding = textAnnotation.padding ?? 8
 

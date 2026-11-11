@@ -3,6 +3,7 @@ import type {
   ChartLegendLayout,
   ChartLegendPlacement,
   ChartToolbarPosition,
+  ChartAIAnnotationStyleConfig,
   ChartAnnotation,
   AnnotationType
 } from 'react-canvas-charts'
@@ -50,6 +51,12 @@ export interface InteractiveChartToolbarConfig {
   moveable?: boolean
 }
 
+export interface InteractiveChartAiConfig {
+  apiKey: string
+  model?: string
+  annotationStyleConfig?: ChartAIAnnotationStyleConfig
+}
+
 export interface InteractiveChartLegendConfig {
   enabled?: boolean
   placement?: ChartLegendPlacement
@@ -94,6 +101,7 @@ export interface InteractiveChartConfig {
   legend?: InteractiveChartLegendConfig
   annotations?: ChartAnnotation[]
   annotationMode?: AnnotationType | null
+  ai?: InteractiveChartAiConfig
 }
 
 export type ChartRecord = {

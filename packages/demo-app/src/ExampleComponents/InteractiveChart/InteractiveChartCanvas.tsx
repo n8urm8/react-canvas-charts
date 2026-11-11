@@ -1,8 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import {
   ChartAnnotationsLayer,
   ChartAreaSeries,
   ChartCursorLayer,
+  ChartAIAnalysisAssistant,
   ChartCustomTagsLayer,
   ChartGridLayer,
   ChartLegend,
@@ -29,7 +31,9 @@ import type { ChartRecord, InteractiveChartConfig, InteractiveChartToolbarTool }
 type InteractiveChartCanvasProps = {
   data: ChartRecord[]
   config: InteractiveChartConfig
+  selection?: ChartSelectionResult | null
   onSelectionChange?: (selection: ChartSelectionResult | null) => void
+  chartAiApiKey?: string
   toolbarTools?: InteractiveChartToolbarTool[]
   toolbarEnabled?: boolean
   toolbarMultiSelect?: boolean
@@ -54,7 +58,9 @@ const EMPTY_TOOL_IDS: string[] = []
 export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   data,
   config,
+  selection,
   onSelectionChange,
+  chartAiApiKey,
   toolbarTools: toolbarToolsOverride,
   toolbarEnabled,
   toolbarMultiSelect,
@@ -74,6 +80,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   createCustomTag
 }) => {
   const [activeAnnotationTool, setActiveAnnotationTool] = useState<AnnotationType | null>(null)
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false)
   const resolvedAxes = useMemo(() => {
     if (config.axes.length > 0) {
       return config.axes
@@ -152,7 +159,31 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
     return defaultToolbarTools
   }, [defaultToolbarTools, toolbarConfig?.tools, toolbarToolsOverride])
 
-  const resolvedToolbarEnabled = (toolbarEnabled ?? toolbarConfig?.enabled !== false) && resolvedToolbarTools.length > 0
+  const toolbarToolsWithAi = useMemo(() => {
+    if (!chartAiApiKey) {
+      return resolvedToolbarTools
+    }
+
+    const hasAiTool = resolvedToolbarTools.some((tool) => tool.id === 'ai-analysis')
+    if (hasAiTool) {
+      return resolvedToolbarTools
+    }
+
+    return [
+      ...resolvedToolbarTools,
+      {
+        id: 'ai-analysis',
+        label: 'AI Analysis',
+        icon: <Sparkles className="h-4 w-4" />,
+        ariaLabel: 'Open chart AI assistant',
+        showLabel: false,
+        tooltip: 'Ask questions about the chart data',
+      },
+    ]
+  }, [chartAiApiKey, resolvedToolbarTools])
+
+  const resolvedToolbarEnabled =
+    (toolbarEnabled ?? toolbarConfig?.enabled !== false) && toolbarToolsWithAi.length > 0
 
   const resolvedToolbarMultiSelect = toolbarMultiSelect ?? toolbarConfig?.multiSelect ?? true
 
@@ -185,9 +216,23 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
       if (tool.id === 'text' || tool.id === 'line' || tool.id === 'circle' || tool.id === 'freehand') {
         setActiveAnnotationTool(isActive ? (tool.id as AnnotationType) : null)
       }
+      if (tool.id === 'ai-analysis') {
+        setIsAiAssistantOpen(true)
+      }
       onToolbarToggle?.(tool, isActive, nextActive)
     },
     [onToolbarToggle]
+  )
+
+  const handleAiApplyAnnotations = useCallback(
+    (nextAnnotations: ChartAnnotation[]) => {
+      if (!onAnnotationsChange || nextAnnotations.length === 0) {
+        return
+      }
+
+      onAnnotationsChange([...(config.annotations ?? []), ...nextAnnotations])
+    },
+    [config.annotations, onAnnotationsChange]
   )
 
   const handleAnnotationComplete = useCallback(() => {
@@ -344,7 +389,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
 
         {resolvedToolbarEnabled ? (
           <ChartToolbar
-            tools={resolvedToolbarTools}
+            tools={toolbarToolsWithAi}
             activeToolIds={EMPTY_TOOL_IDS}
             defaultActiveToolIds={toolbarConfig?.defaultActiveIds}
             onToggle={handleToolbarToggle}
@@ -353,6 +398,18 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             visibility={resolvedToolbarVisibility}
             moveable={resolvedToolbarMoveable}
             onPositionChange={resolvedToolbarMoveable ? handleToolbarPositionChange : undefined}
+          />
+        ) : null}
+
+        {chartAiApiKey ? (
+          <ChartAIAnalysisAssistant
+            apiKey={chartAiApiKey}
+            model={config.ai?.model}
+            open={isAiAssistantOpen}
+            onOpenChange={setIsAiAssistantOpen}
+            selection={selection}
+            onApplyAnnotations={handleAiApplyAnnotations}
+            annotationStyleConfig={config.ai?.annotationStyleConfig}
           />
         ) : null}
       </ChartSurface>

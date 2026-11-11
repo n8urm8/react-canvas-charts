@@ -11,6 +11,7 @@ export default defineConfig(() => {
   }), tailwindcss()];
 
   return {
+    envPrefix: ['VITE_', 'CHART_'],
     plugins
   };
 });

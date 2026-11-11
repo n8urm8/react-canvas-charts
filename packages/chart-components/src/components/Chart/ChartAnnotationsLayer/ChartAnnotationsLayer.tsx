@@ -74,7 +74,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
   // Trigger canvas redraw when annotations change
   useEffect(() => {
     redrawRef.current?.()
-  }, [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint])
+  }, [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint, selectedAnnotationId])
 
   const draw = useCallback(
     (context: CanvasRenderingContext2D) => {
@@ -88,6 +88,10 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       annotations.forEach((annotation) => {
         switch (annotation.type) {
           case 'text':
+            // Hide the canvas text while this annotation is being edited via the HTML editor overlay.
+            if (annotation.id === selectedAnnotationId) {
+              break
+            }
             renderTextAnnotation(
               context,
               annotation,
@@ -144,7 +148,7 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         context.restore()
       }
     },
-    [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint, creatingType, chartSurface]
+    [annotations, hoveredAnnotationId, isDrawing, drawingEndPoint, creatingType, chartSurface, selectedAnnotationId]
   )
 
   const selectedAnnotation = selectedAnnotationId
@@ -205,7 +209,9 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         hoveredGeometricAnnotationId,
         setHoveredGeometricAnnotationId
       },
-      isDraggingAnnotation
+      isDraggingAnnotation,
+      chartSurface.getXPosition,
+      chartSurface.getYPosition
     )
 
     const container = chartContainerRef.current
@@ -216,7 +222,15 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
         container.style.cursor = 'default'
       }
     }
-  }, [annotations, creatingType, hoveredAnnotationId, hoveredGeometricAnnotationId, isDraggingAnnotation])
+  }, [
+    annotations,
+    creatingType,
+    hoveredAnnotationId,
+    hoveredGeometricAnnotationId,
+    isDraggingAnnotation,
+    chartSurface.getXPosition,
+    chartSurface.getYPosition,
+  ])
 
   // Handle mousedown to start drawing line/circle annotations
   useEffect(() => {
@@ -279,7 +293,9 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
       enableCreation,
       selectionState,
       callbacks,
-      buildNewAnnotation
+      buildNewAnnotation,
+      chartSurface.getXPosition,
+      chartSurface.getYPosition
     )
 
     const container = chartContainerRef.current
@@ -294,7 +310,9 @@ export const ChartAnnotationsLayer: React.FC<ChartAnnotationsLayerProps> = ({
     onAnnotationComplete,
     onAnnotationCreate,
     onAnnotationsChange,
-    selectedAnnotationId
+    selectedAnnotationId,
+      chartSurface.getXPosition,
+      chartSurface.getYPosition
   ])
 
   return (

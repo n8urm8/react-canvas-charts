@@ -113,14 +113,7 @@ To create grouped bars, each `ChartBarSeries` needs to know:
 ### Stacked Bar Example
 
 ```tsx
-import {
-  ChartSurface,
-  ChartBarSeries,
-  ChartXAxis,
-  ChartYAxis,
-  ChartGridLayer,
-  ChartLegend
-} from '@repo/chart-components'
+import { ChartSurface, ChartBarSeries, ChartXAxis, ChartYAxis, ChartGridLayer, ChartLegend } from 'react-canvas-charts'
 
 const data = [
   { month: 'Jan', product1: 4500, product2: 3200, product3: 2100 },
@@ -173,3 +166,4 @@ const data = [
 - **For cumulative totals**: Use stacked bars
 - **For direct comparison**: Use grouped bars (side-by-side)
 - **For overlapping visualization**: Use overlapping bars with opacity
+

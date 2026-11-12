@@ -8,7 +8,7 @@ import {
   ToolbarSection,
   AnnotationsSection
 } from '../components/Api'
-import { CustomTagsAndSelectorsSection } from '../components/Api'
+import { CustomTagsAndSelectorsSection, DataStructuresSection, LargeDatasetsSection } from '../components/Api'
 
 export const MainDemo = () => {
   return (
@@ -28,6 +28,12 @@ export const MainDemo = () => {
               ChartSurface
             </a>
             <span className="text-xs text-gray-500 block mt-1">Core chart container & SparkSurface</span>
+          </li>
+          <li>
+            <a href="#data-structures" className="text-blue-600 hover:text-blue-800 hover:underline block">
+              Data Structures
+            </a>
+            <span className="text-xs text-gray-500 block mt-1">Rows, typed-array columns, view range</span>
           </li>
           <li>
             <a href="#series" className="text-blue-600 hover:text-blue-800 hover:underline block">
@@ -71,6 +77,12 @@ export const MainDemo = () => {
             </a>
             <span className="text-xs text-gray-500 block mt-1">Interactive overlays and annotations</span>
           </li>
+          <li>
+            <a href="#large-datasets" className="text-blue-600 hover:text-blue-800 hover:underline block">
+              Large Datasets
+            </a>
+            <span className="text-xs text-gray-500 block mt-1">M4 decimation &amp; min/max pyramid</span>
+          </li>
         </ul>
       </nav>
 
@@ -102,13 +114,15 @@ export const MainDemo = () => {
 
         <GettingStarted />
         <ChartSurfaceSection />
+        <DataStructuresSection />
         <SeriesComponents />
         <AxesSection />
         <LayersSection />
         <ControlsSection />
         <ToolbarSection />
         <AnnotationsSection />
-  <CustomTagsAndSelectorsSection />
+        <CustomTagsAndSelectorsSection />
+        <LargeDatasetsSection />
 
         {/* Footer */}
         <footer className="mt-8 md:mt-16 pt-6 md:pt-8 border-t-2 border-gray-200">

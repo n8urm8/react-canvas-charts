@@ -11,8 +11,29 @@ export const ChartSurfaceSection = () => {
         <h3 className="font-semibold text-lg mb-3">Key Props</h3>
         <dl className="space-y-3">
           <div>
-            <dt className="font-mono text-sm text-blue-600">data: Record&lt;string, unknown&gt;[]</dt>
-            <dd className="text-gray-700 ml-4">Array of data objects. Each object represents one data point.</dd>
+            <dt className="font-mono text-sm text-blue-600">data?: Record&lt;string, unknown&gt;[]</dt>
+            <dd className="text-gray-700 ml-4">
+              Array of data objects. Each object represents one data point. For 100k+ points prefer{' '}
+              <code>columns</code>.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-mono text-sm text-blue-600">columns?: ChartColumnarData</dt>
+            <dd className="text-gray-700 ml-4">
+              Column-oriented typed-array data for large datasets (10M+ points). Takes precedence over{' '}
+              <code>data</code>. See{' '}
+              <a href="#data-structures" className="text-blue-600 hover:underline">
+                Data Structures
+              </a>
+              .
+            </dd>
+          </div>
+          <div>
+            <dt className="font-mono text-sm text-blue-600">viewRange?: {'{ start: number; end: number }'}</dt>
+            <dd className="text-gray-700 ml-4">
+              Inclusive range of data indices to display, for zooming. Defaults to all data. Callback indices stay
+              absolute.
+            </dd>
           </div>
           <div>
             <dt className="font-mono text-sm text-blue-600">xKey: string</dt>

@@ -13,7 +13,7 @@
     "build:dev": "pnpm --filter react-canvas-charts build:dev",
     "lint": "pnpm -r lint",
     "preview": "pnpm --filter charts-demo preview",
-    "publish:charts": "pnpm --filter react-canvas-charts publish --no-git-checks"
+    "publish:charts": "pnpm build:charts && cd packages/chart-components && npm publish"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

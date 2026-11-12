@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defaultClientConditions, defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { readFileSync } from "node:fs";
@@ -18,6 +18,9 @@ export default defineConfig(() => {
   return {
     envPrefix: ['VITE_', 'CHART_'],
     define: { __LIB_VERSION__: JSON.stringify(libVersion) },
+    // Resolve react-canvas-charts to its TypeScript source (its "react-canvas-charts:source" export) so the
+    // demo always runs the workspace code, not a stale dist build.
+    resolve: { conditions: ["react-canvas-charts:source", ...defaultClientConditions] },
     plugins
   };
 });

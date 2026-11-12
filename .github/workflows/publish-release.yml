@@ -1,26 +1,57 @@
 name: Publish to NPM
 
+# Publishes with npm trusted publishing (OIDC): no NPM_TOKEN secret is used.
+# npmjs.com must list this repository and this exact workflow filename (publish-release.yml)
+# as a trusted publisher for react-canvas-charts. See https://docs.npmjs.com/trusted-publishers
+# Provenance attestations are generated automatically.
+
 on:
   release:
     types: [created]
 
+permissions:
+  contents: read
+  id-token: write # Required for OIDC trusted publishing
+
 jobs:
   build-publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Trusted publishing requires a GitHub-hosted runner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm CLI 11.5.1 or later.
+      - name: Update npm
+        run: npm install -g npm@latest && npm --version
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10
-      - name: Install dependencies and build
-        run: pnpm i && pnpm build:charts
-      - name: Publish package on NPM
-        run: pnpm publish:charts
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check release tag matches package version
+        working-directory: packages/chart-components
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${RELEASE_TAG#v}" != "$version" ]; then
+            echo "::error::Release tag $RELEASE_TAG does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm build:charts
+
+      # Publish with the npm CLI (pnpm does not support trusted publishing).
+      - name: Publish package on NPM
+        working-directory: packages/chart-components
+        run: npm publish

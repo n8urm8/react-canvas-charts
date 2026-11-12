@@ -1,2 +1,7 @@
 packages:
   - packages/*
+allowBuilds:
+  # Optional postinstall type check (`|| true`); not needed to build or run.
+  '@openrouter/sdk': false
+  # Verifies the platform binary is installed.
+  esbuild: true

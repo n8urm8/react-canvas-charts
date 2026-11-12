@@ -15,6 +15,9 @@
     "preview": "pnpm --filter charts-demo preview",
     "publish:charts": "pnpm build:charts && cd packages/chart-components && npm publish"
   },
+  "engines": {
+    "node": ">=26.13.1"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1"
   }

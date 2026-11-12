@@ -23,7 +23,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          # Node version comes from .nvmrc; check-latest picks up new patch (security) releases
+          # immediately instead of waiting for the runner's cached copy to be updated.
+          node-version-file: '.nvmrc'
+          check-latest: true
           registry-url: 'https://registry.npmjs.org'
 
       # Trusted publishing needs npm CLI 11.5.1 or later.

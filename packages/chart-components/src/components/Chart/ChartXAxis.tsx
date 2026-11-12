@@ -15,6 +15,54 @@ export interface ChartXAxisProps extends ChartAxisProps {
   formatLabel?: (value: number) => string
   /** Scale ID to use when in valueScale mode */
   scaleId?: string
+  /**
+   * Thin out category/time labels so they don't overlap. Labels are measured with the axis font
+   * (and `labelRotation`, if set) and ticks are spaced to fit. Defaults to true.
+   */
+  avoidLabelOverlap?: boolean
+}
+
+/** Minimum horizontal gap between neighbouring labels, in CSS pixels. */
+const LABEL_GAP = 12
+
+let measureContext: CanvasRenderingContext2D | null | undefined
+const getMeasureContext = () => {
+  if (measureContext === undefined) {
+    measureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
+  }
+  return measureContext
+}
+
+interface LabelFit {
+  font: string
+  fontSize: number
+  rotationDegrees: number
+}
+
+/**
+ * Horizontal space one label needs, measured from a few sample labels. With rotation, angled
+ * labels can sit closer together: they only collide once the spacing drops below fontSize / sin.
+ */
+const labelFootprint = (
+  fit: LabelFit,
+  viewStart: number,
+  viewEnd: number,
+  getLabel: (index: number) => string
+): number => {
+  const context = getMeasureContext()
+  if (!context) return 0
+  context.font = fit.font
+  let width = 0
+  const samples = 5
+  for (let k = 0; k < samples; k += 1) {
+    const index = Math.round(viewStart + ((viewEnd - viewStart) * k) / (samples - 1))
+    width = Math.max(width, context.measureText(getLabel(index)).width)
+  }
+  const radians = (fit.rotationDegrees * Math.PI) / 180
+  const sin = Math.abs(Math.sin(radians))
+  const cos = Math.abs(Math.cos(radians))
+  if (sin < 0.01) return width
+  return Math.min(width * cos + fit.fontSize * sin, fit.fontSize / sin)
 }
 
 /**
@@ -28,7 +76,8 @@ const computeTickDescriptor = (
   getLabel: (index: number) => string,
   chartWidth: number,
   tickStep?: number,
-  maxTicks?: number
+  maxTicks?: number,
+  fit?: LabelFit | null
 ) => {
   const count = viewEnd - viewStart + 1
   if (count <= 0) {
@@ -43,14 +92,28 @@ const computeTickDescriptor = (
       ? requestedMaxTicks
       : Math.max(1, Math.floor(chartWidth))
   const autoStep = Math.max(1, Math.ceil(count / normalizedMaxTicks))
-  const effectiveStep = Math.max(normalizedStep, autoStep)
 
-  const indices: number[] = []
-  for (let offset = 0; offset < count; offset += effectiveStep) {
-    indices.push(viewStart + offset)
+  // Space ticks so neighbouring labels have room for their measured width.
+  let fitStep = 1
+  if (fit && count > 1) {
+    const minSpacingPx = labelFootprint(fit, viewStart, viewEnd, getLabel) + LABEL_GAP
+    const pxPerIndex = Math.abs(getXPosition(viewStart + 1) - getXPosition(viewStart))
+    if (pxPerIndex > 0) {
+      fitStep = Math.ceil(minSpacingPx / pxPerIndex)
+    }
   }
-  if (indices[indices.length - 1] !== viewEnd) {
-    indices.push(viewEnd)
+  const effectiveStep = Math.max(normalizedStep, autoStep, fitStep)
+
+  // Spread ticks evenly from the first to the last visible index, at least `effectiveStep` apart,
+  // so the end tick never crowds (or leaves a gap after) its neighbour.
+  const span = count - 1
+  const intervals = span === 0 ? 0 : Math.max(1, Math.floor(span / effectiveStep))
+  const indices: number[] = []
+  for (let k = 0; k <= intervals; k += 1) {
+    const index = intervals === 0 ? viewStart : viewStart + Math.round((k * span) / intervals)
+    if (indices[indices.length - 1] !== index) {
+      indices.push(index)
+    }
   }
 
   const positions: number[] = new Array(indices.length)
@@ -69,8 +132,21 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
   tickCount = 5,
   formatLabel,
   scaleId,
+  avoidLabelOverlap = true,
   ...axisProps
 }) => {
+  const labelFontSize = axisProps.labelFontSize ?? defaultChartAxisProps.labelFontSize
+  const labelFontFamily = axisProps.labelFontFamily ?? defaultChartAxisProps.labelFontFamily
+  const labelRotation = axisProps.labelRotation ?? defaultChartAxisProps.labelRotation
+  const labelsVisible = axisProps.showLabels ?? defaultChartAxisProps.showLabels
+  const labelFit = useMemo<LabelFit | null>(
+    () =>
+      avoidLabelOverlap && labelsVisible
+        ? { font: `${labelFontSize}px ${labelFontFamily}`, fontSize: labelFontSize, rotationDegrees: labelRotation }
+        : null,
+    [avoidLabelOverlap, labelsVisible, labelFontSize, labelFontFamily, labelRotation]
+  )
+
   const {
     viewRange,
     getXPosition,
@@ -147,9 +223,11 @@ export const ChartXAxis: React.FC<ChartXAxisProps> = ({
       getLabel,
       chartArea.width,
       axisProps.tickStep,
-      axisProps.maxTicks
+      axisProps.maxTicks,
+      labelFit
     )
   }, [
+    labelFit,
     valueScale,
     valueTickValues,
     valueTickPositions,

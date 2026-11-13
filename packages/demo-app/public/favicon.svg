@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .tile { fill: #0f172a; stroke: none; }
+    .area { opacity: 1; }
+    @media (prefers-color-scheme: light) {
+      .tile { fill: #f8fafc; stroke: #cbd5e1; }
+      .area { opacity: 0.79; }
+    }
+  </style>
+  <rect class="tile" x=".75" y=".75" width="62.5" height="62.5" rx="13.25" stroke-width="1.5"/>
+  <!-- Line pixels: brighten toward the head -->
+  <g>
+    <rect x="8" y="40" width="7" height="7" rx="1.5" fill="#3b82f6" fill-opacity=".35"/>
+    <rect x="16" y="40" width="7" height="7" rx="1.5" fill="#2f93df" fill-opacity=".5"/>
+    <rect x="24" y="32" width="7" height="7" rx="1.5" fill="#24a4c7" fill-opacity=".65"/>
+    <rect x="32" y="24" width="7" height="7" rx="1.5" fill="#1ab2ae" fill-opacity=".8"/>
+    <rect x="40" y="16" width="7" height="7" rx="1.5" fill="#14b896" fill-opacity=".92"/>
+    <rect x="48" y="8" width="7" height="7" rx="1.5" fill="#10b981"/>
+  </g>
+  <!-- Area fill under the line -->
+  <g class="area">
+    <rect x="8" y="48" width="7" height="7" rx="1.5" fill="#3b82f6" fill-opacity=".14"/>
+    <rect x="16" y="48" width="7" height="7" rx="1.5" fill="#2f93df" fill-opacity=".17"/>
+    <rect x="24" y="40" width="7" height="7" rx="1.5" fill="#24a4c7" fill-opacity=".2"/>
+    <rect x="24" y="48" width="7" height="7" rx="1.5" fill="#24a4c7" fill-opacity=".2"/>
+    <rect x="32" y="32" width="7" height="7" rx="1.5" fill="#1ab2ae" fill-opacity=".22"/>
+    <rect x="32" y="40" width="7" height="7" rx="1.5" fill="#1ab2ae" fill-opacity=".22"/>
+    <rect x="32" y="48" width="7" height="7" rx="1.5" fill="#1ab2ae" fill-opacity=".22"/>
+    <rect x="40" y="24" width="7" height="7" rx="1.5" fill="#14b896" fill-opacity=".25"/>
+    <rect x="40" y="32" width="7" height="7" rx="1.5" fill="#14b896" fill-opacity=".25"/>
+    <rect x="40" y="40" width="7" height="7" rx="1.5" fill="#14b896" fill-opacity=".25"/>
+    <rect x="40" y="48" width="7" height="7" rx="1.5" fill="#14b896" fill-opacity=".25"/>
+    <rect x="48" y="16" width="7" height="7" rx="1.5" fill="#10b981" fill-opacity=".28"/>
+    <rect x="48" y="24" width="7" height="7" rx="1.5" fill="#10b981" fill-opacity=".28"/>
+    <rect x="48" y="32" width="7" height="7" rx="1.5" fill="#10b981" fill-opacity=".28"/>
+    <rect x="48" y="40" width="7" height="7" rx="1.5" fill="#10b981" fill-opacity=".28"/>
+    <rect x="48" y="48" width="7" height="7" rx="1.5" fill="#10b981" fill-opacity=".28"/>
+  </g>
+</svg>

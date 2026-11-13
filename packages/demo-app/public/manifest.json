@@ -4,7 +4,7 @@
   "description": "A high-performance, canvas-based charting library for React applications",
   "icons": [
     {
-      "src": "/vite.svg",
+      "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any"
     }

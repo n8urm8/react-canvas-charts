@@ -95,7 +95,12 @@ export const Navigation: React.FC = () => {
     >
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-3 md:py-4">
-          <div className={`font-bold text-lg md:text-2xl ${isBeatChartsRoute ? 'text-lime-300' : 'text-black'}`}>
+          <div
+            className={`flex items-center gap-2 font-bold text-lg md:text-2xl ${
+              isBeatChartsRoute ? 'text-lime-300' : 'text-black'
+            }`}
+          >
+            <img src="/favicon.svg" alt="" aria-hidden="true" className="w-7 h-7 md:w-8 md:h-8 shrink-0" />
             React Canvas Charts
           </div>
 

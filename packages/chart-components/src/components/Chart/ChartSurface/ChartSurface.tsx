@@ -981,8 +981,26 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const touchWindowListenerRef = useRef<((event: TouchEvent) => void) | null>(null)
 
+  // A second finger (pinch or two-finger pan) is a gesture for the chart, not a drag selection.
+  // Drop any one-finger selection that is still in progress without reporting it.
+  const cancelTouchSelection = useCallback(() => {
+    if (touchWindowListenerRef.current) {
+      window.removeEventListener('touchend', touchWindowListenerRef.current)
+      touchWindowListenerRef.current = null
+    }
+    if (!selectionActiveRef.current && selectionRangeRef.current === null) {
+      return
+    }
+    selectionActiveRef.current = false
+    selectionStartRef.current = null
+    selectionRangeRef.current = null
+    requestOverlayRender()
+  }, [requestOverlayRender])
+
   const handleTouchStart = useCallback(
     (event: TouchEvent, canvas: HTMLCanvasElement) => {
+      if (event.touches.length > 1) return
+
       const position = getRelativeTouchPosition(event, canvas)
       if (!position) return
 
@@ -1015,6 +1033,11 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const handleTouchMove = useCallback(
     (event: TouchEvent, canvas: HTMLCanvasElement) => {
+      if (event.touches.length > 1) {
+        cancelTouchSelection()
+        return
+      }
+
       const position = getRelativeTouchPosition(event, canvas)
       if (!position) return
 
@@ -1023,7 +1046,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         event.preventDefault()
       }
     },
-    [getRelativeTouchPosition, handlePointerMove]
+    [cancelTouchSelection, getRelativeTouchPosition, handlePointerMove]
   )
 
   const handleTouchEnd = useCallback(

@@ -87,6 +87,8 @@ export interface InteractiveChartConfig {
   cursorSnapToPoints: boolean
   cursorSnapAlongYAxis: boolean
   cursorShowHoverPoints: boolean
+  enableZoomLayer: boolean
+  zoomWheelMode: 'modifier' | 'always' | 'off'
   tooltipPosition: TooltipPosition
   tooltipTemplate: string
   axes: InteractiveChartAxisConfig[]

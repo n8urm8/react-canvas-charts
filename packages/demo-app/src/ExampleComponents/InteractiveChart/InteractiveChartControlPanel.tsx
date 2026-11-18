@@ -814,6 +814,34 @@ export const InteractiveChartControlPanel: React.FC<InteractiveChartControlPanel
           <span className="text-sm text-gray-600">Enable Tooltip</span>
         </label>
 
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={config.enableZoomLayer}
+            onChange={(event) => setConfig((prev) => ({ ...prev, enableZoomLayer: event.target.checked }))}
+            className="mr-2"
+          />
+          <span className="text-sm text-gray-600">Enable Scroll / Pinch Zoom</span>
+        </label>
+
+        {config.enableZoomLayer ? (
+          <div className="ml-6">
+            <label className="block text-sm text-gray-600 mb-1">Mouse Wheel Zoom</label>
+            <select
+              value={config.zoomWheelMode}
+              onChange={(event) => setConfig((prev) => ({
+                ...prev,
+                zoomWheelMode: event.target.value as typeof prev.zoomWheelMode,
+              }))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+            >
+              <option value="modifier">Ctrl / ⌘ + Wheel</option>
+              <option value="always">Wheel</option>
+              <option value="off">Off (pinch and pan only)</option>
+            </select>
+          </div>
+        ) : null}
+
         {config.enableCursor ? (
           <>
             <label className="flex items-center ml-4">

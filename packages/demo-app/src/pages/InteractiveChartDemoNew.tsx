@@ -129,6 +129,8 @@ const INITIAL_CONFIG: InteractiveChartConfig = {
   cursorSnapToPoints: true,
   cursorSnapAlongYAxis: false,
   cursorShowHoverPoints: true,
+  enableZoomLayer: false,
+  zoomWheelMode: 'modifier',
   tooltipPosition: 'follow',
   tooltipTemplate: '',
   axes: [{ id: 'axis-1', title: 'Axis 1', position: 'left' }],
@@ -441,6 +443,22 @@ export const InteractiveChartDemoNew: FC = () => {
 
   const visibleCount = Math.max(0, visibleRange.end - visibleRange.start + 1)
   const liveCount = Math.max(0, liveEnd - liveStart + 1)
+
+  /**
+   * Wheel and pinch steps refine the current zoom level rather than adding history entries, so the
+   * toolbar's Zoom Out still steps back one committed level. The live entry at the bottom is kept.
+   */
+  const handleViewRangeChange = useCallback(
+    (range: { start: number; end: number }) => {
+      const start = clamp(range.start, liveStart, liveEnd)
+      const end = clamp(range.end, start, liveEnd)
+      setZoomStack((previous) => {
+        const next = { start, end }
+        return previous.length > 1 ? [...previous.slice(0, -1), next] : [...previous, next]
+      })
+    },
+    [liveEnd, liveStart]
+  )
 
   // Columnar view over the typed buffers; no per-point objects are created.
   const chartColumns = useMemo(() => toChartColumns(timeSeries), [timeSeries])
@@ -853,6 +871,7 @@ export const InteractiveChartDemoNew: FC = () => {
                 config={{ ...config, annotations }}
                 selection={selection}
                 onSelectionChange={handleSelectionChange}
+                onViewRangeChange={handleViewRangeChange}
                 toolbarTools={toolbarTools}
                 toolbarEnabled={config.toolbar?.enabled !== false}
                 toolbarMultiSelect={false}

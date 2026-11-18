@@ -75,6 +75,7 @@ export const buildInteractiveChartCodePreview = (
     `height={${config.height}}`,
     `margin={{ top: ${config.padding}, right: ${config.padding}, bottom: ${config.padding}, left: ${config.padding} }}`,
     `defaultColors={${formatArray(defaultColors)}}`,
+    config.enableZoomLayer ? 'viewRange={viewRange}' : '',
     valueScales,
   ]);
 
@@ -137,6 +138,10 @@ export const buildInteractiveChartCodePreview = (
 
   const cursorLayer = config.enableCursor
     ? `  <ChartCursorLayer snapToDataPoints={${config.cursorSnapToPoints}} snapAlongYAxis={${config.cursorSnapAlongYAxis}} showHoverPoints={${config.cursorShowHoverPoints}} />`
+    : '';
+
+  const zoomLayer = config.enableZoomLayer
+    ? `  <ChartZoomLayer onViewRangeChange={setViewRange} wheel={${config.zoomWheelMode === 'off' ? 'false' : JSON.stringify(config.zoomWheelMode)}} />`
     : '';
 
   const tooltipLayer = config.enableTooltip
@@ -228,6 +233,7 @@ export const buildInteractiveChartCodePreview = (
     pointLayers,
     valueLabelLayers,
     cursorLayer,
+    zoomLayer,
     tooltipLayer,
     legendLayer,
     toolbarLayer,
@@ -235,5 +241,7 @@ export const buildInteractiveChartCodePreview = (
     .filter(Boolean)
     .join('\n');
 
-  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n  ChartTooltipLayer,\n  ChartTitleLayer,\n  ChartToolbar,\n  ChartLegend,\n} from 'react-canvas-charts';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
+  const zoomImport = config.enableZoomLayer ? '  ChartZoomLayer,\n' : '';
+
+  return `import {\n  ChartSurface,\n  ChartGridLayer,\n  ChartXAxis,\n  ChartYAxis,\n  ChartLineSeries,\n  ChartPointSeries,\n  ChartAreaSeries,\n  ChartValueLabels,\n  ChartCursorLayer,\n${zoomImport}  ChartTooltipLayer,\n  ChartTitleLayer,\n  ChartToolbar,\n  ChartLegend,\n} from 'react-canvas-charts';\n\n${dataCode}\n\n<ChartSurface\n  ${surfaceProps}\n>\n${layers}\n</ChartSurface>`;
 };

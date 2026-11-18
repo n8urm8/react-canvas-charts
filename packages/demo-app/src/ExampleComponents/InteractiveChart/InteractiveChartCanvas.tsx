@@ -4,6 +4,7 @@ import {
   ChartAnnotationsLayer,
   ChartAreaSeries,
   ChartCursorLayer,
+  ChartZoomLayer,
   ChartAIAnalysisAssistant,
   ChartCustomTagsLayer,
   ChartGridLayer,
@@ -38,6 +39,8 @@ type InteractiveChartCanvasProps = {
   config: InteractiveChartConfig
   selection?: ChartSelectionResult | null
   onSelectionChange?: (selection: ChartSelectionResult | null) => void
+  /** Receives wheel / pinch / pan zoom steps when the zoom layer is enabled in the config. */
+  onViewRangeChange?: (range: ChartViewRange) => void
   chartAiApiKey?: string
   toolbarTools?: InteractiveChartToolbarTool[]
   toolbarEnabled?: boolean
@@ -69,6 +72,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   config,
   selection,
   onSelectionChange,
+  onViewRangeChange,
   chartAiApiKey,
   toolbarTools: toolbarToolsOverride,
   toolbarEnabled,
@@ -347,6 +351,13 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
             snapToDataPoints={config.cursorSnapToPoints}
             snapAlongYAxis={config.cursorSnapAlongYAxis}
             showHoverPoints={config.cursorShowHoverPoints}
+          />
+        ) : null}
+
+        {config.enableZoomLayer && onViewRangeChange ? (
+          <ChartZoomLayer
+            onViewRangeChange={onViewRangeChange}
+            wheel={config.zoomWheelMode === 'off' ? false : config.zoomWheelMode}
           />
         ) : null}
 

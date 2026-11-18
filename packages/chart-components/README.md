@@ -32,7 +32,7 @@ Ensure `react`, `react-dom`, and `lucide-react` are available (they are peer dep
 
 ### Canvas Composition Example
 
-The library exports low-level primitives (e.g., `ChartSurface`, `ChartLineSeries`, `ChartCursorLayer`) that you can compose directly. The example below mirrors the generated code preview shown in the Interactive Chart demo and demonstrates how each layer fits together.
+The library exports low-level primitives (e.g., `ChartSurface`, `ChartLineSeries`, `ChartCursorLayer`) that you can compose directly. `ChartZoomLayer` is opt-in: add it to enable wheel, pinch and pan zoom, and leave it out for charts that should not capture those gestures. The example below mirrors the generated code preview shown in the Interactive Chart demo and demonstrates how each layer fits together.
 
 ```tsx
 import { useState } from 'react'

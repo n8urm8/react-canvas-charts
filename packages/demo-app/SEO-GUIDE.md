@@ -251,12 +251,14 @@ Track these metrics after deployment:
 
 ## 🔧 Update URLs
 
-**Current Deployment URL**: `https://react-canvas-charts.netlify.app/`
+**Canonical domain**: `https://reactcanvascharts.com/` (served by Netlify; `react-canvas-charts.netlify.app` is the same deployment)
 
-All URLs have been configured for the Netlify deployment. If you switch to a custom domain in the future, update URLs in:
-- `index.html` (canonical, og:url, twitter:url, structured data)
-- `sitemap.xml` (all loc elements)
-- `robots.txt` (sitemap reference)
+Every canonical, og:url, twitter:url and sitemap URL uses the canonical domain. Each route sets its own canonical and title at runtime through `src/components/PageMeta.tsx`. If the domain changes, update:
+- `SITE_URL` in `src/components/PageMeta.tsx`
+- `index.html` (canonical, og:url, twitter:url, structured data `url`)
+- `public/sitemap.xml` (all loc elements)
+- `public/robots.txt` (sitemap reference)
+- `packages/chart-components/package.json` (`homepage`) and its README link
 
 ---
 

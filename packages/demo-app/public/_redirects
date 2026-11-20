@@ -1,1 +1,10 @@
-/*    /index.html   200
+# Known app routes serve the SPA shell with a 200.
+/interactive      /index.html   200
+/interactive/     /index.html   200
+/examples         /index.html   200
+/examples/        /index.html   200
+/beat-charts      /index.html   200
+/beat-charts/     /index.html   200
+
+# Any other path gets the SPA shell with a real 404 status. The shell renders the NotFound page.
+/*                /index.html   404

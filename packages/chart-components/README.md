@@ -4,7 +4,7 @@
 
 React Canvas Charts is a streaming-friendly charting library built on React, TypeScript, and the HTML5 canvas element. The package ships reusable chart primitives (surface, layers, overlays).
 
-Check out the [documentation page](https://react-canvas-charts.netlify.app) for information and an interactive demo.
+Check out the [documentation page](https://reactcanvascharts.com) for information and an interactive demo.
 
 ## Features
 

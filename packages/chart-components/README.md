@@ -32,7 +32,7 @@ Ensure `react`, `react-dom`, and `lucide-react` are available (they are peer dep
 
 ### Canvas Composition Example
 
-The library exports low-level primitives (e.g., `ChartSurface`, `ChartLineSeries`, `ChartCursorLayer`) that you can compose directly. `ChartZoomLayer` is opt-in: add it to enable wheel, pinch and pan zoom, and leave it out for charts that should not capture those gestures. The example below mirrors the generated code preview shown in the Interactive Chart demo and demonstrates how each layer fits together.
+The library exports low-level primitives (e.g., `ChartSurface`, `ChartLineSeries`, `ChartCursorLayer`) that you can compose directly. `ChartZoomLayer` is opt-in: add it to enable wheel, pinch and drag zoom and pan. Gestures over the plot zoom and pan the x range, and gestures over a value axis's labels act on that axis only. See [docs/zoom-and-pan.md](../../docs/zoom-and-pan.md) for every gesture, the value-axis wiring, and the toolbar pattern. The example below mirrors the generated code preview shown in the Interactive Chart demo and demonstrates how each layer fits together.
 
 ```tsx
 import { useState } from 'react'
@@ -152,6 +152,7 @@ pnpm lint
 ## Documentation
 
 - `docs/zooming-and-streaming.md` – describes how to synchronize streaming data, maintain zoom stacks, and handle user selections.
+- `docs/zoom-and-pan.md` – covers `ChartZoomLayer`: wheel, pinch, and drag zoom and pan, value-axis zoom, clipping, and toolbar zoom buttons.
 - `src/ExampleComponents/InteractiveChart` – contains the reusable interactive chart canvas, control panel, quick actions, and related helpers used in the demo application.
 
 ## License

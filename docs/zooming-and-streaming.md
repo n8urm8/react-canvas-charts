@@ -120,7 +120,7 @@ setDataPoints((previous) => {
 
 ## Applying a Selection as a Zoom
 
-When the user brushes a selection in the chart, we push a new zoom range that is relative to the full dataset:
+When the user brushes a selection in the chart, we push a new zoom range that is relative to the full dataset. Wheel, pinch, and drag gestures feed the same stack through `ChartZoomLayer`, and value-axis zoom is kept separately from the x stack. See [zoom-and-pan.md](zoom-and-pan.md) for those gestures and for how the demo's Zoom In button zooms around the centre when nothing is selected.
 
 ```ts
 const handleToolbarToggle = (

@@ -104,6 +104,90 @@ export function LayersSection() {
           </div>
         </div>
 
+        {/* ChartZoomLayer */}
+        <div>
+          <h3 className="text-2xl font-semibold mb-3">ChartZoomLayer</h3>
+          <p className="text-gray-700 mb-4">
+            Adds wheel, pinch, and drag zoom and pan to the chart. It is opt-in: leave it out for charts that should not
+            capture those gestures. Gestures over the plot or x-axis change the x range. Gestures over a value axis's
+            labels change only that axis. The layer is controlled: it reports the next range or domain, and your state
+            passes it back. See <code className="text-blue-600">docs/zoom-and-pan.md</code> for the full guide.
+          </p>
+
+          <div className="bg-gray-50 p-6 rounded-lg mb-4">
+            <h4 className="font-semibold mb-3">Props</h4>
+            <dl className="space-y-3">
+              <div>
+                <dt className="font-mono text-sm text-blue-600">onViewRangeChange: (range: ChartViewRange) =&gt; void</dt>
+                <dd className="text-gray-700 ml-4">
+                  Receives the next inclusive x range. Store it and pass it back as the surface's viewRange. Required.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">
+                  onValueDomainChange?: (scaleId: string, domain: ChartZoomValueDomain | null) =&gt; void
+                </dt>
+                <dd className="text-gray-700 ml-4">
+                  Receives the next domain for a value axis, or null when the axis is automatic again. Feed it back into
+                  that scale's domain in valueScales. Without it, value-axis gestures do nothing.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">wheel?: 'modifier' | 'always' | false</dt>
+                <dd className="text-gray-700 ml-4">
+                  Mouse wheel zoom. 'modifier' (default) zooms with Ctrl/⌘ + wheel. 'always' zooms with plain wheel.
+                  false turns wheel zoom off.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">pinch?: boolean</dt>
+                <dd className="text-gray-700 ml-4">Two-finger pinch zoom on touch screens. Default: true</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">pan?: boolean</dt>
+                <dd className="text-gray-700 ml-4">
+                  Ctrl/⌘ + drag, horizontal scroll, Shift + wheel, and two-finger drag panning. Default: true
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">minSpan?: number</dt>
+                <dd className="text-gray-700 ml-4">Smallest visible x span, in data points. Default: 4</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-gray-50 p-6 rounded-lg mb-4">
+            <h4 className="font-semibold mb-3">Gestures</h4>
+            <dl className="space-y-3">
+              <div>
+                <dt className="font-mono text-sm text-blue-600">Plot and x-axis</dt>
+                <dd className="text-gray-700 ml-4">
+                  Ctrl/⌘ + wheel or pinch zooms x. Horizontal scroll or Shift + wheel pans x. Ctrl/⌘ + drag and
+                  two-finger drag pan x and y together.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-mono text-sm text-blue-600">Value axis labels</dt>
+                <dd className="text-gray-700 ml-4">
+                  Wheel or pinch zooms that axis. Ctrl/⌘ + drag and two-finger drag pan that axis. Double-click returns
+                  it to automatic.
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="font-semibold mb-2">Example</h4>
+            <pre className="text-sm bg-white p-4 rounded overflow-x-auto">
+              {`<ChartZoomLayer
+  onViewRangeChange={setViewRange}
+  onValueDomainChange={(scaleId, domain) => setValueDomains(...)}
+  wheel="modifier"
+/>`}
+            </pre>
+          </div>
+        </div>
+
         {/* ChartTooltipLayer */}
         <div>
           <h3 className="text-2xl font-semibold mb-3">ChartTooltipLayer</h3>

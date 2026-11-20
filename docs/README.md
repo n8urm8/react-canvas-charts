@@ -7,9 +7,10 @@ This folder is the conceptual documentation layer for the monorepo. It is the be
 1. [../README.md](../README.md) for the monorepo map.
 2. [../packages/chart-components/README.md](../packages/chart-components/README.md) for the library quick start.
 3. [zooming-and-streaming.md](zooming-and-streaming.md) for live data and zoom state.
-4. [annotations.md](annotations.md) for the annotation system.
-5. [bar-chart-patterns.md](bar-chart-patterns.md) for stacked and grouped bar behavior.
-6. [beat-charts-interactions-readme.md](beat-charts-interactions-readme.md) for a complex interaction example.
+4. [zoom-and-pan.md](zoom-and-pan.md) for wheel, pinch, drag, and value-axis zoom with `ChartZoomLayer`.
+5. [annotations.md](annotations.md) for the annotation system.
+6. [bar-chart-patterns.md](bar-chart-patterns.md) for stacked and grouped bar behavior.
+7. [beat-charts-interactions-readme.md](beat-charts-interactions-readme.md) for a complex interaction example.
 
 ## What belongs here
 

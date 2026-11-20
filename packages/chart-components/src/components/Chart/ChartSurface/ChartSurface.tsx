@@ -60,15 +60,25 @@ const EMPTY_ROWS: Record<string, unknown>[] = []
 const byLayerOrder = (a: ChartLayer, b: ChartLayer) => a.order - b.order
 const sortLayers = (layers: ChartLayer[]) => [...layers].sort(byLayerOrder)
 const appendLayer = (layer: ChartLayer) => (previous: ChartLayer[]) => [...previous, layer]
-const replaceLayer = (id: string, draw: ChartLayerRenderer, order: number | undefined) => (previous: ChartLayer[]) =>
-  previous.map((layer) => (layer.id === id ? { id, order: order ?? layer.order, draw } : layer))
+const replaceLayer =
+  (id: string, draw: ChartLayerRenderer, options: ChartLayerOptions | undefined) => (previous: ChartLayer[]) =>
+    previous.map((layer) =>
+      layer.id === id
+        ? {
+            id,
+            order: options?.order ?? layer.order,
+            clip: options?.clip ?? layer.clip,
+            draw
+          }
+        : layer
+    )
 const removeLayer = (id: string) => (previous: ChartLayer[]) => previous.filter((layer) => layer.id !== id)
 
 const createLayerHandle = (
   id: string,
   setLayers: React.Dispatch<React.SetStateAction<ChartLayer[]>>
 ): ChartLayerHandle => ({
-  update: (nextDraw, nextOptions) => setLayers(replaceLayer(id, nextDraw, nextOptions?.order)),
+  update: (nextDraw, nextOptions) => setLayers(replaceLayer(id, nextDraw, nextOptions)),
   unregister: () => setLayers(removeLayer(id))
 })
 
@@ -80,9 +90,21 @@ const drawLayerRange = (
   context: CanvasRenderingContext2D,
   helpers: ChartSurfaceRenderHelpers
 ) => {
+  const { chartArea } = helpers
   for (const layer of layers) {
     if (layer.order >= minOrder && layer.order < maxOrder) {
-      layer.draw(context, helpers)
+      if (layer.clip) {
+        // Horizontal padding keeps the stroke of a line that ends on the first or last sample whole.
+        const padding = 4
+        context.save()
+        context.beginPath()
+        context.rect(chartArea.x - padding, chartArea.y, chartArea.width + padding * 2, chartArea.height)
+        context.clip()
+        layer.draw(context, helpers)
+        context.restore()
+      } else {
+        layer.draw(context, helpers)
+      }
     }
   }
 }
@@ -158,6 +180,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     left: [],
     right: []
   })
+  // Axis registration id -> the value scale that axis draws.
+  const yAxisScaleIdsRef = useRef(new Map<string, string>())
   const yAxisIdRef = useRef(0)
   const [yAxisCounts, setYAxisCounts] = useState<{ left: number; right: number }>(() => ({ left: 0, right: 0 }))
   const [horizontalBarCount, setHorizontalBarCount] = useState(0)
@@ -201,10 +225,11 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     [recomputeCursorOptions]
   )
 
-  const registerYAxis = useCallback((side: 'left' | 'right') => {
+  const registerYAxis = useCallback((side: 'left' | 'right', scaleId: string) => {
     const id = `y-axis-${(yAxisIdRef.current += 1)}`
     const registry = yAxisRegistryRef.current
     registry[side] = [...registry[side], id]
+    yAxisScaleIdsRef.current.set(id, scaleId)
     setYAxisCounts({
       left: registry.left.length,
       right: registry.right.length
@@ -215,12 +240,18 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       unregister: () => {
         const current = yAxisRegistryRef.current
         current[side] = current[side].filter((axisId) => axisId !== id)
+        yAxisScaleIdsRef.current.delete(id)
         setYAxisCounts({
           left: current.left.length,
           right: current.right.length
         })
       }
     }
+  }, [])
+
+  const getYAxisScaleId = useCallback((side: 'left' | 'right', index: number) => {
+    const id = yAxisRegistryRef.current[side][index]
+    return id === undefined ? null : (yAxisScaleIdsRef.current.get(id) ?? null)
   }, [])
 
   const registerHorizontalBars = useCallback(() => {
@@ -237,7 +268,7 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
 
   const registerLayer = useCallback((draw: ChartLayerRenderer, options: ChartLayerOptions = {}) => {
     const id = `layer-${(layerIdRef.current += 1)}`
-    setLayers(appendLayer({ id, order: options.order ?? 0, draw }))
+    setLayers(appendLayer({ id, order: options.order ?? 0, clip: options.clip ?? false, draw }))
     return createLayerHandle(id, setLayers)
   }, [])
 
@@ -414,6 +445,59 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
     [defaultValueDomain, valueDomainsByScale]
   )
 
+  // Same as valueDomainsByScale but without `domain` overrides, so zoom can clamp to the full data extent.
+  const autoValueDomainsByScale = useMemo<Record<string, ValueDomain>>(() => {
+    const domains: Record<string, ValueDomain> = {}
+
+    resolvedValueScales.forEach((scale) => {
+      let min = Number.POSITIVE_INFINITY
+      let max = Number.NEGATIVE_INFINITY
+
+      scale.dataKeys.forEach((key) => {
+        const stats = perKeyStats.get(key)
+        if (stats) {
+          min = Math.min(min, stats.min)
+          max = Math.max(max, stats.max)
+        }
+      })
+
+      domains[scale.id] = computeDomain(min, max)
+    })
+
+    return domains
+  }, [perKeyStats, resolvedValueScales])
+
+  const getAutoScaleDomain = useCallback(
+    (scaleId: string) => autoValueDomainsByScale[scaleId] ?? DEFAULT_VALUE_DOMAIN,
+    [autoValueDomainsByScale]
+  )
+
+  // The padded extent of every sample of each scale, ignoring the visible range and overrides. Value
+  // pans and zooms stay inside it, so a window can always reach any part of the data.
+  const fullValueDomainsByScale = useMemo<Record<string, ValueDomain>>(() => {
+    const domains: Record<string, ValueDomain> = {}
+
+    resolvedValueScales.forEach((scale) => {
+      let min = Number.POSITIVE_INFINITY
+      let max = Number.NEGATIVE_INFINITY
+
+      scale.dataKeys.forEach((key) => {
+        const extent = dataStore.extent(key, 0, dataLength)
+        min = Math.min(min, extent.min)
+        max = Math.max(max, extent.max)
+      })
+
+      domains[scale.id] = computeDomain(min, max)
+    })
+
+    return domains
+  }, [dataLength, dataStore, resolvedValueScales])
+
+  const getFullScaleDomain = useCallback(
+    (scaleId: string) => fullValueDomainsByScale[scaleId] ?? DEFAULT_VALUE_DOMAIN,
+    [fullValueDomainsByScale]
+  )
+
   const getScaleIdForKey = useCallback(
     (dataKey: string) => scaleAssignments.get(dataKey) ?? defaultScaleId,
     [defaultScaleId, scaleAssignments]
@@ -432,9 +516,10 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
         return chartArea.y + chartArea.height / 2
       }
 
+      // Not clamped: values outside the visible window map outside the plot. Series layers clip to the
+      // plot area, and hit testing ignores points that fall outside it.
       const normalized = (value - domain.paddedMin) / denominator
-      const clamped = Math.max(0, Math.min(1, normalized))
-      return chartArea.y + chartArea.height - clamped * chartArea.height
+      return chartArea.y + chartArea.height - normalized * chartArea.height
     },
     [chartArea.height, chartArea.y, defaultValueDomain, valueDomainsByScale]
   )
@@ -518,9 +603,21 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       end: resolvedView.end,
       getX: getXPosition,
       getIndexAt: getIndexAtPosition,
-      getYForKey: getYPositionForKey
+      getYForKey: getYPositionForKey,
+      plotTop: chartArea.y,
+      plotBottom: chartArea.y + chartArea.height
     }),
-    [dataStore, getIndexAtPosition, getXPosition, getYPositionForKey, resolvedView.end, resolvedView.start, resolvedYKeys]
+    [
+      dataStore,
+      chartArea.height,
+      chartArea.y,
+      getIndexAtPosition,
+      getXPosition,
+      getYPositionForKey,
+      resolvedView.end,
+      resolvedView.start,
+      resolvedYKeys
+    ]
   )
 
   const findNearestPoint = useCallback(
@@ -1243,9 +1340,19 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       requestRender,
       registerYAxis,
       getYAxisIndex,
+      getYAxisScaleId,
       registerHorizontalBars
     }),
-    [registerCursorOptions, registerHorizontalBars, registerLayer, registerYAxis, getYAxisIndex, requestRender, setAxisTicks]
+    [
+      registerCursorOptions,
+      registerHorizontalBars,
+      registerLayer,
+      registerYAxis,
+      getYAxisIndex,
+      getYAxisScaleId,
+      requestRender,
+      setAxisTicks
+    ]
   )
 
   const contextValue = useMemo<ChartSurfaceContextValue>(
@@ -1267,6 +1374,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
           getYPositionForScale,
           getYPositionForKey,
           getScaleDomain,
+          getAutoScaleDomain,
+          getFullScaleDomain,
           getScaleIdForKey,
           axisTicks,
           getColorForKey,
@@ -1285,6 +1394,8 @@ export const ChartSurface: React.FC<ChartSurfaceProps> = ({
       data,
       dataAccessors,
       defaultScaleId,
+      getAutoScaleDomain,
+      getFullScaleDomain,
       getColorForKey,
       getScaleDomain,
       getScaleIdForKey,

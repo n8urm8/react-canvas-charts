@@ -31,6 +31,8 @@ import {
 } from 'react-canvas-charts'
 import type { InteractiveChartConfig, InteractiveChartToolbarTool } from './types'
 
+const NO_VALUE_DOMAINS: Record<string, { min: number; max: number }> = {}
+
 type InteractiveChartCanvasProps = {
   /** Column-oriented samples (typed arrays). */
   columns: ChartColumnarData
@@ -41,6 +43,10 @@ type InteractiveChartCanvasProps = {
   onSelectionChange?: (selection: ChartSelectionResult | null) => void
   /** Receives wheel / pinch / pan zoom steps when the zoom layer is enabled in the config. */
   onViewRangeChange?: (range: ChartViewRange) => void
+  /** Value-axis domains the user zoomed or panned. Absent means automatic. */
+  valueDomains?: Record<string, { min: number; max: number }>
+  /** Receives the new domain of a value axis zoomed or panned over its labels. `null` means automatic. */
+  onValueDomainChange?: (scaleId: string, domain: { min: number; max: number } | null) => void
   chartAiApiKey?: string
   toolbarTools?: InteractiveChartToolbarTool[]
   toolbarEnabled?: boolean
@@ -73,6 +79,8 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
   selection,
   onSelectionChange,
   onViewRangeChange,
+  valueDomains = NO_VALUE_DOMAINS,
+  onValueDomainChange,
   chartAiApiKey,
   toolbarTools: toolbarToolsOverride,
   toolbarEnabled,
@@ -146,9 +154,10 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
     () =>
       resolvedAxes.map((axis) => ({
         id: axis.id,
-        dataKeys: resolvedSeries.filter((series) => series.axisId === axis.id).map((series) => series.id)
+        dataKeys: resolvedSeries.filter((series) => series.axisId === axis.id).map((series) => series.id),
+        domain: valueDomains[axis.id]
       })),
-    [resolvedAxes, resolvedSeries]
+    [resolvedAxes, resolvedSeries, valueDomains]
   )
 
   const defaultToolbarTools = useMemo<InteractiveChartToolbarTool[]>(
@@ -357,6 +366,7 @@ export const InteractiveChartCanvas: React.FC<InteractiveChartCanvasProps> = ({
         {config.enableZoomLayer && onViewRangeChange ? (
           <ChartZoomLayer
             onViewRangeChange={onViewRangeChange}
+            onValueDomainChange={onValueDomainChange}
             wheel={config.zoomWheelMode === 'off' ? false : config.zoomWheelMode}
           />
         ) : null}

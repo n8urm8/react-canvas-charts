@@ -82,7 +82,7 @@ export const ChartAreaSeries: React.FC<ChartAreaSeriesProps> = ({
     [baseline, color, dataKey, opacity, show]
   )
 
-  const layerOptions = useMemo(() => ({ order: LayerOrder.area }), [])
+  const layerOptions = useMemo(() => ({ order: LayerOrder.area, clip: true }), [])
   useChartLayer(draw, layerOptions)
 
   return null

@@ -42,7 +42,7 @@ export const ChartValueLabels: React.FC<ChartValueLabelsProps> = ({
     [dataKey, labelProps, maxRenderedLabels]
   )
 
-  const layerOptions = useMemo(() => ({ order: LayerOrder.points }), [])
+  const layerOptions = useMemo(() => ({ order: LayerOrder.points, clip: true }), [])
   useChartLayer(draw, layerOptions)
 
   return null

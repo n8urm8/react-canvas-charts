@@ -21,6 +21,9 @@ export const mergeMargin = (custom: Partial<ChartMargin> | undefined, defaultMar
   left: custom?.left ?? defaultMargin.left
 })
 
+/** Fraction of the data range added above and below it when a value domain is padded. */
+const DOMAIN_PADDING_RATIO = 0.1
+
 /**
  * Computes a value domain with padding
  */
@@ -39,7 +42,7 @@ export const computeDomain = (minValue: number, maxValue: number): ValueDomain =
   }
 
   const range = max - min
-  const padding = range === 0 ? 1 : range * 0.1
+  const padding = range === 0 ? 1 : range * DOMAIN_PADDING_RATIO
 
   return {
     min,
@@ -47,6 +50,17 @@ export const computeDomain = (minValue: number, maxValue: number): ValueDomain =
     paddedMin: min - padding,
     paddedMax: max + padding
   }
+}
+
+/**
+ * Inverse of `computeDomain`: the data range whose padded extent is `[paddedMin, paddedMax]`.
+ * Passing the result back as a value scale `domain` makes the surface draw that exact padded window.
+ */
+export const dataRangeForPaddedWindow = (paddedMin: number, paddedMax: number): { min: number; max: number } => {
+  const paddedRange = paddedMax - paddedMin
+  const range = paddedRange / (1 + 2 * DOMAIN_PADDING_RATIO)
+  const padding = range * DOMAIN_PADDING_RATIO
+  return { min: paddedMin + padding, max: paddedMax - padding }
 }
 
 /**

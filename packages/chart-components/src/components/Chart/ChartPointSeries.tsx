@@ -85,7 +85,7 @@ export const ChartPointSeries: React.FC<ChartPointSeriesProps> = ({
     [color, dataKey, fillColor, maxRenderedPoints, maxSize, minSize, pointProps, sizeKey]
   )
 
-  const layerOptions = useMemo(() => ({ order: LayerOrder.points }), [])
+  const layerOptions = useMemo(() => ({ order: LayerOrder.points, clip: true }), [])
   useChartLayer(draw, layerOptions)
 
   return null

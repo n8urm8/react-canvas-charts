@@ -202,6 +202,11 @@ export const ChartCustomTagsLayer: React.FC<ChartCustomTagsLayerProps> = ({
               ? getYPositionForScale(tag.scaleId, tag.yValue)
               : getYPosition(tag.yValue)
 
+          // Tags are not clipped like the data layers, so hide the ones whose value is outside the plot.
+          if (y < chartArea.y || y > chartArea.y + chartArea.height) {
+            return null
+          }
+
           return (
             <div
               key={tag.id}

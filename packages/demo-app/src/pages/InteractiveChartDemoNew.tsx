@@ -178,6 +178,18 @@ const positionsEqual = (a?: ChartToolbarPosition, b?: ChartToolbarPosition): boo
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
 
+/** Zoom In stops once the view is this many index steps wide. */
+const MIN_ZOOM_SPAN = 4
+
+/** Half the span of `range`, centred on it, but never tighter than MIN_ZOOM_SPAN. */
+const centredZoomRange = (range: { start: number; end: number }): { start: number; end: number } => {
+  const span = range.end - range.start
+  const nextSpan = Math.max(MIN_ZOOM_SPAN, Math.round(span / 2))
+  const center = (range.start + range.end) / 2
+  const start = clamp(Math.round(center - nextSpan / 2), range.start, range.end - nextSpan)
+  return { start, end: start + nextSpan }
+}
+
 const getNextSeriesIndex = (series: InteractiveChartSeriesConfig[]): number => {
   const indices = series
     .map(({ id }) => Number.parseInt(id.replace('series-', ''), 10))
@@ -203,6 +215,8 @@ export const InteractiveChartDemoNew: FC = () => {
   const [customTagPlacementEnabled, setCustomTagPlacementEnabled] = useState(false)
   const [lastCustomTagPlacement, setLastCustomTagPlacement] = useState<ChartTagPlacement | null>(null)
   const [zoomStack, setZoomStack] = useState<ZoomRange[]>([{ start: 0, end: INITIAL_POINT_COUNT - 1 }])
+  // Value-axis domains the user zoomed or panned by gesturing over that axis. Absent means automatic.
+  const [valueDomains, setValueDomains] = useState<Record<string, { min: number; max: number }>>({})
   const [selectionResetKey, setSelectionResetKey] = useState(0)
   const [selection, setSelection] = useState<ChartSelectionResult | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -460,13 +474,29 @@ export const InteractiveChartDemoNew: FC = () => {
     [liveEnd, liveStart]
   )
 
+  const handleValueDomainChange = useCallback((scaleId: string, domain: { min: number; max: number } | null) => {
+    setValueDomains((previous) => {
+      const next = { ...previous }
+      if (domain) {
+        next[scaleId] = domain
+      } else {
+        delete next[scaleId]
+      }
+      return next
+    })
+  }, [])
+
   // Columnar view over the typed buffers; no per-point objects are created.
   const chartColumns = useMemo(() => toChartColumns(timeSeries), [timeSeries])
 
   const previewRecords = useMemo(() => sampleRecords(timeSeries, 2) as ChartRecord[], [timeSeries])
 
-  const canZoomIn = Boolean(selection && selection.minIndex < selection.maxIndex && visibleCount > 0)
-  const canZoomOut = zoomStack.length > 1
+  // Zoom In zooms to a selection, or around the centre of the view when nothing is selected.
+  const hasSelectionRange = Boolean(selection && selection.minIndex < selection.maxIndex)
+  const canZoomIn = hasSelectionRange || visibleRange.end - visibleRange.start > MIN_ZOOM_SPAN
+  const hasXZoom = zoomStack.length > 1
+  const hasValueZoom = Object.keys(valueDomains).length > 0
+  const canZoomOut = hasXZoom || hasValueZoom
 
   const toolbarTools = useMemo<InteractiveChartToolbarTool[]>(
     () => [
@@ -474,10 +504,14 @@ export const InteractiveChartDemoNew: FC = () => {
         id: 'zoom-in',
         label: 'Zoom In',
         icon: <ZoomIn className="h-4 w-4" />,
-        ariaLabel: 'Zoom in to selection',
+        ariaLabel: 'Zoom in',
         showLabel: false,
         disabled: !canZoomIn,
-        tooltip: canZoomIn ? 'Zoom to selection' : 'Select a range to enable zoom in'
+        tooltip: hasSelectionRange
+          ? 'Zoom to selection'
+          : canZoomIn
+            ? 'Zoom in on the centre'
+            : 'Already at maximum zoom'
       },
       {
         id: 'zoom-out',
@@ -525,27 +559,29 @@ export const InteractiveChartDemoNew: FC = () => {
         tooltip: 'Draw freehand annotation'
       }
     ],
-    [canZoomIn, canZoomOut]
+    [canZoomIn, canZoomOut, hasSelectionRange]
   )
 
   const handleToolbarToggle = useCallback(
     (tool: InteractiveChartToolbarTool, _isActive: boolean, _nextActive: string[]) => {
       void _nextActive
       if (tool.id === 'zoom-in') {
-        if (!canZoomIn || !selection) {
+        if (!canZoomIn) {
           return
         }
 
-        // Selection indices are absolute data indices.
-        const nextStart = selection.minIndex
-        const nextEnd = selection.maxIndex
+        // Selection indices are absolute data indices. Without a selection, zoom in on the centre of the view.
+        const nextRange =
+          hasSelectionRange && selection
+            ? { start: selection.minIndex, end: selection.maxIndex }
+            : centredZoomRange(visibleRange)
 
         setZoomStack((previous) => {
           const current = previous[previous.length - 1]
-          if (current && current.start === nextStart && current.end === nextEnd) {
+          if (current && current.start === nextRange.start && current.end === nextRange.end) {
             return previous
           }
-          return [...previous, { start: nextStart, end: nextEnd }]
+          return [...previous, nextRange]
         })
         setSelection(null)
         setSelectionResetKey((key) => key + 1)
@@ -556,15 +592,20 @@ export const InteractiveChartDemoNew: FC = () => {
         if (!canZoomOut) {
           return
         }
-        setZoomStack((previous) => (previous.length > 1 ? previous.slice(0, -1) : previous))
-        setSelection(null)
-        setSelectionResetKey((key) => key + 1)
+        if (hasXZoom) {
+          setZoomStack((previous) => (previous.length > 1 ? previous.slice(0, -1) : previous))
+          setSelection(null)
+          setSelectionResetKey((key) => key + 1)
+        } else {
+          // Only value axes are zoomed: returning them to automatic is the step back.
+          setValueDomains({})
+        }
         return
       }
 
       // Annotation tools
     },
-    [canZoomIn, canZoomOut, selection, setSelectionResetKey]
+    [canZoomIn, canZoomOut, hasSelectionRange, hasXZoom, selection, setSelectionResetKey, visibleRange]
   )
 
   const codePreview = useMemo(
@@ -872,6 +913,8 @@ export const InteractiveChartDemoNew: FC = () => {
                 selection={selection}
                 onSelectionChange={handleSelectionChange}
                 onViewRangeChange={handleViewRangeChange}
+                valueDomains={valueDomains}
+                onValueDomainChange={handleValueDomainChange}
                 toolbarTools={toolbarTools}
                 toolbarEnabled={config.toolbar?.enabled !== false}
                 toolbarMultiSelect={false}

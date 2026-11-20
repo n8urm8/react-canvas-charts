@@ -47,12 +47,12 @@ export const ChartYAxis: React.FC<ChartYAxisProps> = ({
   const [registrationId, setRegistrationId] = useState<string | null>(null)
 
   useEffect(() => {
-    const handle = registerYAxis(side)
+    const handle = registerYAxis(side, resolvedScaleId)
     setRegistrationId(handle.id)
     return () => {
       handle.unregister()
     }
-  }, [registerYAxis, side])
+  }, [registerYAxis, resolvedScaleId, side])
 
   const layerOptions = useMemo(() => ({ order: LayerOrder.axes }), [])
 

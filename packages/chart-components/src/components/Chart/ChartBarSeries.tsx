@@ -235,7 +235,7 @@ export const ChartBarSeries: React.FC<ChartBarSeriesProps> = ({
     [bars, fillColor, opacity, show]
   )
 
-  const layerOptions = useMemo(() => ({ order: LayerOrder.series }), [])
+  const layerOptions = useMemo(() => ({ order: LayerOrder.series, clip: true }), [])
   useChartLayer(draw, layerOptions)
 
   return null

@@ -10,6 +10,9 @@ export interface HitTestGeometry {
   /** Inverse of getX: fractional index at a pixel x. */
   getIndexAt: (x: number) => number
   getYForKey: (key: string, value: number) => number
+  /** Vertical bounds of the plot in pixels. Points outside them are drawn clipped, so they are never hit. */
+  plotTop: number
+  plotBottom: number
 }
 
 export interface IndexedHit {
@@ -34,12 +37,15 @@ export const nearestIndexAtX = (geometry: HitTestGeometry, x: number): number | 
   return clampIndex(geometry, Math.round(geometry.getIndexAt(x)))
 }
 
+const isInPlotY = (geometry: HitTestGeometry, y: number) => y >= geometry.plotTop && y <= geometry.plotBottom
+
 const bestSeriesAtIndex = (geometry: HitTestGeometry, index: number, pointerY: number): IndexedHit | null => {
   let best: IndexedHit | null = null
   geometry.keys.forEach((key, seriesIndex) => {
     const value = geometry.store.value(key, index)
     if (Number.isNaN(value)) return
     const y = geometry.getYForKey(key, value)
+    if (!isInPlotY(geometry, y)) return
     const dy = Math.abs(y - pointerY)
     if (!best || dy < Math.abs(best.y - pointerY)) {
       best = { index, key, seriesIndex, value, x: geometry.getX(index), y, distance: 0 }
@@ -95,6 +101,7 @@ export const findNearestIndexedPoint = (
     if (Number.isNaN(value)) return
     const x = geometry.getX(index)
     const y = geometry.getYForKey(key, value)
+    if (!isInPlotY(geometry, y)) return
     const dx = x - pointerX
     const dy = y - pointerY
     const distSq = dx * dx + dy * dy

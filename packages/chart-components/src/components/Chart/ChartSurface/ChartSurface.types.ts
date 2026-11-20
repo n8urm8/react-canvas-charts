@@ -101,6 +101,11 @@ export interface ValueScaleDefinition {
 // Layer types
 export interface ChartLayerOptions {
   order?: number
+  /**
+   * Clip drawing to the plot area. Use for layers that draw data (lines, areas, points, bars), so
+   * values outside the visible window disappear at the plot edge instead of spilling onto the axes.
+   */
+  clip?: boolean
 }
 
 export interface ChartLayerHandle {
@@ -111,6 +116,7 @@ export interface ChartLayerHandle {
 export interface ChartLayer {
   id: string
   order: number
+  clip: boolean
   draw: ChartLayerRenderer
 }
 
@@ -183,8 +189,10 @@ export interface ChartSurfaceStableContextValue {
   setAxisTicks: (axis: 'x' | 'y', descriptor: AxisTickDescriptor | null) => void
   registerCursorOptions: (options: Partial<CursorOptions>) => () => void
   requestRender: () => void
-  registerYAxis: (side: 'left' | 'right') => { id: string; unregister: () => void }
+  registerYAxis: (side: 'left' | 'right', scaleId: string) => { id: string; unregister: () => void }
   getYAxisIndex: (id: string, side: 'left' | 'right') => number
+  /** Value scale id of the registered y-axis at `index` on `side`, or null when there is none. */
+  getYAxisScaleId: (side: 'left' | 'right', index: number) => string | null
   registerHorizontalBars: () => () => void
 }
 
@@ -205,6 +213,10 @@ export interface ChartSurfaceContextValue
   getYPositionForScale: (scaleId: string, value: number) => number
   getYPositionForKey: (dataKey: string, value: number) => number
   getScaleDomain: (scaleId: string) => ValueDomain
+  /** The domain the scale would have without a `domain` override: the data extent, padded. */
+  getAutoScaleDomain: (scaleId: string) => ValueDomain
+  /** The padded extent of all the scale's data, ignoring the visible range and any domain override. */
+  getFullScaleDomain: (scaleId: string) => ValueDomain
   getScaleIdForKey: (dataKey: string) => string
   defaultScaleId: string
   axisTicks: AxisTickState

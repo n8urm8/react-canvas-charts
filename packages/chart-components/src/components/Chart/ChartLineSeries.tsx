@@ -40,7 +40,7 @@ export const ChartLineSeries: React.FC<ChartLineSeriesProps> = ({ dataKey, color
     [color, dataKey, lineProps, seriesIndex]
   )
 
-  const layerOptions = useMemo(() => ({ order: LayerOrder.series }), [])
+  const layerOptions = useMemo(() => ({ order: LayerOrder.series, clip: true }), [])
   useChartLayer(draw, layerOptions)
 
   return null
